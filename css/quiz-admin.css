@@ -1,0 +1,108 @@
+/* ACF Quiz System - Admin Styles */
+
+.acf-field-group-quiz-settings {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.acf-field-group-quiz-settings .acf-field {
+    border-bottom: 1px solid #eee;
+}
+
+.acf-field-group-quiz-settings .acf-field:last-child {
+    border-bottom: none;
+}
+
+/* Question blocks styling */
+.acf-field-quiz-questions .acf-repeater .acf-row {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.acf-field-quiz-questions .acf-repeater .acf-row-handle {
+    background: #0073aa;
+    color: white;
+    padding: 10px;
+    border-radius: 4px 4px 0 0;
+    font-weight: bold;
+}
+
+/* Answer options table styling */
+.acf-field-question-answers .acf-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.acf-field-question-answers .acf-table th {
+    background: #f1f1f1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    font-weight: bold;
+}
+
+.acf-field-question-answers .acf-table td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    vertical-align: middle;
+}
+
+/* Correct answer checkbox styling */
+.acf-field-is-correct .acf-switch {
+    background: #ddd;
+}
+
+.acf-field-is-correct .acf-switch.-on {
+    background: #46b450;
+}
+
+/* Instructions styling */
+.acf-field .acf-label .description {
+    color: #666;
+    font-style: italic;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Success/Error message fields */
+.acf-field-success-message,
+.acf-field-failure-message {
+    background: #f9f9f9;
+    border-left: 4px solid #0073aa;
+    padding-left: 15px;
+}
+
+.acf-field-success-message {
+    border-left-color: #46b450;
+}
+
+.acf-field-failure-message {
+    border-left-color: #dc3232;
+}
+
+/* Quiz configuration header */
+.acf-fields > .acf-field-quiz-title,
+.acf-fields > .acf-field-passing-percentage {
+    background: #f1f1f1;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+/* Responsive admin styles */
+@media (max-width: 782px) {
+    .acf-field-quiz-questions .acf-repeater .acf-row {
+        padding: 10px;
+    }
+    
+    .acf-field-question-answers .acf-table {
+        font-size: 12px;
+    }
+    
+    .acf-field-question-answers .acf-table th,
+    .acf-field-question-answers .acf-table td {
+        padding: 5px;
+    }
+}
