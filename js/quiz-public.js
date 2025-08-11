@@ -72,15 +72,61 @@ jQuery(document).ready(function($) {
             return totalQuestions === answeredQuestions;
         },
         
-        validateForm: function() {
-            const allAnswered = this.validateAllAnswered();
-            this.submitButton.prop('disabled', !allAnswered);
+        validatePersonalDetails: function() {
+            let isValid = true;
+            let errorMessage = '';
             
-            if (allAnswered) {
+            // Validate personal details
+            const userName = $('#user_name').val().trim();
+            const userPhone = $('#user_phone').val().trim();
+            const contactConsent = $('#contact_consent').is(':checked');
+            
+            if (!userName) {
+                isValid = false;
+                $('#user_name').addClass('error');
+                errorMessage = 'אנא מלא את השם המלא';
+            } else {
+                $('#user_name').removeClass('error');
+            }
+            
+            if (!userPhone) {
+                isValid = false;
+                $('#user_phone').addClass('error');
+                if (!errorMessage) errorMessage = 'אנא מלא את מספר הטלפון';
+            } else {
+                $('#user_phone').removeClass('error');
+            }
+            
+            if (!contactConsent) {
+                isValid = false;
+                $('#contact_consent').closest('.checkbox-group').addClass('error');
+                if (!errorMessage) errorMessage = 'אנא אשר את ההסכמה ליצירת קשר';
+            } else {
+                $('#contact_consent').closest('.checkbox-group').removeClass('error');
+            }
+            
+            return { isValid: isValid, errorMessage: errorMessage };
+        },
+
+        validateForm: function() {
+            const personalValidation = this.validatePersonalDetails();
+            const allAnswered = this.validateAllAnswered();
+            const isFormValid = personalValidation.isValid && allAnswered;
+            
+            this.submitButton.prop('disabled', !isFormValid);
+            
+            if (isFormValid) {
                 this.submitButton.removeClass('disabled');
             } else {
                 this.submitButton.addClass('disabled');
+                if (!personalValidation.isValid) {
+                    this.showError(personalValidation.errorMessage);
+                } else if (!allAnswered) {
+                    this.showError('אנא ענה על כל השאלות');
+                }
             }
+            
+            return isFormValid;
         },
         
         updateProgress: function() {
@@ -96,26 +142,25 @@ jQuery(document).ready(function($) {
             this.isSubmitting = true;
             this.setLoadingState(true);
             
-            // Collect all answers
-            const answers = {};
-            $('.answer-input:checked').each(function() {
-                const name = $(this).attr('name');
-                const value = $(this).val();
-                answers[name] = value;
-            });
+            // Collect all answers with their point values
+            const formData = new FormData();
+            formData.append('action', 'submit_quiz');
+            formData.append('quiz_nonce', $('#quiz_nonce').val());
             
-            // Prepare data
-            const formData = {
-                action: 'submit_quiz',
-                quiz_nonce: $('#quiz_nonce').val(),
-                answers: answers
-            };
+            // Add each answer to form data
+            $('.answer-input:checked').each(function() {
+                const name = $(this).attr('name'); // question_0, question_1, etc.
+                const value = $(this).val(); // points value (1-4)
+                formData.append(name, value);
+            });
             
             // Submit via AJAX
             $.ajax({
                 url: acfQuiz.ajaxUrl,
                 type: 'POST',
                 data: formData,
+                processData: false,
+                contentType: false,
                 dataType: 'json',
                 success: this.handleSuccess.bind(this),
                 error: this.handleError.bind(this),
@@ -144,17 +189,21 @@ jQuery(document).ready(function($) {
         
         displayResults: function(data) {
             // Update score display with RTL support
-            const scoreText = data.score_percentage + '%';
-            const correctAnswersText = data.correct_answers + ' תשובות נכונות מתוך ' + data.total_questions;
+            const scoreText = data.score + '/40';
+            const maxScore = data.max_score;
+            const percentage = data.score_percentage;
             
             $('#quiz-score').text(scoreText);
-            $('#correct-answers').text(correctAnswersText);
-            $('#result-message').text(data.message);
+            $('#result-message').html('<strong>' + data.message + '</strong>');
             
             // Add pass/fail class with RTL support
             this.resultsContainer.removeClass('passed failed');
             this.resultsContainer.addClass(data.passed ? 'passed' : 'failed');
             this.resultsContainer.attr('dir', 'rtl');
+            
+            // Show score message
+            let scoreMessage = 'ציון: ' + data.score + '/40 (' + percentage + '%)';
+            $('#score-message').text(scoreMessage);
             
             // Show results
             this.resultsContainer.slideDown(500);
