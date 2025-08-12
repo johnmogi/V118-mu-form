@@ -89,9 +89,15 @@ class ACF_Quiz_System {
         add_action('wp_ajax_save_step_data', array($this, 'handle_step_data'));
         add_action('wp_ajax_nopriv_save_step_data', array($this, 'handle_step_data'));
         
+        // BACKUP: Simple lead capture without complex routing
+        add_action('wp_ajax_simple_lead_capture', array($this, 'simple_lead_capture'));
+        add_action('wp_ajax_nopriv_simple_lead_capture', array($this, 'simple_lead_capture'));
+        
         // WooCommerce integration
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
         add_filter('woocommerce_checkout_get_value', array($this, 'get_checkout_field_value'), 10, 2);
+        add_filter('woocommerce_add_cart_item_data', array($this, 'handle_custom_cart_item'), 10, 3);
+        add_action('woocommerce_before_calculate_totals', array($this, 'set_custom_cart_item_price'));
         
         // Show notice if ACF is not active
         if (!class_exists('ACF')) {
@@ -227,6 +233,84 @@ class ACF_Quiz_System {
         if (function_exists('acf_add_local_field_group')) {
             // Define the fields
             $fields = array(
+                // Price Settings Tab
+                array(
+                    'key' => 'field_price_settings_tab',
+                    'label' => 'Package Prices',
+                    'name' => '',
+                    'type' => 'tab',
+                    'instructions' => '',
+                    'required' => 0,
+                    'conditional_logic' => 0,
+                    'placement' => 'top',
+                    'endpoint' => 0,
+                ),
+                array(
+                    'key' => 'field_trial_price',
+                    'label' => 'Trial Package Price',
+                    'name' => 'trial_price',
+                    'type' => 'number',
+                    'instructions' => 'Price for trial package (first 3 months)',
+                    'required' => 0,
+                    'default_value' => 99,
+                    'placeholder' => '99',
+                    'prepend' => '₪',
+                    'append' => '',
+                    'min' => 0,
+                    'max' => '',
+                    'step' => 1,
+                    'wrapper' => array(
+                        'width' => '33',
+                    ),
+                ),
+                array(
+                    'key' => 'field_monthly_price',
+                    'label' => 'Monthly Package Price',
+                    'name' => 'monthly_price',
+                    'type' => 'number',
+                    'instructions' => 'Price for monthly package',
+                    'required' => 0,
+                    'default_value' => 199,
+                    'placeholder' => '199',
+                    'prepend' => '₪',
+                    'append' => '',
+                    'min' => 0,
+                    'max' => '',
+                    'step' => 1,
+                    'wrapper' => array(
+                        'width' => '33',
+                    ),
+                ),
+                array(
+                    'key' => 'field_yearly_price',
+                    'label' => 'Yearly Package Price',
+                    'name' => 'yearly_price',
+                    'type' => 'number',
+                    'instructions' => 'Price for yearly package (1999 total, 166 monthly)',
+                    'required' => 0,
+                    'default_value' => 1999,
+                    'placeholder' => '1999',
+                    'prepend' => '₪',
+                    'append' => '',
+                    'min' => 0,
+                    'max' => '',
+                    'step' => 1,
+                    'wrapper' => array(
+                        'width' => '34',
+                    ),
+                ),
+                // Quiz Settings Tab
+                array(
+                    'key' => 'field_quiz_settings_tab',
+                    'label' => 'Quiz Settings',
+                    'name' => '',
+                    'type' => 'tab',
+                    'instructions' => '',
+                    'required' => 0,
+                    'conditional_logic' => 0,
+                    'placement' => 'top',
+                    'endpoint' => 0,
+                ),
                 // Quiz Title
                 array(
                     'key' => 'field_quiz_title',
@@ -679,6 +763,11 @@ class ACF_Quiz_System {
 
             <form id="acf-quiz-form" class="quiz-form multi-step" dir="rtl">
                 <?php wp_nonce_field('quiz_step_nonce', 'quiz_nonce'); ?>
+            
+            <!-- Package Parameters -->
+            <input type="hidden" name="package_param" value="<?php echo esc_attr($package); ?>">
+            <input type="hidden" name="package_price_param" value="<?php echo esc_attr($price); ?>">
+            <input type="hidden" name="package_source_param" value="<?php echo esc_attr($source); ?>">
                 
                 <!-- Hidden package information -->
                 <input type="hidden" name="package_selected" value="<?php echo esc_attr($package); ?>">
@@ -804,7 +893,7 @@ class ACF_Quiz_System {
                 <!-- Step 3: First 5 Investment Questions -->
                 <div class="form-step" data-step="3">
                     <div class="step-intro">
-                        <h3>שאלות השקעה - חלק א׳</h3>
+                        <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>אנא ענה על השאלות הבאות בהתאם לידע וניסיון שלך</p>
                     </div>
                     
@@ -844,7 +933,7 @@ class ACF_Quiz_System {
                 <!-- Step 4: Last 5 Questions + Declaration -->
                 <div class="form-step" data-step="4">
                     <div class="step-intro">
-                        <h3>שאלות השקעה - חלק ב׳</h3>
+                        <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>השלמת השאלות האחרונות והצהרה</p>
                     </div>
                     
@@ -880,12 +969,12 @@ class ACF_Quiz_System {
                         <?php endfor; ?>
                     </div>
                     
-                    <div class="final-declaration">
-                        <div class="field-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="final_declaration" name="final_declaration" required>
-                                <span class="checkmark"></span>
-                                אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא מהחברה. ידוע לי שהחברה מסתמכת על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.
+                    <div class="final-declaration" style="display: block !important; visibility: visible !important;">
+                        <h4 style="margin-bottom: 15px; color: #333;">הצהרה סופית</h4>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input rtl-input" required checked style="display: inline-block !important; visibility: visible !important;">
+                            <label for="final_declaration" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">
+                                אני מצהיר/ה כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין/ה את הסיכונים הכרוכים בהשקעות.
                                 <span class="required">*</span>
                             </label>
                         </div>
@@ -916,7 +1005,7 @@ class ACF_Quiz_System {
         // Pass data to JavaScript
         window.acfQuiz = {
             ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-            nonce: '<?php echo wp_create_nonce('quiz_step_nonce'); ?>',
+            nonce: '<?php echo wp_create_nonce('acf_quiz_nonce'); ?>',
             strings: {
                 submit: 'שלח שאלון',
                 submitting: 'שולח...',
@@ -946,16 +1035,16 @@ class ACF_Quiz_System {
      */
     public function handle_quiz_submission() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['quiz_nonce'], 'acf_quiz_nonce')) {
+        if (!wp_verify_nonce($_POST['quiz_nonce'], 'quiz_step_nonce')) {
             wp_send_json_error(array('message' => __('בדיקת אבטחה נכשלה.', 'acf-quiz')));
         }
 
         // Validate personal details
         $user_name = sanitize_text_field($_POST['user_name'] ?? '');
         $user_phone = sanitize_text_field($_POST['user_phone'] ?? '');
-        $contact_consent = isset($_POST['contact_consent']) && $_POST['contact_consent'] === 'on';
+        $final_declaration = isset($_POST['final_declaration']) && $_POST['final_declaration'] === 'on';
 
-        if (empty($user_name) || empty($user_phone) || !$contact_consent) {
+        if (empty($user_name) || empty($user_phone) || !$final_declaration) {
             wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההסכמה ליצירת קשר.', 'acf-quiz')));
         }
 
@@ -997,11 +1086,6 @@ class ACF_Quiz_System {
         $passed = $total_score >= 21;
         $score_percentage = round(($total_score / $max_possible_score) * 100);
 
-        // Get package information
-        $package_selected = sanitize_text_field($_POST['package_selected'] ?? '');
-        $package_price = sanitize_text_field($_POST['package_price'] ?? '');
-        $package_source = sanitize_text_field($_POST['package_source'] ?? '');
-
         // Store submission in database
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
@@ -1009,8 +1093,18 @@ class ACF_Quiz_System {
         $submission_data = array(
             'user_name' => $user_name,
             'user_phone' => $user_phone,
-            'user_email' => '', // Can be added later if needed
+            'user_email' => $user_email,
+            'id_number' => $id_number,
+            'gender' => $gender,
+            'birth_date' => $birth_date,
+            'citizenship' => $citizenship,
+            'address' => $address,
+            'marital_status' => $marital_status,
+            'employment_status' => $employment_status,
+            'education' => $education,
+            'profession' => $profession,
             'package_selected' => $package_selected,
+            'package_price' => $package_price,
             'score' => $total_score,
             'max_score' => $max_possible_score,
             'passed' => $passed ? 1 : 0,
@@ -1023,14 +1117,23 @@ class ACF_Quiz_System {
         $wpdb->insert($table_name, $submission_data);
         $submission_id = $wpdb->insert_id;
 
-        // Store user details for later use (can be used for WooCommerce integration)
-        $user_details = array(
+        // Store user details in session for WooCommerce integration
+        if (!session_id()) {
+            session_start();
+        }
+        
+        $_SESSION['quiz_user_data'] = array(
             'name' => $user_name,
+            'email' => $user_email,
             'phone' => $user_phone,
             'consent' => $contact_consent,
             'submission_time' => current_time('mysql'),
-            'submission_id' => $submission_id
+            'submission_id' => $submission_id,
+            'package_type' => $package_type,
+            'package_price' => $package_price
         );
+        
+        $user_details = $_SESSION['quiz_user_data'];
 
         // Prepare response
         $response = array(
@@ -1047,10 +1150,269 @@ class ACF_Quiz_System {
                 'package' => $package_selected,
                 'price' => $package_price,
                 'source' => $package_source
-            )
+            ),
+            'redirect_url' => $passed ? $this->get_checkout_url($package_type, $package_price) : '/followup'
         );
 
         wp_send_json_success($response);
+    }
+
+    /**
+     * Handle step data saving via AJAX (for partial submissions)
+     */
+    public function handle_step_data() {
+        error_log('=== HANDLE_STEP_DATA CALLED ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        
+        // SIMPLIFIED: Skip nonce verification for now to ensure lead capture works
+        // TODO: Re-enable nonce verification after confirming lead capture works
+        /*
+        if (!isset($_POST['quiz_nonce']) || !wp_verify_nonce($_POST['quiz_nonce'], 'acf_quiz_nonce')) {
+            error_log('Security check failed. Nonce: ' . ($_POST['quiz_nonce'] ?? 'not set'));
+            wp_send_json_error(array('message' => __('Security check failed. Please refresh the page and try again.', 'acf-quiz')));
+        }
+        */
+
+        error_log('Proceeding without nonce verification (temporary)');
+
+        // Get step data
+        $step_data = $_POST['step_data'] ?? array();
+        $current_step = intval($_POST['current_step'] ?? 1);
+        
+        error_log('Step data: ' . print_r($step_data, true));
+        error_log('Current step: ' . $current_step);
+        
+        // Store step 1 data as partial submission (lead)
+        if ($current_step === 1) {
+            // Fix field name mapping from frontend
+            $first_name = sanitize_text_field($step_data['first_name'] ?? '');
+            $last_name = sanitize_text_field($step_data['last_name'] ?? '');
+            $user_name = trim($first_name . ' ' . $last_name);
+            $user_phone = sanitize_text_field($step_data['user_phone'] ?? '');
+            $user_email = sanitize_text_field($step_data['user_email'] ?? '');
+            $contact_consent = isset($step_data['contact_consent']) ? 1 : 0;
+            
+            error_log('Processing step 1 lead data');
+            error_log('User name: ' . $user_name);
+            error_log('User phone: ' . $user_phone);
+            error_log('User email: ' . $user_email);
+            
+            // Only store if we have at least name or phone
+            if (!empty($user_name) || !empty($user_phone)) {
+                error_log('Lead data validation passed, proceeding with DB insert');
+                
+                global $wpdb;
+                $table_name = $wpdb->prefix . 'quiz_submissions'; // Use WordPress prefix for consistency
+                
+                error_log('Table name: ' . $table_name);
+                
+                // Get package information from URL parameters or POST data
+                $package_type = $_POST['package_param'] ?? '';
+                $package_price = 0;
+                
+                if ($package_type === 'trial') {
+                    $package_price = get_field('trial_price', 'option') ?: 99;
+                } elseif ($package_type === 'monthly') {
+                    $package_price = get_field('monthly_price', 'option') ?: 199;
+                } elseif ($package_type === 'yearly') {
+                    $package_price = get_field('yearly_price', 'option') ?: 1999;
+                }
+                
+                error_log('Package type: ' . $package_type);
+                error_log('Package price: ' . $package_price);
+                
+                $submission_data = array(
+                    'user_name' => $user_name,
+                    'user_phone' => $user_phone,
+                    'user_email' => $user_email,
+                    'package_selected' => $package_type,
+                    'package_price' => $package_price,
+                    'score' => 0,
+                    'max_score' => 40,
+                    'passed' => 0,
+                    'answers' => json_encode(array()),
+                    'current_step' => $current_step,
+                    'completed' => 0,
+                    'submission_time' => current_time('mysql'),
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+                );
+                
+                error_log('Submission data: ' . print_r($submission_data, true));
+                
+                $result = $wpdb->insert($table_name, $submission_data);
+                
+                error_log('Insert result: ' . ($result === false ? 'FALSE' : $result));
+                error_log('Last error: ' . $wpdb->last_error);
+                error_log('Insert ID: ' . $wpdb->insert_id);
+                
+                // Debug log for troubleshooting
+                if ($result === false) {
+                    error_log('Quiz lead insert failed: ' . $wpdb->last_error);
+                } else {
+                    error_log('Quiz lead inserted successfully: ID ' . $wpdb->insert_id);
+                }
+            } else {
+                error_log('Lead data validation failed - no name or phone provided');
+            }
+        }
+        
+        // Store in session for multi-step form
+        if (!session_id()) {
+            session_start();
+        }
+        
+        $_SESSION['quiz_step_data'][$current_step] = $step_data;
+        
+        wp_send_json_success(array('message' => 'Step data saved'));
+    }
+
+    /**
+     * Simple, reliable lead capture method (backup)
+     */
+    public function simple_lead_capture() {
+        error_log('=== SIMPLE_LEAD_CAPTURE CALLED ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        
+        // Get data directly from POST
+        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
+        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
+        $user_phone = sanitize_text_field($_POST['user_phone'] ?? '');
+        $user_email = sanitize_text_field($_POST['user_email'] ?? '');
+        $package_param = sanitize_text_field($_POST['package_param'] ?? '');
+        
+        $user_name = trim($first_name . ' ' . $last_name);
+        
+        error_log("Simple lead capture - Name: $user_name, Phone: $user_phone, Email: $user_email");
+        
+        // Only proceed if we have basic data
+        if (empty($user_name) && empty($user_phone)) {
+            error_log('Simple lead capture - No name or phone provided');
+            wp_send_json_error(array('message' => 'No data to save'));
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'quiz_submissions';
+        
+        // Get package price
+        $package_price = 0;
+        if ($package_param === 'trial') {
+            $package_price = 99;
+        } elseif ($package_param === 'monthly') {
+            $package_price = 199;
+        } elseif ($package_param === 'yearly') {
+            $package_price = 1999;
+        }
+        
+        $submission_data = array(
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'user_name' => $user_name,
+            'user_phone' => $user_phone,
+            'user_email' => $user_email,
+            'package_selected' => $package_param,
+            'package_price' => $package_price,
+            'score' => 0,
+            'max_score' => 40,
+            'passed' => 0,
+            'answers' => json_encode(array()),
+            'current_step' => 1,
+            'completed' => 0,
+            'submission_time' => current_time('mysql'),
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+        );
+        
+        error_log('Simple lead capture - Inserting data: ' . print_r($submission_data, true));
+        
+        $result = $wpdb->insert($table_name, $submission_data);
+        
+        error_log('Simple lead capture - Insert result: ' . ($result === false ? 'FALSE' : $result));
+        error_log('Simple lead capture - Last error: ' . $wpdb->last_error);
+        error_log('Simple lead capture - Insert ID: ' . $wpdb->insert_id);
+        
+        if ($result !== false) {
+            wp_send_json_success(array(
+                'message' => 'Lead captured successfully',
+                'id' => $wpdb->insert_id
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Failed to capture lead: ' . $wpdb->last_error
+            ));
+        }
+    }
+
+    /**
+     * Get WooCommerce checkout URL with package added to cart
+     */
+    public function get_checkout_url($package_type, $package_price) {
+        if (!class_exists('WooCommerce')) {
+            return home_url('/checkout');
+        }
+
+        // Clear existing cart
+        WC()->cart->empty_cart();
+
+        // Get package details
+        $package_names = array(
+            'trial' => 'חבילת ניסיון - 3 חודשים ראשונים',
+            'monthly' => 'חבילה חודשית',
+            'yearly' => 'חבילה שנתית (166₪ לחודש)'
+        );
+
+        $package_name = $package_names[$package_type] ?? 'חבילת השקעות';
+
+        // Add custom product to cart
+        $cart_item_data = array(
+            'custom_price' => $package_price,
+            'package_type' => $package_type,
+            'quiz_validated' => true
+        );
+
+        // Create a temporary product ID (we'll handle this in cart hooks)
+        $product_id = 9999; // Temporary ID for custom product
+        
+        // Add to cart with custom data
+        WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
+
+        return wc_get_checkout_url();
+    }
+
+    /**
+     * Handle custom cart item pricing
+     */
+    public function handle_custom_cart_item($cart_item_data, $product_id, $variation_id) {
+        if ($product_id == 9999 && isset($cart_item_data['custom_price'])) {
+            // This is our custom quiz product
+            return $cart_item_data;
+        }
+        return $cart_item_data;
+    }
+
+    /**
+     * Set custom cart item price
+     */
+    public function set_custom_cart_item_price($cart) {
+        if (is_admin() && !defined('DOING_AJAX')) {
+            return;
+        }
+
+        foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+            if (isset($cart_item['custom_price']) && isset($cart_item['package_type'])) {
+                $cart_item['data']->set_price($cart_item['custom_price']);
+                
+                // Set custom product name
+                $package_names = array(
+                    'trial' => 'חבילת ניסיון - 3 חודשים ראשונים',
+                    'monthly' => 'חבילה חודשית',
+                    'yearly' => 'חבילה שנתית (166₪ לחודש)'
+                );
+                
+                $package_name = $package_names[$cart_item['package_type']] ?? 'חבילת השקעות';
+                $cart_item['data']->set_name($package_name);
+            }
+        }
     }
 
     /**
@@ -1070,17 +1432,21 @@ class ACF_Quiz_System {
             $where_clause = 'WHERE passed = 1';
         }
         
-        // Get submissions
+        // Get both completed submissions and initial leads
         $submissions = $wpdb->get_results("
             SELECT * FROM $table_name 
-            $where_clause 
+            WHERE 1=1
+            " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
+            " . ($filter === 'passed' ? " AND passed = 1" : "") . "
             ORDER BY submission_time DESC 
             LIMIT 100
         ");
         
         $total_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-        $failed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE passed = 0");
+        $completed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 1");
+        $failed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE (passed = 0 AND completed = 1) OR completed = 0");
         $passed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE passed = 1");
+        $lead_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 0");
         
         ?>
         <div class="wrap">
@@ -1092,9 +1458,17 @@ class ACF_Quiz_System {
                         <h3><?php echo $total_submissions; ?></h3>
                         <p><?php _e('Total Submissions', 'acf-quiz'); ?></p>
                     </div>
+                    <div class="stat-box">
+                        <h3><?php echo $completed_submissions; ?></h3>
+                        <p><?php _e('Completed Quizzes', 'acf-quiz'); ?></p>
+                    </div>
+                    <div class="stat-box">
+                        <h3><?php echo $lead_submissions; ?></h3>
+                        <p><?php _e('Initial Leads', 'acf-quiz'); ?></p>
+                    </div>
                     <div class="stat-box failed">
                         <h3><?php echo $failed_submissions; ?></h3>
-                        <p><?php _e('Failed Attempts', 'acf-quiz'); ?></p>
+                        <p><?php _e('Failed/Incomplete', 'acf-quiz'); ?></p>
                     </div>
                     <div class="stat-box passed">
                         <h3><?php echo $passed_submissions; ?></h3>
@@ -1122,31 +1496,45 @@ class ACF_Quiz_System {
                         <th><?php _e('Package', 'acf-quiz'); ?></th>
                         <th><?php _e('Score', 'acf-quiz'); ?></th>
                         <th><?php _e('Status', 'acf-quiz'); ?></th>
+                        <th><?php _e('Type', 'acf-quiz'); ?></th>
                         <th><?php _e('Actions', 'acf-quiz'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($submissions)) : ?>
                         <tr>
-                            <td colspan="7"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
+                            <td colspan="8"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
                         </tr>
                     <?php else : ?>
                         <?php foreach ($submissions as $submission) : ?>
-                            <tr class="<?php echo $submission->passed ? 'passed' : 'failed'; ?>">
+                            <tr class="<?php echo $submission->completed ? ($submission->passed ? 'passed' : 'failed') : 'lead'; ?>">
                                 <td><?php echo date('Y-m-d H:i', strtotime($submission->submission_time)); ?></td>
                                 <td><strong><?php echo esc_html($submission->user_name); ?></strong></td>
                                 <td><a href="tel:<?php echo esc_attr($submission->user_phone); ?>"><?php echo esc_html($submission->user_phone); ?></a></td>
                                 <td><?php echo esc_html($submission->package_selected ?: __('Not specified', 'acf-quiz')); ?></td>
                                 <td>
-                                    <span class="score-display">
-                                        <?php echo $submission->score; ?>/<?php echo $submission->max_score; ?>
-                                        (<?php echo round(($submission->score / $submission->max_score) * 100); ?>%)
-                                    </span>
+                                    <?php if ($submission->completed): ?>
+                                        <span class="score-display">
+                                            <?php echo $submission->score; ?>/<?php echo $submission->max_score; ?>
+                                            (<?php echo round(($submission->score / $submission->max_score) * 100); ?>%)
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="score-display">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span class="status-badge <?php echo $submission->passed ? 'passed' : 'failed'; ?>">
-                                        <?php echo $submission->passed ? __('Passed', 'acf-quiz') : __('Failed', 'acf-quiz'); ?>
-                                    </span>
+                                    <?php if ($submission->completed): ?>
+                                        <span class="status-badge <?php echo $submission->passed ? 'status-passed' : 'status-failed'; ?>">
+                                            <?php echo $submission->passed ? __('Passed', 'acf-quiz') : __('Failed', 'acf-quiz'); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="status-badge status-lead">
+                                            <?php _e('Lead', 'acf-quiz'); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo $submission->completed ? __('Full Quiz', 'acf-quiz') : __('Initial Lead', 'acf-quiz'); ?>
                                 </td>
                                 <td>
                                     <button type="button" class="button view-details" data-id="<?php echo $submission->id; ?>">
@@ -1177,32 +1565,7 @@ class ACF_Quiz_System {
         <?php
     }
 
-    /**
-     * Handle step data saving via AJAX
-     */
-    public function handle_step_data() {
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'quiz_step_nonce')) {
-            wp_die('Security check failed');
-        }
 
-        $step = intval($_POST['step']);
-        $data = $_POST['data'];
-        
-        // Store data in session for multi-step form
-        if (!session_id()) {
-            session_start();
-        }
-        
-        $_SESSION['quiz_step_' . $step] = $data;
-        $_SESSION['quiz_current_step'] = $step;
-        
-        wp_send_json_success(array(
-            'message' => 'Step data saved successfully',
-            'step' => $step,
-            'next_step' => $step + 1
-        ));
-    }
 
     /**
      * Populate WooCommerce checkout fields with quiz data

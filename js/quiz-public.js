@@ -40,15 +40,30 @@ jQuery(document).ready(function($) {
             this.prevButton.on('click', this.handlePrevStep.bind(this));
             this.submitButton.on('click', this.handleSubmit.bind(this));
             
+            // Handle clicks on disabled next button to show validation errors
+            this.nextButton.on('click', (e) => {
+                if (this.nextButton.prop('disabled')) {
+                    e.preventDefault();
+                    this.showValidationErrors(); // Show errors when clicking disabled button
+                    this.showError('אנא מלא את כל השדות הנדרשים');
+                    return false;
+                }
+            });
+            
             // Form field validation - don't show errors on initial validation
             this.form.on('input change', 'input, select, textarea', () => {
                 this.validateCurrentStep(false);
             });
             
+            // Final declaration checkbox validation
+            this.form.on('change', '#final_declaration', function() {
+                MultiStepQuiz.validateCurrentStep();
+            });
+            
             // Answer selection for quiz questions
             $('.answer-input').on('change', (e) => {
                 this.handleAnswerChange(e);
-                this.validateCurrentStep();
+                this.validateCurrentStep(false);
             });
             
             // Handle label clicks for radio buttons
@@ -61,6 +76,7 @@ jQuery(document).ready(function($) {
         },
         
         handleNextStep: function() {
+            // Always validate with showErrors=true when user clicks Next
             if (this.validateCurrentStep(true)) {
                 this.saveCurrentStepData();
                 if (this.currentStep < this.totalSteps) {
@@ -68,6 +84,8 @@ jQuery(document).ready(function($) {
                     this.showStep(this.currentStep);
                 }
             } else {
+                // Force show errors on current step fields
+                this.showValidationErrors();
                 this.showError('אנא מלא את כל השדות הנדרשים');
             }
         },
@@ -86,13 +104,54 @@ jQuery(document).ready(function($) {
                 return false;
             }
             
+            // Validate the final step
             if (!this.validateCurrentStep(true)) {
                 this.showError('אנא מלא את כל השדות הנדרשים');
                 return false;
             }
             
+            // Save the final step data
             this.saveCurrentStepData();
-            this.submitQuiz();
+            
+            // Set loading state
+            this.isSubmitting = true;
+            this.setLoadingState(true);
+            
+            // Collect all form data from all steps
+            const allData = {};
+            
+            // Merge all step data
+            Object.keys(this.stepData).forEach(stepKey => {
+                Object.assign(allData, this.stepData[stepKey]);
+            });
+            
+            // Add package information
+            let packageSelected = $('input[name="package_selected"]').val();
+            let packagePrice = $('input[name="package_price"]').val();
+            let packageSource = $('input[name="package_source"]').val();
+            
+            // Check for package parameters in URL (both /join?trial and /join/?trial)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (!packageSelected) {
+                if (urlParams.has('trial')) {
+                    packageSelected = 'trial';
+                    packagePrice = '99';
+                } else if (urlParams.has('monthly')) {
+                    packageSelected = 'monthly';
+                    packagePrice = '199';
+                } else if (urlParams.has('yearly')) {
+                    packageSelected = 'yearly';
+                    packagePrice = '1999';
+                }
+                packageSource = 'url_param';
+            }
+            
+            allData.package_selected = packageSelected;
+            allData.package_price = packagePrice;
+            allData.package_source = packageSource;
+            
+            // Submit the final form data
+            this.submitForm(allData);
         },
         
         handleAnswerChange: function(e) {
@@ -110,8 +169,8 @@ jQuery(document).ready(function($) {
             $(`input[name="${questionName}"]`).closest('.answer-option').removeClass('selected');
             $input.closest('.answer-option').addClass('selected');
             
-            // Update progress
-            this.updateProgress();
+            // Update validation for current step
+            this.validateCurrentStep();
         },
         
         validateAllAnswered: function() {
@@ -128,25 +187,37 @@ jQuery(document).ready(function($) {
             let errorMessage = '';
             
             // Get field values
-            const $nameField = $('#user_name');
+            const $firstNameField = $('#first_name');
+            const $lastNameField = $('#last_name');
             const $phoneField = $('#user_phone');
-            const $consentField = $('#contact_consent');
-            const $consentGroup = $consentField.closest('.checkbox-group');
+            const $emailField = $('#user_email');
             
-            const userName = $nameField.val().trim();
+            const firstName = $firstNameField.val().trim();
+            const lastName = $lastNameField.val().trim();
             const userPhone = $phoneField.val().trim();
-            const contactConsent = $consentField.is(':checked');
+            const userEmail = $emailField.val().trim();
             
             // Only validate and show errors if showErrors is true
             if (showErrors) {
-                if (!userName) {
+                // Validate first name
+                if (!firstName) {
                     isValid = false;
-                    $nameField.addClass('error');
-                    errorMessage = 'אנא מלא את השם המלא';
+                    $firstNameField.addClass('error');
+                    errorMessage = 'אנא מלא את השם הפרטי';
                 } else {
-                    $nameField.removeClass('error');
+                    $firstNameField.removeClass('error');
                 }
                 
+                // Validate last name
+                if (!lastName) {
+                    isValid = false;
+                    $lastNameField.addClass('error');
+                    if (!errorMessage) errorMessage = 'אנא מלא את שם המשפחה';
+                } else {
+                    $lastNameField.removeClass('error');
+                }
+                
+                // Validate phone
                 if (!userPhone) {
                     isValid = false;
                     $phoneField.addClass('error');
@@ -155,16 +226,21 @@ jQuery(document).ready(function($) {
                     $phoneField.removeClass('error');
                 }
                 
-                if (!contactConsent) {
+                // Validate email
+                if (!userEmail) {
                     isValid = false;
-                    $consentGroup.addClass('error');
-                    if (!errorMessage) errorMessage = 'אנא אשר את ההסכמה ליצירת קשר';
+                    $emailField.addClass('error');
+                    if (!errorMessage) errorMessage = 'אנא מלא את כתובת האימייל';
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+                    isValid = false;
+                    $emailField.addClass('error');
+                    if (!errorMessage) errorMessage = 'אנא הזן כתובת אימייל תקינה';
                 } else {
-                    $consentGroup.removeClass('error');
+                    $emailField.removeClass('error');
                 }
             } else {
                 // Just validate without showing errors
-                if (!userName || !userPhone || !contactConsent) {
+                if (!firstName || !lastName || !userPhone || !userEmail) {
                     isValid = false;
                 }
             }
@@ -218,9 +294,8 @@ jQuery(document).ready(function($) {
             // Show current step
             $(`.form-step[data-step="${stepNumber}"]`).addClass('active');
             
-            // Update step indicator
+            // Update step indicators
             $('.step-indicator .step').removeClass('active completed');
-            
             for (let i = 1; i <= stepNumber; i++) {
                 if (i < stepNumber) {
                     $(`.step-indicator .step[data-step="${i}"]`).addClass('completed');
@@ -229,13 +304,48 @@ jQuery(document).ready(function($) {
                 }
             }
             
+            // Scroll to top when moving to step 4
+            if (stepNumber === 4) {
+                $('html, body').animate({
+                    scrollTop: $('.acf-quiz-container').offset().top - 50
+                }, 500);
+                
+                // Ensure final declaration checkbox is visible and checked by default
+                setTimeout(() => {
+                    const checkbox = $('#final_declaration');
+                    const checkboxGroup = $('.checkbox-group');
+                    const finalDeclaration = $('.final-declaration');
+                    
+                    // Force visibility
+                    finalDeclaration.show().css('visibility', 'visible');
+                    checkboxGroup.show().css('visibility', 'visible');
+                    checkbox.show().css('visibility', 'visible');
+                    
+                    // Check the checkbox
+                    checkbox.prop('checked', true);
+                    
+                    console.log('Step 4: Checkbox visibility enforced', {
+                        checkbox: checkbox.length,
+                        visible: checkbox.is(':visible'),
+                        checked: checkbox.is(':checked')
+                    });
+                }, 100);
+            }
+            
             this.updateStepDisplay();
             this.validateCurrentStep(false); // Don't show errors on initial load
         },
         
         updateStepDisplay: function() {
-            $('#step-title').text(acfQuiz.strings[`step${this.currentStep}Title`] || 'שאלון התאמה');
-            $('#step-subtitle').text(acfQuiz.strings[`step${this.currentStep}Subtitle`] || `שלב ${this.currentStep} מתוך 4`);
+            const stepTitles = {
+                1: { title: 'שאלון התאמה', subtitle: 'שלב 1 מתוך 4' },
+                2: { title: 'פרטים אישיים', subtitle: 'שלב 2 מתוך 4' },
+                3: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 3 מתוך 4' },
+                4: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 4 מתוך 4' }
+            };
+            
+            $('#step-title').text(stepTitles[this.currentStep].title);
+            $('#step-subtitle').text(stepTitles[this.currentStep].subtitle);
         },
         
         updateNavigationButtons: function(isValid) {
@@ -279,57 +389,31 @@ jQuery(document).ready(function($) {
                 }
             });
             
+            // Save step data to local object
             this.stepData[`step_${this.currentStep}`] = stepData;
             
-            // Save to session via AJAX
+            // For Step 1, immediately save as lead to database
+            if (this.currentStep === 1) {
+                this.saveStepAsLead(stepData);
+            }
+            
+            // Save current step data to session via AJAX
             $.ajax({
                 url: acfQuiz.ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'save_step_data',
-                    nonce: acfQuiz.nonce,
-                    step: this.currentStep,
-                    data: stepData
-                },
-                success: function(response) {
-                    console.log('Step data saved:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error saving step data:', error);
-                }
-            });
-        },
-        
-        submitQuiz: function() {
-            this.isSubmitting = true;
-            this.setLoadingState(true);
-            
-            // Collect all form data from all steps
-            const allData = {};
-            
-            // Merge all step data
-            Object.keys(this.stepData).forEach(stepKey => {
-                Object.assign(allData, this.stepData[stepKey]);
-            });
-            
-            // Add package information
-            allData.package_selected = $('input[name="package_selected"]').val();
-            allData.package_price = $('input[name="package_price"]').val();
-            allData.package_source = $('input[name="package_source"]').val();
-            
-            // Submit via AJAX
-            $.ajax({
-                url: acfQuiz.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'submit_quiz',
-                    quiz_nonce: $('#quiz_nonce').val(),
-                    form_data: allData
+                    quiz_nonce: acfQuiz.nonce,
+                    current_step: this.currentStep,
+                    step_data: stepData
                 },
                 dataType: 'json',
-                success: this.handleSuccess.bind(this),
-                error: this.handleError.bind(this),
-                complete: this.handleComplete.bind(this)
+                success: (response) => {
+                    console.log('Step data saved:', response);
+                },
+                error: (xhr, status, error) => {
+                    console.error('Error saving step data:', error, xhr.responseText);
+                }
             });
         },
         
@@ -353,7 +437,22 @@ jQuery(document).ready(function($) {
         },
         
         displayResults: function(data) {
-            // Update score display with RTL support
+            // Handle redirect based on quiz result
+            if (data.redirect_url) {
+                // Small delay to show any success message, then redirect
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 1000);
+                
+                if (data.passed) {
+                    this.showSuccess('מעבר לתשלום...');
+                } else {
+                    this.showError('מעביר אותך לעמוד המשך...');
+                }
+                return;
+            }
+            
+            // Fallback: show results if no redirect URL
             const scoreText = data.score + '/40';
             const maxScore = data.max_score;
             const percentage = data.score_percentage;
@@ -424,36 +523,45 @@ jQuery(document).ready(function($) {
         },
         
         showError: function(message) {
-            // Remove any existing error messages
-            $('.quiz-error-message').remove();
+            const errorContainer = $('#quiz-error');
+            if (errorContainer.length === 0) {
+                // Create error container if it doesn't exist
+                this.form.before('<div id="quiz-error" class="quiz-message error-message" dir="rtl"></div>');
+            }
             
-            // Add error message
-            const errorHtml = `
-                <div class="quiz-error-message" style="
-                    background: #f8d7da; 
-                    color: #721c24; 
-                    padding: 12px; 
-                    border-radius: 4px; 
-                    margin: 15px 0; 
-                    border: 1px solid #f5c6cb;
-                    text-align: right;
-                    direction: rtl;
-                ">
-                    <i class="dashicons dashicons-warning"></i>
-                    ${message}
-                </div>
-            `;
-            
-            this.form.prepend(errorHtml);
+            $('#quiz-error')
+                .html('<div class="message-content">' + message + '</div>')
+                .removeClass('success-message')
+                .addClass('error-message')
+                .slideDown(300);
             
             // Auto-hide after 5 seconds
             setTimeout(() => {
                 this.hideError();
             }, 5000);
+            
+            // Scroll to error message
+            $('html, body').animate({
+                scrollTop: $('#quiz-error').offset().top - 100
+            }, 300);
+        },
+        
+        showSuccess: function(message) {
+            const errorContainer = $('#quiz-error');
+            if (errorContainer.length === 0) {
+                // Create message container if it doesn't exist
+                this.form.before('<div id="quiz-error" class="quiz-message success-message" dir="rtl"></div>');
+            }
+            
+            $('#quiz-error')
+                .html('<div class="message-content">' + message + '</div>')
+                .removeClass('error-message')
+                .addClass('success-message')
+                .slideDown(300);
         },
         
         hideError: function() {
-            $('.quiz-error-message').fadeOut(300, function() {
+            $('#quiz-error').fadeOut(300, function() {
                 $(this).remove();
             });
         },
@@ -462,6 +570,139 @@ jQuery(document).ready(function($) {
             $('html, body').animate({
                 scrollTop: this.resultsContainer.offset().top - 100
             }, 500);
+        },
+        
+        /**
+         * Submit the complete form data to the server
+         * @param {Object} formData - The complete form data to submit
+         */
+        submitForm: function(formData) {
+            // Set loading state
+            this.isSubmitting = true;
+            this.setLoadingState(true);
+            
+            // Submit the form data via AJAX
+            $.ajax({
+                url: acfQuiz.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'submit_quiz',
+                    quiz_nonce: acfQuiz.nonce,
+                    form_data: formData
+                },
+                dataType: 'json',
+                success: (response) => {
+                    if (response.success) {
+                        this.handleSuccess(response);
+                    } else {
+                        this.showError(response.data?.message || 'שגיאה בשליחת הטופס');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('Form submission error:', error, xhr.responseText);
+                    this.showError('שגיאה בשליחת הטופס. אנא נסה שוב.');
+                },
+                complete: () => {
+                    this.isSubmitting = false;
+                    this.setLoadingState(false);
+                }
+            });
+        },
+        
+        /**
+         * Save step 1 data as a lead in the database
+         * @param {Object} stepData - The data from step 1 to save as a lead
+         */
+        saveStepAsLead: function(stepData) {
+            console.log('saveStepAsLead called with data:', stepData);
+            
+            // Only save if we have meaningful data (first_name, last_name, or phone)
+            if (!stepData.first_name && !stepData.last_name && !stepData.user_phone) {
+                console.log('No meaningful data to save as lead');
+                return;
+            }
+            
+            // Get package parameter from URL if available
+            let packageParam = '';
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('trial')) {
+                packageParam = 'trial';
+            } else if (urlParams.has('monthly')) {
+                packageParam = 'monthly';
+            } else if (urlParams.has('yearly')) {
+                packageParam = 'yearly';
+            }
+            
+            console.log('Saving lead with package:', packageParam);
+            
+            // DIRECT: Use the direct lead capture endpoint (most reliable)
+            $.ajax({
+                url: '/wp-content/capture-lead.php',
+                type: 'POST',
+                data: {
+                    first_name: stepData.first_name || '',
+                    last_name: stepData.last_name || '',
+                    user_phone: stepData.user_phone || '',
+                    user_email: stepData.user_email || '',
+                    package_param: packageParam
+                },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Step 1 lead saved successfully (direct method):', response);
+                },
+                error: function(xhr, status, error) {
+                    console.log('Direct method failed, trying WordPress AJAX:', error);
+                    
+                    // FALLBACK: Try WordPress AJAX if direct method fails
+                    $.ajax({
+                        url: acfQuiz.ajaxUrl,
+                        type: 'POST',
+                        data: {
+                            action: 'simple_lead_capture',
+                            first_name: stepData.first_name || '',
+                            last_name: stepData.last_name || '',
+                            user_phone: stepData.user_phone || '',
+                            user_email: stepData.user_email || '',
+                            package_param: packageParam
+                        },
+                        dataType: 'json',
+                        success: function(fallbackResponse) {
+                            console.log('Step 1 lead saved successfully (fallback method):', fallbackResponse);
+                        },
+                        error: function(fallbackXhr, fallbackStatus, fallbackError) {
+                            console.error('Both lead capture methods failed:', fallbackError, fallbackXhr.responseText);
+                        }
+                    });
+                }
+            });
+        },
+        
+        showValidationErrors: function() {
+            const currentStepElement = $(`.form-step[data-step="${this.currentStep}"]`);
+            
+            // Show errors on all required fields that are empty
+            currentStepElement.find('input[required], select[required], textarea[required]').each(function() {
+                const $field = $(this);
+                const value = $field.val();
+                
+                if (!value || (value && value.trim() === '')) {
+                    $field.addClass('error');
+                } else {
+                    $field.removeClass('error');
+                }
+            });
+            
+            // Special handling for checkbox groups
+            currentStepElement.find('.checkbox-group').each(function() {
+                const $group = $(this);
+                const $checkbox = $group.find('input[type="checkbox"][required]');
+                
+                if ($checkbox.length && !$checkbox.is(':checked')) {
+                    $group.addClass('error');
+                } else {
+                    $group.removeClass('error');
+                }
+            });
         }
     };
     
