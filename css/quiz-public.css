@@ -165,7 +165,8 @@ html[dir="rtl"] .question-block {
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 1px solid #e0e0e0;
-    flex-direction: row-reverse;
+    direction: rtl;
+    text-align: right;
 }
 
 .question-number {
@@ -182,6 +183,12 @@ html[dir="rtl"] .question-block {
     margin-right: 0;
     flex-shrink: 0;
     font-size: 14px;
+    order: 1;
+}
+
+/* Ensure question text comes after number in RTL */
+.question-text {
+    order: 2;
 }
 
 .question-text {
@@ -193,6 +200,22 @@ html[dir="rtl"] .question-block {
     text-align: right;
     direction: rtl;
     line-height: 1.4;
+}
+
+/* Force RTL layout for Hebrew sites */
+.acf-quiz-container .question-header {
+    direction: rtl !important;
+    justify-content: flex-start;
+}
+
+.acf-quiz-container .question-number {
+    margin-left: 15px !important;
+    margin-right: 0 !important;
+}
+
+.acf-quiz-container .question-text {
+    text-align: right !important;
+    direction: rtl !important;
 }
 
 /* Answer Options */
