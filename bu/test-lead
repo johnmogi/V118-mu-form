@@ -1,0 +1,133 @@
+<?php
+/**
+ * Direct Lead Submission Test
+ * This bypasses WordPress AJAX to test lead capture directly
+ */
+
+// Load WordPress
+require_once('wp-config.php');
+
+echo "<h1>Lead Submission Test</h1>";
+
+// Test database connection and table
+global $wpdb;
+$table_name = $wpdb->prefix . 'quiz_submissions';
+
+echo "<h2>Database Test</h2>";
+echo "Table name: " . $table_name . "<br>";
+
+// Check if table exists
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'");
+echo "Table exists: " . ($table_exists ? "YES" : "NO") . "<br>";
+
+if ($table_exists) {
+    $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+    echo "Current records: " . $count . "<br>";
+}
+
+// Test direct insertion
+if (isset($_POST['test_insert'])) {
+    echo "<h2>Testing Direct Insert</h2>";
+    
+    $test_data = array(
+        'user_name' => 'Direct Test User',
+        'user_phone' => '0501234567',
+        'user_email' => 'test@example.com',
+        'package_selected' => 'trial',
+        'package_price' => 99,
+        'score' => 0,
+        'max_score' => 40,
+        'passed' => 0,
+        'answers' => json_encode(array()),
+        'current_step' => 1,
+        'completed' => 0,
+        'submission_time' => current_time('mysql'),
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+    );
+    
+    echo "Data to insert:<br>";
+    echo "<pre>" . print_r($test_data, true) . "</pre>";
+    
+    $result = $wpdb->insert($table_name, $test_data);
+    
+    echo "Insert result: " . ($result === false ? 'FALSE' : $result) . "<br>";
+    echo "Last error: " . $wpdb->last_error . "<br>";
+    echo "Insert ID: " . $wpdb->insert_id . "<br>";
+    
+    if ($result !== false) {
+        echo "<strong style='color: green;'>SUCCESS: Data inserted!</strong><br>";
+    } else {
+        echo "<strong style='color: red;'>FAILED: " . $wpdb->last_error . "</strong><br>";
+    }
+}
+
+// Test AJAX handler directly
+if (isset($_POST['test_ajax'])) {
+    echo "<h2>Testing AJAX Handler Directly</h2>";
+    
+    // Simulate POST data
+    $_POST['quiz_nonce'] = wp_create_nonce('acf_quiz_nonce');
+    $_POST['current_step'] = 1;
+    $_POST['step_data'] = array(
+        'first_name' => 'AJAX Test',
+        'last_name' => 'User',
+        'user_phone' => '0507654321',
+        'user_email' => 'ajax@test.com'
+    );
+    $_POST['package_param'] = 'trial';
+    
+    echo "Simulated POST data:<br>";
+    echo "<pre>" . print_r($_POST, true) . "</pre>";
+    
+    // Call the handler directly
+    try {
+        $quiz_system = ACF_Quiz_System::get_instance();
+        
+        // Capture output
+        ob_start();
+        $quiz_system->handle_step_data();
+        $output = ob_get_clean();
+        
+        echo "Handler output: " . $output . "<br>";
+        echo "<strong style='color: green;'>Handler executed without fatal errors</strong><br>";
+        
+    } catch (Exception $e) {
+        echo "<strong style='color: red;'>Handler error: " . $e->getMessage() . "</strong><br>";
+    }
+}
+
+// Show current data
+echo "<h2>Current Data in Table</h2>";
+if ($table_exists) {
+    $submissions = $wpdb->get_results("SELECT * FROM $table_name ORDER BY submission_time DESC LIMIT 5");
+    if ($submissions) {
+        echo "<table border='1' cellpadding='5'>";
+        echo "<tr><th>ID</th><th>Name</th><th>Phone</th><th>Email</th><th>Completed</th><th>Time</th></tr>";
+        foreach ($submissions as $sub) {
+            echo "<tr>";
+            echo "<td>" . $sub->id . "</td>";
+            echo "<td>" . $sub->user_name . "</td>";
+            echo "<td>" . $sub->user_phone . "</td>";
+            echo "<td>" . $sub->user_email . "</td>";
+            echo "<td>" . ($sub->completed ? 'Yes' : 'No') . "</td>";
+            echo "<td>" . $sub->submission_time . "</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    } else {
+        echo "No data found.";
+    }
+}
+?>
+
+<h2>Tests</h2>
+<form method="post">
+    <button type="submit" name="test_insert" style="padding: 10px; margin: 5px; background: blue; color: white;">Test Direct Database Insert</button>
+</form>
+
+<form method="post">
+    <button type="submit" name="test_ajax" style="padding: 10px; margin: 5px; background: green; color: white;">Test AJAX Handler Directly</button>
+</form>
+
+<a href="<?php echo admin_url('admin.php?page=quiz-submissions'); ?>" style="padding: 10px; margin: 5px; background: orange; color: white; text-decoration: none; display: inline-block;">View Admin Submissions Page</a>
