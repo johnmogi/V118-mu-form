@@ -189,25 +189,15 @@ class ACF_Quiz_System {
      * Add submissions admin page
      */
     public function add_submissions_page() {
-        // Add main Quiz System menu
+        // Create standalone admin menu for Quiz Submissions
         add_menu_page(
-            __('Quiz System', 'acf-quiz'),
-            __('Quiz System', 'acf-quiz'),
-            'manage_options',
-            'quiz-system',
-            '', // No callback - ACF will handle the main page
-            'dashicons-forms',
-            30
-        );
-        
-        // Add the submissions submenu
-        add_submenu_page(
-            'quiz-system',
             __('Quiz Submissions', 'acf-quiz'),
-            __('Submissions', 'acf-quiz'),
+            __('Quiz Submissions', 'acf-quiz'),
             'manage_options',
             'quiz-submissions',
-            array($this, 'render_submissions_page')
+            array($this, 'render_submissions_page'),
+            'dashicons-list-view',
+            25
         );
     }
 
@@ -1038,6 +1028,8 @@ class ACF_Quiz_System {
         return ob_get_clean();
     }
 
+
+
     /**
      * Handle quiz submission via AJAX
 {{ ... }}
@@ -1472,53 +1464,21 @@ class ACF_Quiz_System {
             $where_clause = 'WHERE passed = 1';
         }
         
-        // Get both completed submissions and initial leads (avoid duplicates)
+        // Get all submissions including leads - simplified query
         $submissions = $wpdb->get_results("
-            SELECT DISTINCT id, user_name, user_phone, user_email, package_selected, 
+            SELECT id, user_name, user_phone, user_email, package_selected, 
                    score, max_score, passed, completed, submission_time, current_step
             FROM $table_name 
             WHERE 1=1
             " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
             " . ($filter === 'passed' ? " AND passed = 1" : "") . "
-            GROUP BY user_email, completed
             ORDER BY submission_time DESC 
             LIMIT 100
         ");
         
-        $total_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-        $completed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 1");
-        $failed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE (passed = 0 AND completed = 1) OR completed = 0");
-        $passed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE passed = 1");
-        $lead_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 0");
-        
         ?>
         <div class="wrap">
             <h1><?php _e('Quiz Submissions', 'acf-quiz'); ?></h1>
-            
-            <div class="quiz-stats">
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <h3><?php echo $total_submissions; ?></h3>
-                        <p><?php _e('Total Submissions', 'acf-quiz'); ?></p>
-                    </div>
-                    <div class="stat-box">
-                        <h3><?php echo $completed_submissions; ?></h3>
-                        <p><?php _e('Completed Quizzes', 'acf-quiz'); ?></p>
-                    </div>
-                    <div class="stat-box">
-                        <h3><?php echo $lead_submissions; ?></h3>
-                        <p><?php _e('Initial Leads', 'acf-quiz'); ?></p>
-                    </div>
-                    <div class="stat-box failed">
-                        <h3><?php echo $failed_submissions; ?></h3>
-                        <p><?php _e('Failed/Incomplete', 'acf-quiz'); ?></p>
-                    </div>
-                    <div class="stat-box passed">
-                        <h3><?php echo $passed_submissions; ?></h3>
-                        <p><?php _e('Passed', 'acf-quiz'); ?></p>
-                    </div>
-                </div>
-            </div>
             
             <form method="post" id="bulk-action-form">
                 <?php wp_nonce_field('bulk_delete_submissions', 'bulk_delete_nonce'); ?>
