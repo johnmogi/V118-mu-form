@@ -189,21 +189,21 @@ class ACF_Quiz_System {
      * Add submissions admin page
      */
     public function add_submissions_page() {
-        // Add the main menu page that will be used by ACF options
+        // Add main Quiz System menu
         add_menu_page(
             __('Quiz System', 'acf-quiz'),
             __('Quiz System', 'acf-quiz'),
             'manage_options',
-            'quiz-settings',
-            '', // Leave empty since ACF will handle the content
+            'quiz-system',
+            '', // No callback - ACF will handle the main page
             'dashicons-forms',
             30
         );
-
+        
         // Add the submissions submenu
         add_submenu_page(
-            'quiz-settings',
-            __('Submissions', 'acf-quiz'),
+            'quiz-system',
+            __('Quiz Submissions', 'acf-quiz'),
             __('Submissions', 'acf-quiz'),
             'manage_options',
             'quiz-submissions',
@@ -1436,6 +1436,32 @@ class ACF_Quiz_System {
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
         
+        // Handle bulk delete action
+        if (isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['submission_ids'])) {
+            if (!wp_verify_nonce($_POST['bulk_delete_nonce'], 'bulk_delete_submissions')) {
+                wp_die(__('Security check failed.', 'acf-quiz'));
+            }
+            
+            $submission_ids = array_map('intval', $_POST['submission_ids']);
+            if (!empty($submission_ids)) {
+                $ids_placeholder = implode(',', array_fill(0, count($submission_ids), '%d'));
+                $deleted = $wpdb->query($wpdb->prepare(
+                    "DELETE FROM $table_name WHERE id IN ($ids_placeholder)",
+                    ...$submission_ids
+                ));
+                
+                if ($deleted !== false) {
+                    echo '<div class="notice notice-success"><p>' . 
+                         sprintf(__('%d submissions deleted successfully.', 'acf-quiz'), $deleted) . 
+                         '</p></div>';
+                } else {
+                    echo '<div class="notice notice-error"><p>' . 
+                         __('Error deleting submissions.', 'acf-quiz') . 
+                         '</p></div>';
+                }
+            }
+        }
+        
         // Handle filtering
         $filter = isset($_GET['filter']) ? sanitize_text_field($_GET['filter']) : 'all';
         $where_clause = '';
@@ -1494,19 +1520,31 @@ class ACF_Quiz_System {
                 </div>
             </div>
             
-            <div class="tablenav top">
-                <div class="alignleft actions">
-                    <select name="filter" onchange="window.location.href='?page=quiz-submissions&filter='+this.value">
-                        <option value="all" <?php selected($filter, 'all'); ?>><?php _e('All Submissions', 'acf-quiz'); ?></option>
-                        <option value="failed" <?php selected($filter, 'failed'); ?>><?php _e('Failed Only', 'acf-quiz'); ?></option>
-                        <option value="passed" <?php selected($filter, 'passed'); ?>><?php _e('Passed Only', 'acf-quiz'); ?></option>
-                    </select>
+            <form method="post" id="bulk-action-form">
+                <?php wp_nonce_field('bulk_delete_submissions', 'bulk_delete_nonce'); ?>
+                <div class="tablenav top">
+                    <div class="alignleft actions bulkactions">
+                        <select name="action" id="bulk-action-selector-top">
+                            <option value="-1"><?php _e('Bulk Actions', 'acf-quiz'); ?></option>
+                            <option value="delete"><?php _e('Delete', 'acf-quiz'); ?></option>
+                        </select>
+                        <input type="submit" id="doaction" class="button action" value="<?php _e('Apply', 'acf-quiz'); ?>" onclick="return confirm('<?php _e('Are you sure you want to delete the selected submissions?', 'acf-quiz'); ?>');">
+                    </div>
+                    <div class="alignleft actions">
+                        <select name="filter" onchange="window.location.href='?page=quiz-submissions&filter='+this.value">
+                            <option value="all" <?php selected($filter, 'all'); ?>><?php _e('All Submissions', 'acf-quiz'); ?></option>
+                            <option value="failed" <?php selected($filter, 'failed'); ?>><?php _e('Failed Only', 'acf-quiz'); ?></option>
+                            <option value="passed" <?php selected($filter, 'passed'); ?>><?php _e('Passed Only', 'acf-quiz'); ?></option>
+                        </select>
+                    </div>
                 </div>
-            </div>
             
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
+                        <td id="cb" class="manage-column column-cb check-column">
+                            <input id="cb-select-all-1" type="checkbox" />
+                        </td>
                         <th><?php _e('Date', 'acf-quiz'); ?></th>
                         <th><?php _e('Name', 'acf-quiz'); ?></th>
                         <th><?php _e('Phone', 'acf-quiz'); ?></th>
@@ -1514,17 +1552,19 @@ class ACF_Quiz_System {
                         <th><?php _e('Score', 'acf-quiz'); ?></th>
                         <th><?php _e('Status', 'acf-quiz'); ?></th>
                         <th><?php _e('Type', 'acf-quiz'); ?></th>
-
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($submissions)) : ?>
                         <tr>
-                            <td colspan="7"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
+                            <td colspan="8"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
                         </tr>
                     <?php else : ?>
                         <?php foreach ($submissions as $submission) : ?>
                             <tr class="<?php echo $submission->completed ? ($submission->passed ? 'passed' : 'failed') : 'lead'; ?>">
+                                <th scope="row" class="check-column">
+                                    <input type="checkbox" name="submission_ids[]" value="<?php echo $submission->id; ?>" />
+                                </th>
                                 <td><?php echo date('Y-m-d H:i', strtotime($submission->submission_time)); ?></td>
                                 <td><strong><?php echo esc_html($submission->user_name); ?></strong></td>
                                 <td><a href="tel:<?php echo esc_attr($submission->user_phone); ?>"><?php echo esc_html($submission->user_phone); ?></a></td>
@@ -1559,6 +1599,7 @@ class ACF_Quiz_System {
                     <?php endif; ?>
                 </tbody>
             </table>
+            </form>
         </div>
         
         <style>
@@ -1575,6 +1616,21 @@ class ACF_Quiz_System {
         tr.failed { background-color: #fff5f5; }
         tr.passed { background-color: #f0fff4; }
         </style>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            // Select all checkbox functionality
+            $('#cb-select-all-1').on('change', function() {
+                $('input[name="submission_ids[]"]').prop('checked', this.checked);
+            });
+            
+            // Individual checkbox change
+            $('input[name="submission_ids[]"]').on('change', function() {
+                var allChecked = $('input[name="submission_ids[]"]:checked').length === $('input[name="submission_ids[]"]').length;
+                $('#cb-select-all-1').prop('checked', allChecked);
+            });
+        });
+        </script>
         <?php
     }
 

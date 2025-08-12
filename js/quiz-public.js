@@ -196,40 +196,86 @@ jQuery(document).ready(function($) {
             const passed = totalScore >= 21;
             console.log('Quiz result:', passed ? 'PASSED' : 'FAILED');
             
-            // Simple redirect logic
-            if (passed) {
-                console.log('PASSED - Redirecting to checkout with trial package');
-                // Get the package type from URL parameter
-                const urlParams = new URLSearchParams(window.location.search);
-                let packageType = 'trial'; // default
-                if (urlParams.has('monthly')) packageType = 'monthly';
-                if (urlParams.has('yearly')) packageType = 'yearly';
-                
-                console.log('Package type detected:', packageType);
-                
-                // Use the acfQuiz config to get product IDs if available
-                let productId = null;
-                if (typeof acfQuiz !== 'undefined' && acfQuiz.productIds) {
-                    productId = acfQuiz.productIds[packageType];
-                    console.log('Product ID from config:', productId);
-                }
-                
-                // Fallback: redirect to checkout and let WooCommerce handle product selection
-                if (productId) {
-                    window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
-                } else {
+            // Store final submission before redirect
+            console.log('Storing final submission...');
+            console.log('About to call storeFinalSubmission with:', {
+                allData: allData,
+                totalScore: totalScore,
+                passed: passed
+            });
+            this.storeFinalSubmission(allData, totalScore, passed);
+            console.log('storeFinalSubmission call completed');
+            
+            // Delay redirect to allow AJAX submission to complete
+            console.log('Waiting 1 second for submission to complete before redirect...');
+            setTimeout(() => {
+                // Simple redirect logic
+                if (passed) {
+                    console.log('PASSED - Redirecting to checkout with trial package');
+                    // Get the package type from URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let packageType = 'trial'; // default
+                    if (urlParams.has('monthly')) packageType = 'monthly';
+                    if (urlParams.has('yearly')) packageType = 'yearly';
+                    
+                    console.log('Package type detected:', packageType);
+                    
+                    // Use the acfQuiz config to get product IDs if available
+                    let productId = null;
+                    if (typeof acfQuiz !== 'undefined' && acfQuiz.productIds) {
+                        productId = acfQuiz.productIds[packageType];
+                        console.log('Product ID from config:', productId);
+                    }
+                    
                     // Fallback: redirect to shop or a specific product page
-                    console.log('No product ID found, redirecting to shop with parameters');
-                    window.location.href = '/shop/?' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                    if (productId) {
+                        window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                    } else {
+                        console.log('No product ID found, redirecting to shop with parameters');
+                        window.location.href = '/shop/?' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                    }
+                } else {
+                    console.log('FAILED - Redirecting to followup page');
+                    window.location.href = '/followup?score=' + totalScore;
                 }
-            } else {
-                console.log('FAILED - Redirecting to followup page');
-                window.location.href = '/followup?score=' + totalScore;
-            }
+            }, 1000); // 1 second delay
             
             return; // Skip complex submitForm method
             
             this.submitForm(allData);
+        },
+        
+        // Store final submission to database
+        storeFinalSubmission: function(allData, totalScore, passed) {
+            console.log('=== STORE FINAL SUBMISSION ===');
+            console.log('Data:', allData);
+            console.log('Score:', totalScore, 'Passed:', passed);
+            
+            // Prepare submission data
+            const submissionData = {
+                action: 'handle_quiz_submission',
+                quiz_nonce: typeof acfQuiz !== 'undefined' ? acfQuiz.nonce : '',
+                quiz_data: allData,
+                total_score: totalScore,
+                passed: passed,
+                completed: 1
+            };
+            
+            console.log('Sending final submission data:', submissionData);
+            
+            // Send AJAX request (don't wait for response to avoid blocking redirect)
+            $.ajax({
+                url: typeof acfQuiz !== 'undefined' ? acfQuiz.ajaxUrl : '/wp-admin/admin-ajax.php',
+                type: 'POST',
+                data: submissionData,
+                success: function(response) {
+                    console.log('Final submission stored successfully:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.log('Final submission storage failed:', error);
+                    // Don't block redirect on storage failure
+                }
+            });
         },
         
         handleAnswerChange: function(e) {
