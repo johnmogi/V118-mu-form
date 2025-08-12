@@ -1035,14 +1035,19 @@ class ACF_Quiz_System {
      */
     public function handle_quiz_submission() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['quiz_nonce'], 'quiz_step_nonce')) {
-            wp_send_json_error(array('message' => __('בדיקת אבטחה נכשלה.', 'acf-quiz')));
+        if (!wp_verify_nonce($_POST['quiz_nonce'], 'acf_quiz_nonce')) {
+            wp_send_json_error(array('message' => __('Security check failed. Please refresh the page and try again.', 'acf-quiz')));
         }
 
-        // Validate personal details
-        $user_name = sanitize_text_field($_POST['user_name'] ?? '');
-        $user_phone = sanitize_text_field($_POST['user_phone'] ?? '');
-        $final_declaration = isset($_POST['final_declaration']) && $_POST['final_declaration'] === 'on';
+        // Get quiz data from AJAX submission
+        $quiz_data = $_POST['quiz_data'] ?? array();
+        
+        // Validate personal details from quiz_data
+        $user_name = sanitize_text_field($quiz_data['first_name'] ?? '') . ' ' . sanitize_text_field($quiz_data['last_name'] ?? '');
+        $user_name = trim($user_name);
+        $user_phone = sanitize_text_field($quiz_data['user_phone'] ?? '');
+        $user_email = sanitize_email($quiz_data['user_email'] ?? '');
+        $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
 
         if (empty($user_name) || empty($user_phone) || !$final_declaration) {
             wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההסכמה ליצירת קשר.', 'acf-quiz')));
@@ -1062,12 +1067,12 @@ class ACF_Quiz_System {
 
         foreach ($questions as $q_index => $question) {
             $answer_key = 'question_' . $q_index;
-            if (!isset($_POST[$answer_key])) {
+            if (!isset($quiz_data[$answer_key])) {
                 $all_answered = false;
                 continue;
             }
 
-            $points_earned = intval($_POST[$answer_key]);
+            $points_earned = intval($quiz_data[$answer_key]);
             $total_score += $points_earned;
 
             $results[] = array(
@@ -1432,12 +1437,15 @@ class ACF_Quiz_System {
             $where_clause = 'WHERE passed = 1';
         }
         
-        // Get both completed submissions and initial leads
+        // Get both completed submissions and initial leads (avoid duplicates)
         $submissions = $wpdb->get_results("
-            SELECT * FROM $table_name 
+            SELECT DISTINCT id, user_name, user_phone, user_email, package_selected, 
+                   score, max_score, passed, completed, submission_time, current_step
+            FROM $table_name 
             WHERE 1=1
             " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
             " . ($filter === 'passed' ? " AND passed = 1" : "") . "
+            GROUP BY user_email, completed
             ORDER BY submission_time DESC 
             LIMIT 100
         ");
@@ -1497,13 +1505,13 @@ class ACF_Quiz_System {
                         <th><?php _e('Score', 'acf-quiz'); ?></th>
                         <th><?php _e('Status', 'acf-quiz'); ?></th>
                         <th><?php _e('Type', 'acf-quiz'); ?></th>
-                        <th><?php _e('Actions', 'acf-quiz'); ?></th>
+
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($submissions)) : ?>
                         <tr>
-                            <td colspan="8"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
+                            <td colspan="7"><?php _e('No submissions found.', 'acf-quiz'); ?></td>
                         </tr>
                     <?php else : ?>
                         <?php foreach ($submissions as $submission) : ?>
@@ -1536,11 +1544,7 @@ class ACF_Quiz_System {
                                 <td>
                                     <?php echo $submission->completed ? __('Full Quiz', 'acf-quiz') : __('Initial Lead', 'acf-quiz'); ?>
                                 </td>
-                                <td>
-                                    <button type="button" class="button view-details" data-id="<?php echo $submission->id; ?>">
-                                        <?php _e('View Details', 'acf-quiz'); ?>
-                                    </button>
-                                </td>
+
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
