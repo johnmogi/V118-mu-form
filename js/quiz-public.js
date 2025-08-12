@@ -199,7 +199,29 @@ jQuery(document).ready(function($) {
             // Simple redirect logic
             if (passed) {
                 console.log('PASSED - Redirecting to checkout with trial package');
-                window.location.href = '/checkout/?add-to-cart=999&trial=1&quiz_passed=1&score=' + totalScore;
+                // Get the package type from URL parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                let packageType = 'trial'; // default
+                if (urlParams.has('monthly')) packageType = 'monthly';
+                if (urlParams.has('yearly')) packageType = 'yearly';
+                
+                console.log('Package type detected:', packageType);
+                
+                // Use the acfQuiz config to get product IDs if available
+                let productId = null;
+                if (typeof acfQuiz !== 'undefined' && acfQuiz.productIds) {
+                    productId = acfQuiz.productIds[packageType];
+                    console.log('Product ID from config:', productId);
+                }
+                
+                // Fallback: redirect to checkout and let WooCommerce handle product selection
+                if (productId) {
+                    window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                } else {
+                    // Fallback: redirect to shop or a specific product page
+                    console.log('No product ID found, redirecting to shop with parameters');
+                    window.location.href = '/shop/?' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                }
             } else {
                 console.log('FAILED - Redirecting to followup page');
                 window.location.href = '/followup?score=' + totalScore;

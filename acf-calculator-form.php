@@ -99,6 +99,9 @@ class ACF_Quiz_System {
         add_filter('woocommerce_add_cart_item_data', array($this, 'handle_custom_cart_item'), 10, 3);
         add_action('woocommerce_before_calculate_totals', array($this, 'set_custom_cart_item_price'));
         
+        // Create WooCommerce products if they don't exist
+        add_action('init', array($this, 'create_quiz_products'));
+        
         // Show notice if ACF is not active
         if (!class_exists('ACF')) {
             add_action('admin_notices', array($this, 'acf_notice'));
@@ -696,11 +699,17 @@ class ACF_Quiz_System {
             wp_localize_script('acf-quiz-public', 'acfQuiz', array(
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('acf_quiz_nonce'),
+                'productIds' => array(
+                    'trial' => get_option('quiz_trial_product_id', ''),
+                    'monthly' => get_option('quiz_monthly_product_id', ''),
+                    'yearly' => get_option('quiz_yearly_product_id', '')
+                ),
                 'strings' => array(
-                    'pleaseAnswerAll' => __('Please answer all questions before submitting.', 'acf-quiz'),
-                    'submitting' => __('Submitting...', 'acf-quiz'),
-                    'submit' => __('Submit Quiz', 'acf-quiz'),
-                    'error' => __('An error occurred. Please try again.', 'acf-quiz'),
+                    'fillAllFields' => __('אנא מלא את כל השדות הנדרשים', 'acf-quiz'),
+                    'submitError' => __('שגיאה בשליחת הטופס. אנא נסה שוב.', 'acf-quiz'),
+                    'securityError' => __('בדיקת אבטחה נכשלה. אנא רענן את הדף ונסה שוב.', 'acf-quiz'),
+                    'networkError' => __('שגיאת רשת. אנא בדוק את החיבור לאינטרנט ונסה שוב.', 'acf-quiz'),
+                    'unexpectedError' => __('שגיאה לא צפויה. אנא נסה שוב מאוחר יותר.', 'acf-quiz')
                 )
             ));
         }
@@ -1620,6 +1629,98 @@ class ACF_Quiz_System {
         }
         
         return $value;
+    }
+
+    /**
+     * Create WooCommerce products for quiz packages
+     */
+    public function create_quiz_products() {
+        // Only run if WooCommerce is active
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
+        
+        // Check if products already exist
+        $trial_product = get_posts(array(
+            'post_type' => 'product',
+            'meta_query' => array(
+                array(
+                    'key' => '_quiz_package_type',
+                    'value' => 'trial'
+                )
+            ),
+            'posts_per_page' => 1
+        ));
+        
+        // Only create products if they don't exist
+        if (empty($trial_product)) {
+            // Get prices from ACF options
+            $trial_price = get_field('trial_price', 'option') ?: 99;
+            $monthly_price = get_field('monthly_price', 'option') ?: 199;
+            $yearly_price = get_field('yearly_price', 'option') ?: 1999;
+            
+            // Create Trial Product
+            $trial_id = wp_insert_post(array(
+                'post_title' => 'חבילת ניסיון - 3 חודשים ראשונים',
+                'post_content' => 'חבילת ניסיון מיוחדת למשך 3 חודשים ראשונים במחיר מוזל.',
+                'post_status' => 'publish',
+                'post_type' => 'product'
+            ));
+            
+            if ($trial_id) {
+                wp_set_object_terms($trial_id, 'simple', 'product_type');
+                update_post_meta($trial_id, '_price', $trial_price);
+                update_post_meta($trial_id, '_regular_price', $trial_price);
+                update_post_meta($trial_id, '_manage_stock', 'no');
+                update_post_meta($trial_id, '_stock_status', 'instock');
+                update_post_meta($trial_id, '_visibility', 'visible');
+                update_post_meta($trial_id, '_quiz_package_type', 'trial');
+                update_post_meta($trial_id, '_virtual', 'yes');
+            }
+            
+            // Create Monthly Product
+            $monthly_id = wp_insert_post(array(
+                'post_title' => 'חבילה חודשית',
+                'post_content' => 'חבילה חודשית רגילה.',
+                'post_status' => 'publish',
+                'post_type' => 'product'
+            ));
+            
+            if ($monthly_id) {
+                wp_set_object_terms($monthly_id, 'simple', 'product_type');
+                update_post_meta($monthly_id, '_price', $monthly_price);
+                update_post_meta($monthly_id, '_regular_price', $monthly_price);
+                update_post_meta($monthly_id, '_manage_stock', 'no');
+                update_post_meta($monthly_id, '_stock_status', 'instock');
+                update_post_meta($monthly_id, '_visibility', 'visible');
+                update_post_meta($monthly_id, '_quiz_package_type', 'monthly');
+                update_post_meta($monthly_id, '_virtual', 'yes');
+            }
+            
+            // Create Yearly Product
+            $yearly_id = wp_insert_post(array(
+                'post_title' => 'חבילה שנתית',
+                'post_content' => 'חבילה שנתית במחיר מוזל (1999 ש"ח לשנה, 166 ש"ח לחודש).',
+                'post_status' => 'publish',
+                'post_type' => 'product'
+            ));
+            
+            if ($yearly_id) {
+                wp_set_object_terms($yearly_id, 'simple', 'product_type');
+                update_post_meta($yearly_id, '_price', $yearly_price);
+                update_post_meta($yearly_id, '_regular_price', $yearly_price);
+                update_post_meta($yearly_id, '_manage_stock', 'no');
+                update_post_meta($yearly_id, '_stock_status', 'instock');
+                update_post_meta($yearly_id, '_visibility', 'visible');
+                update_post_meta($yearly_id, '_quiz_package_type', 'yearly');
+                update_post_meta($yearly_id, '_virtual', 'yes');
+            }
+            
+            // Store product IDs in options for easy reference
+            update_option('quiz_trial_product_id', $trial_id);
+            update_option('quiz_monthly_product_id', $monthly_id);
+            update_option('quiz_yearly_product_id', $yearly_id);
+        }
     }
 
     /**
