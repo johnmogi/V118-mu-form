@@ -1,4 +1,4 @@
-/* ACF Quiz System - Public Styles */
+/* ACF Quiz System - Multi-Step Form Styles */
 
 /* RTL Support */
 html[dir="rtl"] .acf-quiz-container {
@@ -17,6 +17,218 @@ html[dir="rtl"] .acf-quiz-container {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     direction: rtl;
     text-align: right;
+}
+
+/* Step Progress Indicator */
+.step-progress {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 20px;
+}
+
+.step-indicator .step {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.step-indicator .step.active {
+    background: #007cba;
+    color: white;
+    transform: scale(1.1);
+}
+
+.step-indicator .step.completed {
+    background: #28a745;
+    color: white;
+}
+
+.step-indicator .step.completed::after {
+    content: '✓';
+    position: absolute;
+    font-size: 14px;
+}
+
+.step-title h2 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 24px;
+}
+
+.step-title p {
+    margin: 0;
+    color: #666;
+    font-size: 16px;
+}
+
+/* Multi-Step Form */
+.quiz-form.multi-step {
+    position: relative;
+}
+
+.form-step {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.form-step.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Step Introduction */
+.step-intro {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-right: 4px solid #007cba;
+}
+
+.step-intro h3 {
+    margin: 0 0 15px 0;
+    color: #007cba;
+    font-size: 20px;
+}
+
+.step-intro p {
+    margin: 0 0 10px 0;
+    color: #555;
+    line-height: 1.6;
+}
+
+.step-intro p:last-child {
+    margin-bottom: 0;
+}
+
+/* Legal Notice */
+.legal-notice {
+    margin-top: 30px;
+    padding: 20px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+}
+
+.legal-notice h4 {
+    margin: 0 0 15px 0;
+    color: #856404;
+    font-size: 16px;
+}
+
+.legal-notice p {
+    margin: 0 0 15px 0;
+    color: #856404;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.legal-notice p:last-child {
+    margin-bottom: 0;
+}
+
+/* Final Declaration */
+.final-declaration {
+    margin-top: 30px;
+    padding: 20px;
+    background: #e7f3ff;
+    border: 2px solid #007cba;
+    border-radius: 8px;
+}
+
+.final-declaration .checkbox-label {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+}
+
+/* Form Navigation */
+.form-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.nav-btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.nav-btn.prev-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.nav-btn.prev-btn:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.nav-btn.next-btn,
+.nav-btn.submit-btn {
+    background: #007cba;
+    color: white;
+}
+
+.nav-btn.next-btn:hover,
+.nav-btn.submit-btn:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+}
+
+.nav-btn:disabled {
+    background: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.nav-btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.nav-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
 }
 
 /* Quiz Header */
@@ -94,8 +306,33 @@ html[dir="rtl"] .acf-quiz-container {
 
 .field-input:focus {
     outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+}
+
+.field-input.error {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+.field-input.error:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+/* Select field styling */
+select.field-input {
+    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23666" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: left 12px center;
+    background-size: 12px;
+    padding-left: 40px;
+}
+
+/* Textarea styling */
+textarea.field-input {
+    resize: vertical;
+    min-height: 80px;
 }
 
 .field-input.error {
@@ -369,14 +606,24 @@ html[dir="rtl"] .answer-marker {
     unicode-bidi: plaintext;
 }
 
+/* Questions Container for Multi-Step */
+.questions-container {
+    margin-top: 20px;
+}
+
+.questions-container .question-block {
+    margin-bottom: 30px;
+}
+
 /* Question Explanation */
 .question-explanation {
     margin-top: 15px;
-    padding: 12px;
-    background: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 4px;
-    margin-left: 45px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 6px;
+    border-right: 3px solid #007cba;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .question-explanation p {
@@ -544,6 +791,74 @@ html[dir="rtl"] .answer-marker {
     100% { transform: rotate(360deg); }
 }
 
+/* Error Messages for Multi-Step */
+.step-error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border: 1px solid #f5c6cb;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* Success Messages */
+.step-success {
+    background: #d4edda;
+    color: #155724;
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border: 1px solid #c3e6cb;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* Loading State for Steps */
+.form-step.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Checkbox styling improvements */
+.checkbox-group .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.checkbox-group .checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: all 0.3s ease;
+}
+
+.checkbox-group input[type="checkbox"]:checked + .checkmark {
+    background: #007cba;
+    border-color: #007cba;
+}
+
+.checkbox-group input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.checkbox-group input[type="checkbox"] {
+    display: none;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .acf-quiz-container {
@@ -580,9 +895,56 @@ html[dir="rtl"] .answer-marker {
     .score-value {
         font-size: 28px;
     }
+    
+    .step-indicator {
+        gap: 10px;
+    }
+    
+    .step-indicator .step {
+        width: 35px;
+        height: 35px;
+        font-size: 14px;
+    }
+    
+    .form-navigation {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .nav-btn {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .step-intro,
+    .legal-notice,
+    .final-declaration {
+        padding: 15px;
+    }
 }
 
 @media (max-width: 480px) {
+    .acf-quiz-container {
+        padding: 15px;
+    }
+    
+    .step-title h2 {
+        font-size: 20px;
+    }
+    
+    .step-intro h3 {
+        font-size: 18px;
+    }
+    
+    .nav-btn {
+        padding: 15px;
+        font-size: 16px;
+    }
+    
+    .field-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
     .quiz-submit-btn,
     .quiz-retry-btn {
         display: block;

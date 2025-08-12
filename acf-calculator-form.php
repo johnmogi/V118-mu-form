@@ -85,6 +85,14 @@ class ACF_Quiz_System {
         register_activation_hook(__FILE__, array($this, 'create_submissions_table'));
         add_action('admin_menu', array($this, 'add_submissions_page'));
         
+        // Multi-step form AJAX handlers
+        add_action('wp_ajax_save_step_data', array($this, 'handle_step_data'));
+        add_action('wp_ajax_nopriv_save_step_data', array($this, 'handle_step_data'));
+        
+        // WooCommerce integration
+        add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
+        add_filter('woocommerce_checkout_get_value', array($this, 'get_checkout_field_value'), 10, 2);
+        
         // Show notice if ACF is not active
         if (!class_exists('ACF')) {
             add_action('admin_notices', array($this, 'acf_notice'));
@@ -103,7 +111,7 @@ class ACF_Quiz_System {
     }
 
     /**
-     * Create submissions table
+     * Create submissions table with expanded fields for 4-step form
      */
     public function create_submissions_table() {
         global $wpdb;
@@ -114,20 +122,54 @@ class ACF_Quiz_System {
         
         $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            user_name varchar(255) NOT NULL,
-            user_phone varchar(50) NOT NULL,
-            user_email varchar(255) DEFAULT '',
-            package_selected varchar(100) DEFAULT '',
+            -- Step 1: Basic Personal Info
+            first_name varchar(100) NOT NULL,
+            last_name varchar(100) NOT NULL,
+            user_phone varchar(20) NOT NULL,
+            user_email varchar(100) NOT NULL,
+            
+            -- Step 2: Detailed Personal Info
+            id_number varchar(20) DEFAULT '',
+            gender varchar(10) DEFAULT '',
+            birth_date date DEFAULT NULL,
+            citizenship varchar(50) DEFAULT 'ישראלית',
+            address text DEFAULT '',
+            marital_status varchar(20) DEFAULT '',
+            employment_status varchar(50) DEFAULT '',
+            education varchar(50) DEFAULT '',
+            profession varchar(100) DEFAULT '',
+            
+            -- Legacy fields (for compatibility)
+            user_name varchar(100) DEFAULT '',
+            contact_consent tinyint(1) DEFAULT 0,
+            
+            -- Package and submission info
+            package_name varchar(100) DEFAULT '',
+            package_price decimal(10,2) DEFAULT 0.00,
+            package_source varchar(100) DEFAULT '',
+            
+            -- Quiz results
+            answers longtext NOT NULL,
             score int(11) NOT NULL,
             max_score int(11) NOT NULL,
+            score_percentage decimal(5,2) NOT NULL,
             passed tinyint(1) NOT NULL,
-            answers longtext NOT NULL,
+            
+            -- Form completion tracking
+            current_step int(1) DEFAULT 1,
+            completed tinyint(1) DEFAULT 0,
+            declaration_accepted tinyint(1) DEFAULT 0,
+            
+            -- Meta info
             submission_time datetime DEFAULT CURRENT_TIMESTAMP,
             ip_address varchar(45) DEFAULT '',
             user_agent text DEFAULT '',
+            
             PRIMARY KEY (id),
             KEY passed (passed),
-            KEY submission_time (submission_time)
+            KEY completed (completed),
+            KEY submission_time (submission_time),
+            KEY user_email (user_email)
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -595,10 +637,10 @@ class ACF_Quiz_System {
     }
 
     /**
-     * Render quiz form shortcode
+     * Render 4-step suitability questionnaire form
      */
     public function render_quiz_form($atts = array()) {
-        // Parse shortcode attributes
+        // Default attributes
         $atts = shortcode_atts(array(
             'package' => '',
             'price' => '',
@@ -611,12 +653,7 @@ class ACF_Quiz_System {
         $source = $atts['source'] ?: (isset($_GET['source']) ? sanitize_text_field($_GET['source']) : '');
         
         // Get quiz data
-        $quiz_title = get_field('quiz_title', 'option') ?: __('שאלון התאמה - חלק א׳', 'acf-quiz');
-        $quiz_instructions = get_field('quiz_instructions', 'option');
         $questions = get_field('quiz_questions', 'option');
-        
-        // Set passing score to 21 (minimum passing score out of 40)
-        $passing_score = 21;
         
         if (empty($questions) || count($questions) !== 10) {
             return '<div class="quiz-error"><p>' . __('השאלון לא מוגדר כראוי. אנא פנה למנהל האתר.', 'acf-quiz') . '</p></div>';
@@ -624,31 +661,48 @@ class ACF_Quiz_System {
         
         ob_start();
         ?>
-        <div class="acf-quiz-container" data-passing-score="21" data-max-score="40" dir="rtl">
-            <div class="quiz-header">
-                <h2 class="quiz-title"><?php echo esc_html($quiz_title); ?></h2>
-                <?php if ($quiz_instructions) : ?>
-                    <div class="quiz-instructions">
-                        <p><?php echo esc_html($quiz_instructions); ?></p>
-                    </div>
-                <?php endif; ?>
-            </div>
+        <div class="acf-quiz-container multi-step-form" data-passing-score="21" data-max-score="40" dir="rtl">
             
-            <form id="acf-quiz-form" class="quiz-form" dir="rtl">
-                <?php wp_nonce_field('acf_quiz_nonce', 'quiz_nonce'); ?>
+            <!-- Step Progress Indicator -->
+            <div class="step-progress">
+                <div class="step-indicator">
+                    <div class="step active" data-step="1">1</div>
+                    <div class="step" data-step="2">2</div>
+                    <div class="step" data-step="3">3</div>
+                    <div class="step" data-step="4">4</div>
+                </div>
+                <div class="step-title">
+                    <h2 id="step-title">שאלון התאמה</h2>
+                    <p id="step-subtitle">שלב 1 מתוך 4</p>
+                </div>
+            </div>
+
+            <form id="acf-quiz-form" class="quiz-form multi-step" dir="rtl">
+                <?php wp_nonce_field('quiz_step_nonce', 'quiz_nonce'); ?>
                 
                 <!-- Hidden package information -->
                 <input type="hidden" name="package_selected" value="<?php echo esc_attr($package); ?>">
                 <input type="hidden" name="package_price" value="<?php echo esc_attr($price); ?>">
                 <input type="hidden" name="package_source" value="<?php echo esc_attr($source); ?>">
                 
-                <!-- Personal Details Section -->
-                <div class="personal-details-section">
-                    <h3 class="section-title">פרטים אישיים</h3>
+                <!-- Step 1: Basic Personal Information -->
+                <div class="form-step active" data-step="1">
+                    <div class="step-intro">
+                        <h3>שלום ברוך הבא!</h3>
+                        <p>אני שמח שבחרת להצטרף לשירות שלי</p>
+                        <p>היות ואני מנהל השקעות, מס' רישיון 7955 השירות מנוהל בהתאם לתקנות של הרשות לניירות ערך</p>
+                        <p>ולכן מבוצע איתך הליך מקוון של בירור התאמה לשירות שמטרתו לאסוף את המידע הרלוונטי אודותיך ולברר האם הינך עם הבנה מספקת בשוק הון שכן זהו תנאי הכרחי להרשמה לשרות ונדרש על-פי חוק</p>
+                    </div>
+                    
                     <div class="personal-fields">
                         <div class="field-group">
-                            <label for="user_name" class="field-label">שם מלא <span class="required">*</span></label>
-                            <input type="text" id="user_name" name="user_name" class="field-input" required>
+                            <label for="first_name" class="field-label">שם פרטי <span class="required">*</span></label>
+                            <input type="text" id="first_name" name="first_name" class="field-input" required>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="last_name" class="field-label">שם משפחה <span class="required">*</span></label>
+                            <input type="text" id="last_name" name="last_name" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
@@ -656,83 +710,239 @@ class ACF_Quiz_System {
                             <input type="tel" id="user_phone" name="user_phone" class="field-input" required>
                         </div>
                         
+                        <div class="field-group">
+                            <label for="user_email" class="field-label">אימייל <span class="required">*</span></label>
+                            <input type="email" id="user_email" name="user_email" class="field-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="legal-notice">
+                        <h4>לתשומת ליבך:</h4>
+                        <p>על מנת שנוכל לבחון בצורה המיטבית את התאמתך לשירות המידע, שיתוף הפעולה מצידך הינו קריטי לשם ביצוע הליך הבירור באופן יעיל. אי מסירת פרטים או מסירת פרטים חלקיים עשויות למנוע ממפעיל השרות לספק לך את השירות.</p>
+                        <p>על פי תיקון ההוראה לבעלי רישיון בקשר למתן שירותים תוך שימוש באמצעים טכנולוגיים מאוגוסט 2023, אנחנו מדגישים כי שירות הייעוץ למסחר עצמאי אינו מותאם אישית, ועל כן השירותים אינם מותאמים באופן פרטני ללקוח או לצרכיו.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Detailed Personal Information -->
+                <div class="form-step" data-step="2">
+                    <div class="step-intro">
+                        <h3>פרטים מלאים</h3>
+                    </div>
+                    
+                    <div class="personal-fields">
+                        <div class="field-group">
+                            <label for="id_number" class="field-label">תעודת זהות / דרכון</label>
+                            <input type="text" id="id_number" name="id_number" class="field-input">
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="gender" class="field-label">מין</label>
+                            <select id="gender" name="gender" class="field-input">
+                                <option value="">בחר</option>
+                                <option value="male">זכר</option>
+                                <option value="female">נקבה</option>
+                            </select>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="birth_date" class="field-label">תאריך לידה</label>
+                            <input type="date" id="birth_date" name="birth_date" class="field-input">
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="citizenship" class="field-label">אזרחות</label>
+                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="address" class="field-label">כתובת</label>
+                            <textarea id="address" name="address" class="field-input" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="marital_status" class="field-label">מצב משפחתי</label>
+                            <select id="marital_status" name="marital_status" class="field-input">
+                                <option value="">בחר</option>
+                                <option value="single">רווק/ה</option>
+                                <option value="married">נשוי/ה</option>
+                                <option value="divorced">גרוש/ה</option>
+                                <option value="widowed">אלמן/ה</option>
+                            </select>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="employment_status" class="field-label">מצב תעסוקתי</label>
+                            <select id="employment_status" name="employment_status" class="field-input">
+                                <option value="">בחר</option>
+                                <option value="employed">שכיר/ה</option>
+                                <option value="self_employed">עצמאי/ת</option>
+                                <option value="unemployed">מובטל/ת</option>
+                                <option value="retired">פנסיונר/ית</option>
+                                <option value="student">סטודנט/ית</option>
+                            </select>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="education" class="field-label">השכלה</label>
+                            <select id="education" name="education" class="field-input">
+                                <option value="">בחר</option>
+                                <option value="high_school">תיכון</option>
+                                <option value="bachelor">תואר ראשון</option>
+                                <option value="master">תואר שני</option>
+                                <option value="doctorate">תואר שלישי</option>
+                                <option value="other">אחר</option>
+                            </select>
+                        </div>
+                        
+                        <div class="field-group">
+                            <label for="profession" class="field-label">מקצוע</label>
+                            <input type="text" id="profession" name="profession" class="field-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: First 5 Investment Questions -->
+                <div class="form-step" data-step="3">
+                    <div class="step-intro">
+                        <h3>שאלות השקעה - חלק א׳</h3>
+                        <p>אנא ענה על השאלות הבאות בהתאם לידע וניסיון שלך</p>
+                    </div>
+                    
+                    <div class="questions-container">
+                        <?php for ($i = 0; $i < 5; $i++) : ?>
+                            <?php if (isset($questions[$i])) : ?>
+                                <div class="question-block" data-question="<?php echo $i; ?>">
+                                    <div class="question-header">
+                                        <span class="question-number"><?php echo ($i + 1); ?>.</span>
+                                        <h3 class="question-text"><?php echo esc_html($questions[$i]['question_text']); ?></h3>
+                                    </div>
+                                    
+                                    <div class="answers-container">
+                                        <?php if (!empty($questions[$i]['answers'])) : ?>
+                                            <?php foreach ($questions[$i]['answers'] as $a_index => $answer) : ?>
+                                                <div class="answer-option">
+                                                    <input type="radio" 
+                                                           name="question_<?php echo $i; ?>" 
+                                                           id="q<?php echo $i; ?>_a<?php echo $a_index; ?>"
+                                                           value="<?php echo $answer['points']; ?>"
+                                                           class="answer-input"
+                                                           required>
+                                                    <label for="q<?php echo $i; ?>_a<?php echo $a_index; ?>" class="answer-label">
+                                                        <span class="answer-marker"></span>
+                                                        <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
+                                                    </label>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- Step 4: Last 5 Questions + Declaration -->
+                <div class="form-step" data-step="4">
+                    <div class="step-intro">
+                        <h3>שאלות השקעה - חלק ב׳</h3>
+                        <p>השלמת השאלות האחרונות והצהרה</p>
+                    </div>
+                    
+                    <div class="questions-container">
+                        <?php for ($i = 5; $i < 10; $i++) : ?>
+                            <?php if (isset($questions[$i])) : ?>
+                                <div class="question-block" data-question="<?php echo $i; ?>">
+                                    <div class="question-header">
+                                        <span class="question-number"><?php echo ($i + 1); ?>.</span>
+                                        <h3 class="question-text"><?php echo esc_html($questions[$i]['question_text']); ?></h3>
+                                    </div>
+                                    
+                                    <div class="answers-container">
+                                        <?php if (!empty($questions[$i]['answers'])) : ?>
+                                            <?php foreach ($questions[$i]['answers'] as $a_index => $answer) : ?>
+                                                <div class="answer-option">
+                                                    <input type="radio" 
+                                                           name="question_<?php echo $i; ?>" 
+                                                           id="q<?php echo $i; ?>_a<?php echo $a_index; ?>"
+                                                           value="<?php echo $answer['points']; ?>"
+                                                           class="answer-input"
+                                                           required>
+                                                    <label for="q<?php echo $i; ?>_a<?php echo $a_index; ?>" class="answer-label">
+                                                        <span class="answer-marker"></span>
+                                                        <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
+                                                    </label>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+                    
+                    <div class="final-declaration">
                         <div class="field-group checkbox-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="contact_consent" name="contact_consent" required>
+                                <input type="checkbox" id="final_declaration" name="final_declaration" required>
                                 <span class="checkmark"></span>
-                                אני מסכים/ה שמנהל האתר יוכל ליצור איתי קשר לצורך מתן שירות
+                                אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא מהחברה. ידוע לי שהחברה מסתמכת על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.
                                 <span class="required">*</span>
                             </label>
                         </div>
                     </div>
-                    <hr class="section-divider">
                 </div>
-                
-                <?php foreach ($questions as $q_index => $question) : ?>
-                    <div class="question-block" data-question="<?php echo $q_index; ?>">
-                        <div class="question-header">
-                            <span class="question-number"><?php echo ($q_index + 1); ?>.</span>
-                            <h3 class="question-text"><?php echo esc_html($question['question_text']); ?></h3>
-                        </div>
-                        
-                        <div class="answers-container">
-                            <?php if (!empty($question['answers'])) : ?>
-                                <?php foreach ($question['answers'] as $a_index => $answer) : ?>
-                                    <div class="answer-option">
-                                        <input type="radio" 
-                                               name="question_<?php echo $q_index; ?>" 
-                                               id="q<?php echo $q_index; ?>_a<?php echo $a_index; ?>"
-                                               value="<?php echo $answer['points']; ?>"
-                                               class="answer-input"
-                                               required>
-                                        <label for="q<?php echo $q_index; ?>_a<?php echo $a_index; ?>" class="answer-label">
-                                            <span class="answer-marker"></span>
-                                            <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
-                                        </label>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <?php if (!empty($question['explanation'])) : ?>
-                            <div class="question-explanation" style="display: none;">
-                                <p><strong><?php _e('Explanation:', 'acf-quiz'); ?></strong> <?php echo esc_html($question['explanation']); ?></p>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                <?php endforeach; ?>
-                
-                <div class="quiz-actions">
-                    <button type="submit" class="quiz-submit-btn"><?php _e('שלח שאלון', 'acf-quiz'); ?></button>
+
+                <!-- Navigation Buttons -->
+                <div class="form-navigation">
+                    <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">חזרה</button>
+                    <button type="button" id="next-step" class="nav-btn next-btn">המשך</button>
+                    <button type="submit" id="submit-form" class="nav-btn submit-btn" style="display: none;">שלח שאלון</button>
                 </div>
             </form>
             
-            <div id="quiz-results" class="quiz-results" style="display: none;" dir="rtl">
-                <div class="results-header">
-                    <h3><?php _e('תוצאות השאלון', 'acf-quiz'); ?></h3>
-                </div>
+            <!-- Results container -->
+            <div id="quiz-results" class="quiz-results" style="display: none;">
                 <div class="results-content">
+                    <h3 class="results-title">תוצאות השאלון</h3>
                     <div class="score-display">
-                        <span class="score-label"><?php _e('הציון שלך:', 'acf-quiz'); ?></span>
-                        <span class="score-value"><span id="quiz-score">0</span>/40</span>
-                        <span class="score-message" id="score-message"></span>
+                        <span id="quiz-score">0/40</span>
                     </div>
-                    <div class="result-message">
-                        <p id="result-message"></p>
-                    </div>
-                    <div class="quiz-actions">
-                        <button type="button" class="quiz-contact-btn"><?php _e('נציג יצור איתך קשר בקרוב', 'acf-quiz'); ?></button>
-                    </div>
+                    <div id="result-message" class="result-message"></div>
                 </div>
             </div>
         </div>
-        <?php
         
+        <script>
+        // Pass data to JavaScript
+        window.acfQuiz = {
+            ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
+            nonce: '<?php echo wp_create_nonce('quiz_step_nonce'); ?>',
+            strings: {
+                submit: 'שלח שאלון',
+                submitting: 'שולח...',
+                error: 'אירעה שגיאה. אנא נסה שוב.',
+                pleaseAnswerAll: 'אנא ענה על כל השאלות',
+                next: 'המשך',
+                prev: 'חזרה',
+                step1Title: 'שאלון התאמה',
+                step2Title: 'שאלון התאמה',
+                step3Title: 'שאלון התאמה',
+                step4Title: 'שאלון התאמה',
+                step1Subtitle: 'שלב 1 מתוך 4',
+                step2Subtitle: 'שלב 2 מתוך 4',
+                step3Subtitle: 'שלב 3 מתוך 4',
+                step4Subtitle: 'שלב 4 מתוך 4'
+            }
+        };
+        </script>
+        
+        <?php
         return ob_get_clean();
     }
 
     /**
      * Handle quiz submission via AJAX
+{{ ... }}
      */
     public function handle_quiz_submission() {
         // Verify nonce
@@ -965,6 +1175,84 @@ class ACF_Quiz_System {
         tr.passed { background-color: #f0fff4; }
         </style>
         <?php
+    }
+
+    /**
+     * Handle step data saving via AJAX
+     */
+    public function handle_step_data() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'quiz_step_nonce')) {
+            wp_die('Security check failed');
+        }
+
+        $step = intval($_POST['step']);
+        $data = $_POST['data'];
+        
+        // Store data in session for multi-step form
+        if (!session_id()) {
+            session_start();
+        }
+        
+        $_SESSION['quiz_step_' . $step] = $data;
+        $_SESSION['quiz_current_step'] = $step;
+        
+        wp_send_json_success(array(
+            'message' => 'Step data saved successfully',
+            'step' => $step,
+            'next_step' => $step + 1
+        ));
+    }
+
+    /**
+     * Populate WooCommerce checkout fields with quiz data
+     */
+    public function populate_checkout_fields() {
+        if (!session_id()) {
+            session_start();
+        }
+        
+        // Get data from session
+        $step1_data = isset($_SESSION['quiz_step_1']) ? $_SESSION['quiz_step_1'] : array();
+        
+        if (!empty($step1_data)) {
+            // Store in session for checkout field population
+            $_SESSION['quiz_checkout_data'] = array(
+                'first_name' => isset($step1_data['first_name']) ? $step1_data['first_name'] : '',
+                'last_name' => isset($step1_data['last_name']) ? $step1_data['last_name'] : '',
+                'email' => isset($step1_data['user_email']) ? $step1_data['user_email'] : '',
+                'phone' => isset($step1_data['user_phone']) ? $step1_data['user_phone'] : ''
+            );
+        }
+    }
+
+    /**
+     * Get checkout field value from quiz data
+     */
+    public function get_checkout_field_value($value, $input) {
+        if (!session_id()) {
+            session_start();
+        }
+        
+        $quiz_data = isset($_SESSION['quiz_checkout_data']) ? $_SESSION['quiz_checkout_data'] : array();
+        
+        if (empty($quiz_data)) {
+            return $value;
+        }
+        
+        // Map quiz fields to WooCommerce checkout fields
+        $field_mapping = array(
+            'billing_first_name' => 'first_name',
+            'billing_last_name' => 'last_name',
+            'billing_email' => 'email',
+            'billing_phone' => 'phone'
+        );
+        
+        if (isset($field_mapping[$input]) && isset($quiz_data[$field_mapping[$input]])) {
+            return $quiz_data[$field_mapping[$input]];
+        }
+        
+        return $value;
     }
 
     /**

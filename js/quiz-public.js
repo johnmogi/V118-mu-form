@@ -1,5 +1,5 @@
 /**
- * ACF Quiz System - Public JavaScript
+ * ACF Quiz System - Multi-Step Form JavaScript
  * RTL and Hebrew Support Enhanced
  */
 
@@ -9,50 +9,74 @@ jQuery(document).ready(function($) {
     // Set RTL direction for the quiz container
     $('.acf-quiz-container').attr('dir', 'rtl');
     
-    const QuizSystem = {
+    const MultiStepQuiz = {
         form: null,
+        currentStep: 1,
+        totalSteps: 4,
+        stepData: {},
+        isSubmitting: false,
+        nextButton: null,
+        prevButton: null,
         submitButton: null,
         resultsContainer: null,
-        isSubmitting: false,
         
         init: function() {
             this.form = $('#acf-quiz-form');
-            this.submitButton = $('.quiz-submit-btn');
+            this.nextButton = $('#next-step');
+            this.prevButton = $('#prev-step');
+            this.submitButton = $('#submit-form');
             this.resultsContainer = $('#quiz-results');
             
             if (this.form.length) {
                 this.bindEvents();
-                this.validateForm();
+                this.updateStepDisplay();
+                this.validateCurrentStep();
             }
         },
         
         bindEvents: function() {
-            // Form submission - use click on the button instead of form submit
+            // Navigation buttons
+            this.nextButton.on('click', this.handleNextStep.bind(this));
+            this.prevButton.on('click', this.handlePrevStep.bind(this));
             this.submitButton.on('click', this.handleSubmit.bind(this));
             
-            // Answer selection - handle both click and change events
-            $('.answer-input').on('click', (e) => {
-                // Allow the radio button to be selected
-                e.stopPropagation();
-                // Trigger change event after a short delay to ensure selection is processed
-                setTimeout(() => {
-                    $(e.target).trigger('change');
-                }, 10);
+            // Form field validation - don't show errors on initial validation
+            this.form.on('input change', 'input, select, textarea', () => {
+                this.validateCurrentStep(false);
             });
             
-            // Handle change event for validation and visual feedback
+            // Answer selection for quiz questions
             $('.answer-input').on('change', (e) => {
                 this.handleAnswerChange(e);
-                this.validateForm();
+                this.validateCurrentStep();
             });
             
-            // Handle label clicks to ensure proper selection
+            // Handle label clicks for radio buttons
             $('.answer-label').on('click', (e) => {
                 const input = $(e.currentTarget).siblings('.answer-input');
                 if (input.length) {
                     input.prop('checked', true).trigger('change');
                 }
             });
+        },
+        
+        handleNextStep: function() {
+            if (this.validateCurrentStep(true)) {
+                this.saveCurrentStepData();
+                if (this.currentStep < this.totalSteps) {
+                    this.currentStep++;
+                    this.showStep(this.currentStep);
+                }
+            } else {
+                this.showError('אנא מלא את כל השדות הנדרשים');
+            }
+        },
+        
+        handlePrevStep: function() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+                this.showStep(this.currentStep);
+            }
         },
         
         handleSubmit: function(e) {
@@ -62,11 +86,12 @@ jQuery(document).ready(function($) {
                 return false;
             }
             
-            if (!this.validateAllAnswered()) {
-                this.showError(acfQuiz.strings.pleaseAnswerAll);
+            if (!this.validateCurrentStep(true)) {
+                this.showError('אנא מלא את כל השדות הנדרשים');
                 return false;
             }
             
+            this.saveCurrentStepData();
             this.submitQuiz();
         },
         
@@ -147,60 +172,160 @@ jQuery(document).ready(function($) {
             return { isValid: isValid, errorMessage: errorMessage };
         },
 
-        validateForm: function(showErrors = false) {
-            const personalValidation = this.validatePersonalDetails(showErrors);
-            const allAnswered = this.validateAllAnswered();
-            const isFormValid = personalValidation.isValid && allAnswered;
+        validateCurrentStep: function(showErrors = false) {
+            const currentStepElement = $(`.form-step[data-step="${this.currentStep}"]`);
+            let isValid = true;
             
-            this.submitButton.prop('disabled', !isFormValid);
+            // Validate required fields in current step
+            currentStepElement.find('input[required], select[required], textarea[required]').each(function() {
+                const $field = $(this);
+                const value = $field.val();
+                
+                if (!value || (value && value.trim() === '')) {
+                    isValid = false;
+                    if (showErrors) {
+                        $field.addClass('error');
+                    }
+                } else {
+                    $field.removeClass('error');
+                }
+            });
             
-            if (isFormValid) {
-                this.submitButton.removeClass('disabled');
-                this.hideError();
-            } else if (showErrors) {
-                this.submitButton.addClass('disabled');
-                if (!personalValidation.isValid) {
-                    this.showError(personalValidation.errorMessage);
-                } else if (!allAnswered) {
-                    this.showError('אנא ענה על כל השאלות');
+            // Special validation for radio button groups in quiz steps
+            if (this.currentStep === 3 || this.currentStep === 4) {
+                const questionStart = this.currentStep === 3 ? 0 : 5;
+                const questionEnd = this.currentStep === 3 ? 5 : 10;
+                
+                for (let i = questionStart; i < questionEnd; i++) {
+                    const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;
+                    if (!questionAnswered) {
+                        isValid = false;
+                        break;
+                    }
                 }
             }
             
-            return isFormValid;
+            // Update navigation buttons
+            this.updateNavigationButtons(isValid);
+            
+            return isValid;
         },
         
-        updateProgress: function() {
-            const totalQuestions = $('.question-block').length;
-            const answeredQuestions = $('.question-block.answered').length;
-            const progress = Math.round((answeredQuestions / totalQuestions) * 100);
+        showStep: function(stepNumber) {
+            // Hide all steps
+            $('.form-step').removeClass('active');
             
-            // You can add a progress bar here if needed
-            console.log('Progress: ' + progress + '%');
+            // Show current step
+            $(`.form-step[data-step="${stepNumber}"]`).addClass('active');
+            
+            // Update step indicator
+            $('.step-indicator .step').removeClass('active completed');
+            
+            for (let i = 1; i <= stepNumber; i++) {
+                if (i < stepNumber) {
+                    $(`.step-indicator .step[data-step="${i}"]`).addClass('completed');
+                } else if (i === stepNumber) {
+                    $(`.step-indicator .step[data-step="${i}"]`).addClass('active');
+                }
+            }
+            
+            this.updateStepDisplay();
+            this.validateCurrentStep(false); // Don't show errors on initial load
+        },
+        
+        updateStepDisplay: function() {
+            $('#step-title').text(acfQuiz.strings[`step${this.currentStep}Title`] || 'שאלון התאמה');
+            $('#step-subtitle').text(acfQuiz.strings[`step${this.currentStep}Subtitle`] || `שלב ${this.currentStep} מתוך 4`);
+        },
+        
+        updateNavigationButtons: function(isValid) {
+            // Show/hide prev button
+            if (this.currentStep > 1) {
+                this.prevButton.show();
+            } else {
+                this.prevButton.hide();
+            }
+            
+            // Show/hide next/submit buttons
+            if (this.currentStep < this.totalSteps) {
+                this.nextButton.show();
+                this.submitButton.hide();
+                this.nextButton.prop('disabled', !isValid);
+            } else {
+                this.nextButton.hide();
+                this.submitButton.show();
+                this.submitButton.prop('disabled', !isValid);
+            }
+        },
+        
+        saveCurrentStepData: function() {
+            const currentStepElement = $(`.form-step[data-step="${this.currentStep}"]`);
+            const stepData = {};
+            
+            // Collect all form data from current step
+            currentStepElement.find('input, select, textarea').each(function() {
+                const $field = $(this);
+                const name = $field.attr('name');
+                const type = $field.attr('type');
+                
+                if (name) {
+                    if (type === 'radio' || type === 'checkbox') {
+                        if ($field.is(':checked')) {
+                            stepData[name] = $field.val();
+                        }
+                    } else {
+                        stepData[name] = $field.val();
+                    }
+                }
+            });
+            
+            this.stepData[`step_${this.currentStep}`] = stepData;
+            
+            // Save to session via AJAX
+            $.ajax({
+                url: acfQuiz.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'save_step_data',
+                    nonce: acfQuiz.nonce,
+                    step: this.currentStep,
+                    data: stepData
+                },
+                success: function(response) {
+                    console.log('Step data saved:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving step data:', error);
+                }
+            });
         },
         
         submitQuiz: function() {
             this.isSubmitting = true;
             this.setLoadingState(true);
             
-            // Collect all answers with their point values
-            const formData = new FormData();
-            formData.append('action', 'submit_quiz');
-            formData.append('quiz_nonce', $('#quiz_nonce').val());
+            // Collect all form data from all steps
+            const allData = {};
             
-            // Add each answer to form data
-            $('.answer-input:checked').each(function() {
-                const name = $(this).attr('name'); // question_0, question_1, etc.
-                const value = $(this).val(); // points value (1-4)
-                formData.append(name, value);
+            // Merge all step data
+            Object.keys(this.stepData).forEach(stepKey => {
+                Object.assign(allData, this.stepData[stepKey]);
             });
+            
+            // Add package information
+            allData.package_selected = $('input[name="package_selected"]').val();
+            allData.package_price = $('input[name="package_price"]').val();
+            allData.package_source = $('input[name="package_source"]').val();
             
             // Submit via AJAX
             $.ajax({
                 url: acfQuiz.ajaxUrl,
                 type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
+                data: {
+                    action: 'submit_quiz',
+                    quiz_nonce: $('#quiz_nonce').val(),
+                    form_data: allData
+                },
                 dataType: 'json',
                 success: this.handleSuccess.bind(this),
                 error: this.handleError.bind(this),
@@ -288,10 +413,13 @@ jQuery(document).ready(function($) {
                 this.submitButton.prop('disabled', true);
                 this.submitButton.text(acfQuiz.strings.submitting);
                 this.submitButton.addClass('loading');
+                this.nextButton.prop('disabled', true);
+                this.prevButton.prop('disabled', true);
             } else {
-                this.submitButton.prop('disabled', false);
-                this.submitButton.text(acfQuiz.strings.submit);
                 this.submitButton.removeClass('loading');
+                this.nextButton.prop('disabled', false);
+                this.prevButton.prop('disabled', false);
+                this.validateCurrentStep();
             }
         },
         
@@ -337,15 +465,15 @@ jQuery(document).ready(function($) {
         }
     };
     
-    // Initialize the quiz system with RTL support
+    // Initialize the multi-step quiz system
     $(document).ready(function() {
         // Set RTL for the quiz container if not already set
         if (!$('.acf-quiz-container').attr('dir')) {
             $('.acf-quiz-container').attr('dir', 'rtl');
         }
         
-        // Initialize the quiz system
-        QuizSystem.init();
+        // Initialize the multi-step quiz system
+        MultiStepQuiz.init();
         
         // Add RTL class to form elements
         $('.acf-quiz-container input, .acf-quiz-container textarea, .acf-quiz-container select').addClass('rtl-input');
