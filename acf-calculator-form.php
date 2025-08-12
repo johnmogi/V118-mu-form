@@ -189,15 +189,25 @@ class ACF_Quiz_System {
      * Add submissions admin page
      */
     public function add_submissions_page() {
-        // Create standalone admin menu for Quiz Submissions
+        // Add main Quiz System menu
         add_menu_page(
+            __('Quiz System', 'acf-quiz'),
+            __('Quiz System', 'acf-quiz'),
+            'manage_options',
+            'quiz-system',
+            '', // No callback - ACF will handle the main page
+            'dashicons-forms',
+            30
+        );
+        
+        // Add the submissions submenu
+        add_submenu_page(
+            'quiz-system',
             __('Quiz Submissions', 'acf-quiz'),
-            __('Quiz Submissions', 'acf-quiz'),
+            __('Submissions', 'acf-quiz'),
             'manage_options',
             'quiz-submissions',
-            array($this, 'render_submissions_page'),
-            'dashicons-list-view',
-            25
+            array($this, 'render_submissions_page')
         );
     }
 
@@ -1028,8 +1038,6 @@ class ACF_Quiz_System {
         return ob_get_clean();
     }
 
-
-
     /**
      * Handle quiz submission via AJAX
 {{ ... }}
@@ -1048,6 +1056,16 @@ class ACF_Quiz_System {
         $user_name = trim($user_name);
         $user_phone = sanitize_text_field($quiz_data['user_phone'] ?? '');
         $user_email = sanitize_email($quiz_data['user_email'] ?? '');
+        // Step 2 fields
+        $id_number = sanitize_text_field($quiz_data['id_number'] ?? '');
+        $gender = sanitize_text_field($quiz_data['gender'] ?? '');
+        $birth_date = sanitize_text_field($quiz_data['birth_date'] ?? '');
+        $citizenship = sanitize_text_field($quiz_data['citizenship'] ?? '');
+        $address = sanitize_text_field($quiz_data['address'] ?? '');
+        $marital_status = sanitize_text_field($quiz_data['marital_status'] ?? '');
+        $employment_status = sanitize_text_field($quiz_data['employment_status'] ?? '');
+        $education = sanitize_text_field($quiz_data['education'] ?? '');
+        $profession = sanitize_text_field($quiz_data['profession'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
 
         if (empty($user_name) || empty($user_phone) || !$final_declaration) {
@@ -1092,36 +1110,80 @@ class ACF_Quiz_System {
         $passed = $total_score >= 21;
         $score_percentage = round(($total_score / $max_possible_score) * 100);
 
-        // Store submission in database
+        // Store or update submission in database
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
         
-        $submission_data = array(
-            'user_name' => $user_name,
-            'user_phone' => $user_phone,
-            'user_email' => $user_email,
-            'id_number' => $id_number,
-            'gender' => $gender,
-            'birth_date' => $birth_date,
-            'citizenship' => $citizenship,
-            'address' => $address,
-            'marital_status' => $marital_status,
-            'employment_status' => $employment_status,
-            'education' => $education,
-            'profession' => $profession,
-            'package_selected' => $package_selected,
-            'package_price' => $package_price,
-            'score' => $total_score,
-            'max_score' => $max_possible_score,
-            'passed' => $passed ? 1 : 0,
-            'answers' => json_encode($results),
-            'submission_time' => current_time('mysql'),
-            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
-        );
+        // Identify existing submission by session id or email
+        $existing_id = isset($_SESSION['quiz_submission_id']) ? (int) $_SESSION['quiz_submission_id'] : 0;
+        if (!$existing_id && !empty($user_email)) {
+            $existing_id = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_email = %s ORDER BY id DESC LIMIT 1", $user_email));
+        }
         
-        $wpdb->insert($table_name, $submission_data);
-        $submission_id = $wpdb->insert_id;
+        $package_selected = sanitize_text_field($quiz_data['package_param'] ?? ($quiz_data['package_selected'] ?? ''));
+        $package_price = intval($quiz_data['package_price'] ?? 0);
+        
+        if ($existing_id) {
+            $wpdb->update(
+                $table_name,
+                array(
+                    'user_name' => $user_name,
+                    'user_phone' => $user_phone,
+                    'user_email' => $user_email,
+                    'id_number' => $id_number,
+                    'gender' => $gender,
+                    'birth_date' => $birth_date,
+                    'citizenship' => $citizenship,
+                    'address' => $address,
+                    'marital_status' => $marital_status,
+                    'employment_status' => $employment_status,
+                    'education' => $education,
+                    'profession' => $profession,
+                    'package_selected' => $package_selected,
+                    'package_price' => $package_price,
+                    'score' => $total_score,
+                    'max_score' => $max_possible_score,
+                    'passed' => $passed ? 1 : 0,
+                    'answers' => json_encode($results),
+                    'current_step' => 4,
+                    'completed' => 1,
+                    'submission_time' => current_time('mysql'),
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+                ),
+                array('id' => $existing_id),
+                null,
+                array('%d')
+            );
+            $submission_id = $existing_id;
+        } else {
+            $wpdb->insert($table_name, array(
+                'user_name' => $user_name,
+                'user_phone' => $user_phone,
+                'user_email' => $user_email,
+                'id_number' => $id_number,
+                'gender' => $gender,
+                'birth_date' => $birth_date,
+                'citizenship' => $citizenship,
+                'address' => $address,
+                'marital_status' => $marital_status,
+                'employment_status' => $employment_status,
+                'education' => $education,
+                'profession' => $profession,
+                'package_selected' => $package_selected,
+                'package_price' => $package_price,
+                'score' => $total_score,
+                'max_score' => $max_possible_score,
+                'passed' => $passed ? 1 : 0,
+                'answers' => json_encode($results),
+                'current_step' => 4,
+                'completed' => 1,
+                'submission_time' => current_time('mysql'),
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+            ));
+            $submission_id = $wpdb->insert_id;
+        }
 
         // Store user details in session for WooCommerce integration
         if (!session_id()) {
@@ -1169,7 +1231,7 @@ class ACF_Quiz_System {
     public function handle_step_data() {
         error_log('=== HANDLE_STEP_DATA CALLED ===');
         error_log('POST data: ' . print_r($_POST, true));
-        
+
         // SIMPLIFIED: Skip nonce verification for now to ensure lead capture works
         // TODO: Re-enable nonce verification after confirming lead capture works
         /*
@@ -1184,38 +1246,30 @@ class ACF_Quiz_System {
         // Get step data
         $step_data = $_POST['step_data'] ?? array();
         $current_step = intval($_POST['current_step'] ?? 1);
-        
+
         error_log('Step data: ' . print_r($step_data, true));
         error_log('Current step: ' . $current_step);
-        
-        // Store step 1 data as partial submission (lead)
+
+        // Ensure session
+        if (!session_id()) {
+            session_start();
+        }
+
+        // Handle Step 1: insert lead and remember submission id
         if ($current_step === 1) {
-            // Fix field name mapping from frontend
             $first_name = sanitize_text_field($step_data['first_name'] ?? '');
             $last_name = sanitize_text_field($step_data['last_name'] ?? '');
             $user_name = trim($first_name . ' ' . $last_name);
             $user_phone = sanitize_text_field($step_data['user_phone'] ?? '');
             $user_email = sanitize_text_field($step_data['user_email'] ?? '');
-            $contact_consent = isset($step_data['contact_consent']) ? 1 : 0;
-            
-            error_log('Processing step 1 lead data');
-            error_log('User name: ' . $user_name);
-            error_log('User phone: ' . $user_phone);
-            error_log('User email: ' . $user_email);
-            
-            // Only store if we have at least name or phone
+
             if (!empty($user_name) || !empty($user_phone)) {
-                error_log('Lead data validation passed, proceeding with DB insert');
-                
                 global $wpdb;
-                $table_name = $wpdb->prefix . 'quiz_submissions'; // Use WordPress prefix for consistency
-                
-                error_log('Table name: ' . $table_name);
-                
-                // Get package information from URL parameters or POST data
-                $package_type = $_POST['package_param'] ?? '';
+                $table_name = $wpdb->prefix . 'quiz_submissions';
+
+                // Package info
+                $package_type = sanitize_text_field($_POST['package_param'] ?? ($step_data['package_param'] ?? ''));
                 $package_price = 0;
-                
                 if ($package_type === 'trial') {
                     $package_price = get_field('trial_price', 'option') ?: 99;
                 } elseif ($package_type === 'monthly') {
@@ -1223,10 +1277,7 @@ class ACF_Quiz_System {
                 } elseif ($package_type === 'yearly') {
                     $package_price = get_field('yearly_price', 'option') ?: 1999;
                 }
-                
-                error_log('Package type: ' . $package_type);
-                error_log('Package price: ' . $package_price);
-                
+
                 $submission_data = array(
                     'user_name' => $user_name,
                     'user_phone' => $user_phone,
@@ -1237,39 +1288,67 @@ class ACF_Quiz_System {
                     'max_score' => 40,
                     'passed' => 0,
                     'answers' => json_encode(array()),
-                    'current_step' => $current_step,
+                    'current_step' => 1,
                     'completed' => 0,
                     'submission_time' => current_time('mysql'),
                     'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
                     'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
                 );
-                
-                error_log('Submission data: ' . print_r($submission_data, true));
-                
+
                 $result = $wpdb->insert($table_name, $submission_data);
-                
-                error_log('Insert result: ' . ($result === false ? 'FALSE' : $result));
-                error_log('Last error: ' . $wpdb->last_error);
-                error_log('Insert ID: ' . $wpdb->insert_id);
-                
-                // Debug log for troubleshooting
-                if ($result === false) {
-                    error_log('Quiz lead insert failed: ' . $wpdb->last_error);
+                if ($result !== false) {
+                    $_SESSION['quiz_submission_id'] = (int) $wpdb->insert_id;
+                    error_log('Lead inserted, session quiz_submission_id=' . $_SESSION['quiz_submission_id']);
                 } else {
-                    error_log('Quiz lead inserted successfully: ID ' . $wpdb->insert_id);
+                    error_log('Lead insert failed: ' . $wpdb->last_error);
                 }
             } else {
-                error_log('Lead data validation failed - no name or phone provided');
+                error_log('Step 1 skipped - no name or phone');
             }
         }
-        
-        // Store in session for multi-step form
-        if (!session_id()) {
-            session_start();
+
+        // Handle Step 2: update same submission (by session id or email)
+        if ($current_step === 2) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'quiz_submissions';
+
+            $submission_id = isset($_SESSION['quiz_submission_id']) ? (int) $_SESSION['quiz_submission_id'] : 0;
+            $user_email = sanitize_text_field($step_data['user_email'] ?? '');
+
+            $update_where = '';
+            $update_where_args = array();
+            if ($submission_id > 0) {
+                $update_where = 'id = %d';
+                $update_where_args[] = $submission_id;
+            } elseif (!empty($user_email)) {
+                $update_where = 'user_email = %s AND completed = 0';
+                $update_where_args[] = $user_email;
+            }
+
+            if ($update_where) {
+                $updated = $wpdb->query($wpdb->prepare(
+                    "UPDATE $table_name SET id_number=%s, gender=%s, birth_date=%s, citizenship=%s, address=%s, marital_status=%s, employment_status=%s, education=%s, profession=%s, current_step=%d WHERE $update_where",
+                    sanitize_text_field($step_data['id_number'] ?? ''),
+                    sanitize_text_field($step_data['gender'] ?? ''),
+                    sanitize_text_field($step_data['birth_date'] ?? ''),
+                    sanitize_text_field($step_data['citizenship'] ?? ''),
+                    sanitize_text_field($step_data['address'] ?? ''),
+                    sanitize_text_field($step_data['marital_status'] ?? ''),
+                    sanitize_text_field($step_data['employment_status'] ?? ''),
+                    sanitize_text_field($step_data['education'] ?? ''),
+                    sanitize_text_field($step_data['profession'] ?? ''),
+                    2,
+                    ...$update_where_args
+                ));
+                error_log('Step 2 update result: ' . var_export($updated, true));
+            } else {
+                error_log('Step 2 update skipped - no identifier');
+            }
         }
-        
+
+        // Persist step data in session
         $_SESSION['quiz_step_data'][$current_step] = $step_data;
-        
+
         wp_send_json_success(array('message' => 'Step data saved'));
     }
 
@@ -1464,21 +1543,29 @@ class ACF_Quiz_System {
             $where_clause = 'WHERE passed = 1';
         }
         
-        // Get all submissions including leads - simplified query
+        // Get both completed submissions and initial leads (avoid duplicates)
         $submissions = $wpdb->get_results("
-            SELECT id, user_name, user_phone, user_email, package_selected, 
+            SELECT DISTINCT id, user_name, user_phone, user_email, package_selected, 
                    score, max_score, passed, completed, submission_time, current_step
             FROM $table_name 
             WHERE 1=1
             " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
             " . ($filter === 'passed' ? " AND passed = 1" : "") . "
+            GROUP BY user_email, completed
             ORDER BY submission_time DESC 
             LIMIT 100
         ");
         
+        $total_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        $completed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 1");
+        $failed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE (passed = 0 AND completed = 1) OR completed = 0");
+        $passed_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE passed = 1");
+        $lead_submissions = $wpdb->get_var("SELECT COUNT(*) FROM $table_name WHERE completed = 0");
+        
         ?>
         <div class="wrap">
             <h1><?php _e('Quiz Submissions', 'acf-quiz'); ?></h1>
+            <!-- Stats grid intentionally hidden per request -->
             
             <form method="post" id="bulk-action-form">
                 <?php wp_nonce_field('bulk_delete_submissions', 'bulk_delete_nonce'); ?>

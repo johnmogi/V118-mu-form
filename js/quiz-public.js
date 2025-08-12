@@ -493,6 +493,9 @@ jQuery(document).ready(function($) {
         },
         
         saveCurrentStepData: function() {
+            console.log('=== SAVE CURRENT STEP DATA ===');
+            console.log('Current step:', this.currentStep);
+            
             const currentStepElement = $(`.form-step[data-step="${this.currentStep}"]`);
             const stepData = {};
             
@@ -501,6 +504,8 @@ jQuery(document).ready(function($) {
                 const $field = $(this);
                 const name = $field.attr('name');
                 const type = $field.attr('type');
+                
+                console.log('Field found:', { name: name, type: type, value: $field.val(), checked: $field.is(':checked') });
                 
                 if (name) {
                     if (type === 'radio' || type === 'checkbox') {
@@ -513,13 +518,19 @@ jQuery(document).ready(function($) {
                 }
             });
             
+            console.log('Collected step data:', stepData);
+            
             // Save step data to local object
             this.stepData[`step_${this.currentStep}`] = stepData;
             
             // For Step 1, immediately save as lead to database
             if (this.currentStep === 1) {
+                console.log('Step 1 - calling saveStepAsLead');
                 this.saveStepAsLead(stepData);
             }
+            
+            // Add debugging
+            console.log('Sending AJAX request for step', this.currentStep);
             
             // Save current step data to session via AJAX
             $.ajax({
@@ -533,10 +544,11 @@ jQuery(document).ready(function($) {
                 },
                 dataType: 'json',
                 success: (response) => {
-                    console.log('Step data saved:', response);
+                    console.log('Step data saved successfully:', response);
                 },
                 error: (xhr, status, error) => {
                     console.error('Error saving step data:', error, xhr.responseText);
+                    console.error('XHR details:', xhr);
                 }
             });
         },
