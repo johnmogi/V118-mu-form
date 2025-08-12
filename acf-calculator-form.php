@@ -43,7 +43,30 @@ class ACF_Quiz_System {
             return;
         }
 
+        // Add version control for CSS files
+        add_filter('style_loader_src', array($this, 'remove_css_js_version'), 9999);
+        
         $this->init_hooks();
+    }
+    
+    /**
+     * Remove version parameter from enqueued CSS/JS files
+     * This helps with cache control during development
+     */
+    public function remove_css_js_version($src) {
+        // Only process files from our plugin
+        if (strpos($src, 'mu-plugins/acf-quiz/') !== false) {
+            // Remove version parameter if it exists
+            if (strpos($src, 'ver=')) {
+                $src = remove_query_arg('ver', $src);
+            }
+            // Add file modification time as version for cache busting
+            $file_path = str_replace($this->plugin_url, $this->plugin_path, $src);
+            if (file_exists($file_path)) {
+                $src = add_query_arg('ver', filemtime($file_path), $src);
+            }
+        }
+        return $src;
     }
 
     /**
@@ -115,9 +138,21 @@ class ACF_Quiz_System {
      * Add submissions admin page
      */
     public function add_submissions_page() {
+        // Add the main menu page that will be used by ACF options
+        add_menu_page(
+            __('Quiz System', 'acf-quiz'),
+            __('Quiz System', 'acf-quiz'),
+            'manage_options',
+            'quiz-settings',
+            '', // Leave empty since ACF will handle the content
+            'dashicons-forms',
+            30
+        );
+
+        // Add the submissions submenu
         add_submenu_page(
             'quiz-settings',
-            __('Quiz Submissions', 'acf-quiz'),
+            __('Submissions', 'acf-quiz'),
             __('Submissions', 'acf-quiz'),
             'manage_options',
             'quiz-submissions',

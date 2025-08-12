@@ -27,14 +27,32 @@ jQuery(document).ready(function($) {
         },
         
         bindEvents: function() {
-            // Form submission
-            this.form.on('submit', this.handleSubmit.bind(this));
+            // Form submission - use click on the button instead of form submit
+            this.submitButton.on('click', this.handleSubmit.bind(this));
             
-            // Answer selection
-            $('.answer-input').on('change', this.handleAnswerChange.bind(this));
+            // Answer selection - handle both click and change events
+            $('.answer-input').on('click', (e) => {
+                // Allow the radio button to be selected
+                e.stopPropagation();
+                // Trigger change event after a short delay to ensure selection is processed
+                setTimeout(() => {
+                    $(e.target).trigger('change');
+                }, 10);
+            });
             
-            // Real-time validation
-            $('.answer-input').on('change', this.validateForm.bind(this));
+            // Handle change event for validation and visual feedback
+            $('.answer-input').on('change', (e) => {
+                this.handleAnswerChange(e);
+                this.validateForm();
+            });
+            
+            // Handle label clicks to ensure proper selection
+            $('.answer-label').on('click', (e) => {
+                const input = $(e.currentTarget).siblings('.answer-input');
+                if (input.length) {
+                    input.prop('checked', true).trigger('change');
+                }
+            });
         },
         
         handleSubmit: function(e) {
@@ -55,9 +73,17 @@ jQuery(document).ready(function($) {
         handleAnswerChange: function(e) {
             const $input = $(e.target);
             const questionBlock = $input.closest('.question-block');
+            const questionName = $input.attr('name');
             
-            // Visual feedback for answered questions
+            // Remove 'answered' class from all questions with the same name
+            $(`input[name="${questionName}"]`).closest('.question-block').removeClass('answered');
+            
+            // Add 'answered' class to the current question block
             questionBlock.addClass('answered');
+            
+            // Visual feedback for the selected answer
+            $(`input[name="${questionName}"]`).closest('.answer-option').removeClass('selected');
+            $input.closest('.answer-option').addClass('selected');
             
             // Update progress
             this.updateProgress();
@@ -72,44 +98,57 @@ jQuery(document).ready(function($) {
             return totalQuestions === answeredQuestions;
         },
         
-        validatePersonalDetails: function() {
+        validatePersonalDetails: function(showErrors = false) {
             let isValid = true;
             let errorMessage = '';
             
-            // Validate personal details
-            const userName = $('#user_name').val().trim();
-            const userPhone = $('#user_phone').val().trim();
-            const contactConsent = $('#contact_consent').is(':checked');
+            // Get field values
+            const $nameField = $('#user_name');
+            const $phoneField = $('#user_phone');
+            const $consentField = $('#contact_consent');
+            const $consentGroup = $consentField.closest('.checkbox-group');
             
-            if (!userName) {
-                isValid = false;
-                $('#user_name').addClass('error');
-                errorMessage = 'אנא מלא את השם המלא';
-            } else {
-                $('#user_name').removeClass('error');
-            }
+            const userName = $nameField.val().trim();
+            const userPhone = $phoneField.val().trim();
+            const contactConsent = $consentField.is(':checked');
             
-            if (!userPhone) {
-                isValid = false;
-                $('#user_phone').addClass('error');
-                if (!errorMessage) errorMessage = 'אנא מלא את מספר הטלפון';
+            // Only validate and show errors if showErrors is true
+            if (showErrors) {
+                if (!userName) {
+                    isValid = false;
+                    $nameField.addClass('error');
+                    errorMessage = 'אנא מלא את השם המלא';
+                } else {
+                    $nameField.removeClass('error');
+                }
+                
+                if (!userPhone) {
+                    isValid = false;
+                    $phoneField.addClass('error');
+                    if (!errorMessage) errorMessage = 'אנא מלא את מספר הטלפון';
+                } else {
+                    $phoneField.removeClass('error');
+                }
+                
+                if (!contactConsent) {
+                    isValid = false;
+                    $consentGroup.addClass('error');
+                    if (!errorMessage) errorMessage = 'אנא אשר את ההסכמה ליצירת קשר';
+                } else {
+                    $consentGroup.removeClass('error');
+                }
             } else {
-                $('#user_phone').removeClass('error');
-            }
-            
-            if (!contactConsent) {
-                isValid = false;
-                $('#contact_consent').closest('.checkbox-group').addClass('error');
-                if (!errorMessage) errorMessage = 'אנא אשר את ההסכמה ליצירת קשר';
-            } else {
-                $('#contact_consent').closest('.checkbox-group').removeClass('error');
+                // Just validate without showing errors
+                if (!userName || !userPhone || !contactConsent) {
+                    isValid = false;
+                }
             }
             
             return { isValid: isValid, errorMessage: errorMessage };
         },
 
-        validateForm: function() {
-            const personalValidation = this.validatePersonalDetails();
+        validateForm: function(showErrors = false) {
+            const personalValidation = this.validatePersonalDetails(showErrors);
             const allAnswered = this.validateAllAnswered();
             const isFormValid = personalValidation.isValid && allAnswered;
             
@@ -117,7 +156,8 @@ jQuery(document).ready(function($) {
             
             if (isFormValid) {
                 this.submitButton.removeClass('disabled');
-            } else {
+                this.hideError();
+            } else if (showErrors) {
                 this.submitButton.addClass('disabled');
                 if (!personalValidation.isValid) {
                     this.showError(personalValidation.errorMessage);
@@ -256,27 +296,38 @@ jQuery(document).ready(function($) {
         },
         
         showError: function(message) {
-            // Remove existing error messages
+            // Remove any existing error messages
             $('.quiz-error-message').remove();
             
             // Add error message
-            const errorHtml = '<div class="quiz-error-message" style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin: 15px 0; border: 1px solid #f5c6cb;">' + 
-                             '<strong>Error:</strong> ' + message + 
-                             '</div>';
+            const errorHtml = `
+                <div class="quiz-error-message" style="
+                    background: #f8d7da; 
+                    color: #721c24; 
+                    padding: 12px; 
+                    border-radius: 4px; 
+                    margin: 15px 0; 
+                    border: 1px solid #f5c6cb;
+                    text-align: right;
+                    direction: rtl;
+                ">
+                    <i class="dashicons dashicons-warning"></i>
+                    ${message}
+                </div>
+            `;
             
             this.form.prepend(errorHtml);
             
             // Auto-hide after 5 seconds
-            setTimeout(function() {
-                $('.quiz-error-message').fadeOut(300, function() {
-                    $(this).remove();
-                });
+            setTimeout(() => {
+                this.hideError();
             }, 5000);
-            
-            // Scroll to error
-            $('html, body').animate({
-                scrollTop: $('.quiz-error-message').offset().top - 100
-            }, 300);
+        },
+        
+        hideError: function() {
+            $('.quiz-error-message').fadeOut(300, function() {
+                $(this).remove();
+            });
         },
         
         scrollToResults: function() {

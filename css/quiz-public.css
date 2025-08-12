@@ -216,6 +216,13 @@ html[dir="rtl"] .answers-container {
     position: absolute;
     opacity: 0;
     cursor: pointer;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    margin: 0;
+    z-index: 2;
+    pointer-events: auto;
 }
 
 .answer-label {
@@ -231,16 +238,33 @@ html[dir="rtl"] .answers-container {
     direction: rtl;
     text-align: right;
     width: 100%;
+    box-sizing: border-box;
+    min-height: 50px;
 }
 
 .answer-label:hover {
     border-color: #007cba;
     background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.answer-input:focus-visible + .answer-label {
+    outline: 3px solid #4d90fe;
+    outline-offset: 2px;
+    border-color: #007cba;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.3);
+}
+
+.answer-input:focus:not(:focus-visible) + .answer-label {
+    outline: none;
 }
 
 .answer-input:checked + .answer-label {
     border-color: #007cba;
     background: #e7f3ff;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.3);
+    transform: translateY(-1px);
 }
 
 .answer-input:checked + .answer-label .answer-marker {
@@ -256,14 +280,16 @@ html[dir="rtl"] .answers-container {
 .answer-marker {
     width: 20px;
     height: 20px;
-    border: 2px solid #ccc;
+    border: 2px solid #999;
     border-radius: 50%;
     margin-left: 12px;
     margin-right: 0;
     position: relative;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     flex-shrink: 0;
     flex-grow: 0;
+    background: white;
+    display: inline-block;
 }
 
 html[dir="rtl"] .answer-marker {
@@ -282,7 +308,30 @@ html[dir="rtl"] .answer-marker {
     border-radius: 50%;
     transform: translate(-50%, -50%) scale(0);
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+}
+
+.answer-input:checked + .answer-label .answer-marker::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Selected answer option styling */
+.answer-option.selected .answer-label {
+    border-color: #007cba;
+    background: #e7f3ff;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.3);
+    transform: translateY(-1px);
+}
+
+.answer-option.selected .answer-marker {
+    background: #007cba;
+    border-color: #007cba;
+}
+
+.answer-option.selected .answer-marker::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .answer-text {
