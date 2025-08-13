@@ -189,26 +189,7 @@ class ACF_Quiz_System {
      * Add submissions admin page
      */
     public function add_submissions_page() {
-        // Add main Quiz System menu
-        add_menu_page(
-            __('Quiz System', 'acf-quiz'),
-            __('Quiz System', 'acf-quiz'),
-            'manage_options',
-            'quiz-system',
-            '', // No callback - ACF will handle the main page
-            'dashicons-forms',
-            30
-        );
-        
-        // Add the submissions submenu
-        add_submenu_page(
-            'quiz-system',
-            __('Quiz Submissions', 'acf-quiz'),
-            __('Submissions', 'acf-quiz'),
-            'manage_options',
-            'quiz-submissions',
-            array($this, 'render_submissions_page')
-        );
+        // Remove the old broken submissions menu - handled by new plugin
     }
 
     /**
@@ -1546,7 +1527,9 @@ class ACF_Quiz_System {
         // Get both completed submissions and initial leads (avoid duplicates)
         $submissions = $wpdb->get_results("
             SELECT DISTINCT id, user_name, user_phone, user_email, package_selected, 
-                   score, max_score, passed, completed, submission_time, current_step
+                   score, max_score, passed, completed, submission_time, current_step,
+                   id_number, gender, birth_date, citizenship, address, 
+                   marital_status, employment_status, education, profession
             FROM $table_name 
             WHERE 1=1
             " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
@@ -1599,6 +1582,7 @@ class ACF_Quiz_System {
                         <th><?php _e('Score', 'acf-quiz'); ?></th>
                         <th><?php _e('Status', 'acf-quiz'); ?></th>
                         <th><?php _e('Type', 'acf-quiz'); ?></th>
+                        <th><?php _e('Actions', 'acf-quiz'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1640,7 +1624,25 @@ class ACF_Quiz_System {
                                 <td>
                                     <?php echo $submission->completed ? __('Full Quiz', 'acf-quiz') : __('Initial Lead', 'acf-quiz'); ?>
                                 </td>
-
+                                <td>
+                                    <button type="button" class="button view-details" 
+                                            data-id="<?php echo $submission->id; ?>"
+                                            data-name="<?php echo esc_attr($submission->user_name); ?>"
+                                            data-phone="<?php echo esc_attr($submission->user_phone); ?>"
+                                            data-email="<?php echo esc_attr($submission->user_email); ?>"
+                                            data-package="<?php echo esc_attr($submission->package_selected); ?>"
+                                            data-id-number="<?php echo esc_attr($submission->id_number); ?>"
+                                            data-gender="<?php echo esc_attr($submission->gender); ?>"
+                                            data-birth-date="<?php echo esc_attr($submission->birth_date); ?>"
+                                            data-citizenship="<?php echo esc_attr($submission->citizenship); ?>"
+                                            data-address="<?php echo esc_attr($submission->address); ?>"
+                                            data-marital-status="<?php echo esc_attr($submission->marital_status); ?>"
+                                            data-employment-status="<?php echo esc_attr($submission->employment_status); ?>"
+                                            data-education="<?php echo esc_attr($submission->education); ?>"
+                                            data-profession="<?php echo esc_attr($submission->profession); ?>">
+                                        <?php _e('View Details', 'acf-quiz'); ?>
+                                    </button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -1662,8 +1664,140 @@ class ACF_Quiz_System {
         .score-display { font-weight: bold; }
         tr.failed { background-color: #fff5f5; }
         tr.passed { background-color: #f0fff4; }
+        
+        /* Modal Styles */
+        .submission-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .close-modal {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close-modal:hover {
+            color: #000;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .detail-item {
+            margin-bottom: 10px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 3px;
+        }
+        
+        .detail-value {
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            min-height: 20px;
+        }
         </style>
         
+        <!-- Submission Details Modal -->
+        <div id="submissionModal" class="submission-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><?php _e('Submission Details', 'acf-quiz'); ?></h2>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Name', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-name"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Phone', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-phone"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Email', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-email"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Package', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-package"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('ID Number', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-id-number"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Gender', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-gender"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Birth Date', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-birth-date"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Citizenship', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-citizenship"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Address', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-address"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Marital Status', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-marital-status"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Employment Status', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-employment-status"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Education', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-education"></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label"><?php _e('Profession', 'acf-quiz'); ?></div>
+                        <div class="detail-value" id="modal-profession"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
         jQuery(document).ready(function($) {
             // Select all checkbox functionality
@@ -1675,6 +1809,50 @@ class ACF_Quiz_System {
             $('input[name="submission_ids[]"]').on('change', function() {
                 var allChecked = $('input[name="submission_ids[]"]:checked').length === $('input[name="submission_ids[]"]').length;
                 $('#cb-select-all-1').prop('checked', allChecked);
+            });
+            
+            // Modal functionality
+            const modal = $('#submissionModal');
+            const closeBtn = $('.close-modal');
+            
+            // Open modal when View Details is clicked
+            $('.view-details').on('click', function() {
+                // Populate modal with data
+                $('#modal-name').text($(this).data('name') || '-');
+                $('#modal-phone').text($(this).data('phone') || '-');
+                $('#modal-email').text($(this).data('email') || '-');
+                $('#modal-package').text($(this).data('package') || '-');
+                $('#modal-id-number').text($(this).data('id-number') || '-');
+                $('#modal-gender').text($(this).data('gender') || '-');
+                $('#modal-birth-date').text($(this).data('birth-date') || '-');
+                $('#modal-citizenship').text($(this).data('citizenship') || '-');
+                $('#modal-address').text($(this).data('address') || '-');
+                $('#modal-marital-status').text($(this).data('marital-status') || '-');
+                $('#modal-employment-status').text($(this).data('employment-status') || '-');
+                $('#modal-education').text($(this).data('education') || '-');
+                $('#modal-profession').text($(this).data('profession') || '-');
+                
+                // Show modal
+                modal.css('display', 'block');
+            });
+            
+            // Close modal when X is clicked
+            closeBtn.on('click', function() {
+                modal.css('display', 'none');
+            });
+            
+            // Close modal when clicking outside the content
+            $(window).on('click', function(event) {
+                if ($(event.target).is(modal)) {
+                    modal.css('display', 'none');
+                }
+            });
+            
+            // Close modal with Escape key
+            $(document).keyup(function(e) {
+                if (e.key === 'Escape') {
+                    modal.css('display', 'none');
+                }
             });
         });
         </script>
