@@ -145,6 +145,16 @@ class QuizSubmissionsManager {
             'quiz-submissions',
             array($this, 'render_admin_page')
         );
+        
+        // Add a simple viewer submenu
+        add_submenu_page(
+            'quiz-settings',
+            __('View Submissions', 'quiz-submissions'),
+            __('View Submissions', 'quiz-submissions'),
+            'read',
+            'quiz-submissions-viewer',
+            array($this, 'render_viewer_page')
+        );
     }
 
     /**
@@ -479,5 +489,167 @@ class QuizSubmissionsManager {
             array('id' => $id),
             array('%d')
         );
+    }
+    
+    /**
+     * Render submissions viewer page
+     */
+    public function render_viewer_page() {
+        global $wpdb;
+        
+        // Handle delete action
+        if (isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['submission_id'])) {
+            if (wp_verify_nonce($_POST['_wpnonce'], 'delete_submission_' . $_POST['submission_id'])) {
+                $this->delete_submission(intval($_POST['submission_id']));
+                echo '<div class="notice notice-success is-dismissible"><p>Submission deleted successfully.</p></div>';
+            }
+        }
+        
+        // Handle search
+        $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        $where_clause = '';
+        if ($search) {
+            $where_clause = $wpdb->prepare(" WHERE first_name LIKE %s OR last_name LIKE %s OR email LIKE %s", 
+                '%' . $wpdb->esc_like($search) . '%',
+                '%' . $wpdb->esc_like($search) . '%',
+                '%' . $wpdb->esc_like($search) . '%'
+            );
+        }
+        
+        // Get submissions
+        $submissions = $wpdb->get_results("SELECT * FROM {$this->table_name} {$where_clause} ORDER BY created_at DESC");
+        
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Quiz Submissions Viewer', 'quiz-submissions'); ?></h1>
+            
+            <form method="get">
+                <input type="hidden" name="page" value="quiz-submissions-viewer">
+                <p class="search-box">
+                    <input type="search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search submissions...">
+                    <input type="submit" class="button" value="Search">
+                </p>
+            </form>
+            
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($submissions)): ?>
+                        <tr>
+                            <td colspan="7">No submissions found.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($submissions as $submission): ?>
+                            <tr>
+                                <td><?php echo esc_html($submission->id); ?></td>
+                                <td><?php echo esc_html($submission->first_name . ' ' . $submission->last_name); ?></td>
+                                <td><?php echo esc_html($submission->email); ?></td>
+                                <td><?php echo esc_html($submission->phone); ?></td>
+                                <td>
+                                    <?php if ($submission->is_complete): ?>
+                                        <span style="color: green; font-weight: bold;">✓ Complete</span>
+                                    <?php else: ?>
+                                        <span style="color: orange; font-weight: bold;">⚠ Step 1 Only</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html($submission->created_at); ?></td>
+                                <td>
+                                    <button type="button" onclick="viewSubmission(<?php echo $submission->id; ?>)" class="button button-small">View Details</button>
+                                    <?php if (current_user_can('manage_options')): ?>
+                                        <form method="post" style="display: inline; margin-left: 5px;">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="submission_id" value="<?php echo $submission->id; ?>">
+                                            <?php wp_nonce_field('delete_submission_' . $submission->id); ?>
+                                            <input type="submit" class="button button-small button-link-delete" value="Delete" onclick="return confirm('Are you sure you want to delete this submission?')">
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            
+            <div id="submission-details" style="display: none; margin-top: 20px; padding: 20px; border: 1px solid #ddd; background: #f9f9f9; border-radius: 4px;">
+                <h3>Submission Details</h3>
+                <div id="submission-content"></div>
+                <button type="button" class="button" onclick="document.getElementById('submission-details').style.display='none'">Close</button>
+            </div>
+        </div>
+        
+        <script>
+        function viewSubmission(id) {
+            var submissions = <?php echo json_encode($submissions); ?>;
+            var submission = submissions.find(s => s.id == id);
+            
+            if (submission) {
+                var content = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+                
+                // Step 1 Info
+                content += '<div><h4>Step 1: Basic Information</h4>';
+                content += '<p><strong>ID:</strong> ' + submission.id + '</p>';
+                content += '<p><strong>Name:</strong> ' + submission.first_name + ' ' + submission.last_name + '</p>';
+                content += '<p><strong>Email:</strong> ' + submission.email + '</p>';
+                content += '<p><strong>Phone:</strong> ' + submission.phone + '</p>';
+                content += '</div>';
+                
+                // Step 2 Info
+                content += '<div><h4>Step 2: Extended Information</h4>';
+                if (submission.id_number) content += '<p><strong>ID Number:</strong> ' + submission.id_number + '</p>';
+                if (submission.gender) content += '<p><strong>Gender:</strong> ' + submission.gender + '</p>';
+                if (submission.birth_date) content += '<p><strong>Birth Date:</strong> ' + submission.birth_date + '</p>';
+                if (submission.citizenship) content += '<p><strong>Citizenship:</strong> ' + submission.citizenship + '</p>';
+                if (submission.address) content += '<p><strong>Address:</strong> ' + submission.address + '</p>';
+                if (submission.marital_status) content += '<p><strong>Marital Status:</strong> ' + submission.marital_status + '</p>';
+                if (submission.employment_status) content += '<p><strong>Employment:</strong> ' + submission.employment_status + '</p>';
+                if (submission.education) content += '<p><strong>Education:</strong> ' + submission.education + '</p>';
+                if (submission.profession) content += '<p><strong>Profession:</strong> ' + submission.profession + '</p>';
+                content += '</div>';
+                
+                content += '</div>';
+                
+                // Metadata
+                content += '<div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">';
+                content += '<h4>Submission Metadata</h4>';
+                content += '<p><strong>Status:</strong> ' + (submission.is_complete == '1' ? 'Complete (Both Steps)' : 'Incomplete (Step 1 Only)') + '</p>';
+                content += '<p><strong>Current Step:</strong> ' + submission.current_step + '</p>';
+                content += '<p><strong>Created:</strong> ' + submission.created_at + '</p>';
+                content += '<p><strong>Updated:</strong> ' + submission.updated_at + '</p>';
+                content += '<p><strong>IP Address:</strong> ' + submission.ip_address + '</p>';
+                content += '<p><strong>User Agent:</strong> ' + submission.user_agent + '</p>';
+                content += '</div>';
+                
+                document.getElementById('submission-content').innerHTML = content;
+                document.getElementById('submission-details').style.display = 'block';
+                
+                // Scroll to details
+                document.getElementById('submission-details').scrollIntoView({behavior: 'smooth'});
+            }
+        }
+        </script>
+        
+        <style>
+        .button-link-delete {
+            color: #a00 !important;
+        }
+        .button-link-delete:hover {
+            color: #dc3232 !important;
+        }
+        #submission-details {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.13);
+        }
+        </style>
+        
+        <?php
     }
 }

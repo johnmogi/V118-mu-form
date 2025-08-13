@@ -35,15 +35,57 @@ class SubmissionsViewer {
      * Add admin menu
      */
     public function add_admin_menu() {
-        add_menu_page(
+        // First, check if current user can access the page
+        if (!current_user_can('read')) {
+            error_log('Submissions Viewer: Current user cannot read');
+            return;
+        }
+        
+        // Add the menu page with a more permissive capability
+        $hook = add_menu_page(
             __('Submissions Viewer', 'submissions-viewer'),
             __('Submissions Viewer', 'submissions-viewer'),
-            'manage_options',
+            'read', // Changed from 'manage_options' to 'read' which all users have
             'submissions-viewer',
             array($this, 'render_page'),
             'dashicons-list-view',
             25
         );
+        
+        if (empty($hook)) {
+            error_log('Submissions Viewer: Failed to add menu page');
+            return;
+        }
+        
+        // Add a hook to load our admin page
+        add_action("load-$hook", array($this, 'load_admin_page'));
+        
+        error_log('Submissions Viewer: Menu added successfully with hook: ' . $hook);
+    }
+    
+    /**
+     * Load admin page assets and handle actions
+     */
+    public function load_admin_page() {
+        error_log('Submissions Viewer: Loading admin page');
+        
+        // Check user capabilities
+        if (!current_user_can('read')) {
+            wp_die(__('You do not have sufficient permissions to access this page.'));
+        }
+        
+        // Add admin notices hook
+        add_action('admin_notices', array($this, 'admin_notices'));
+        
+        // Check for actions
+        $this->handle_actions();
+    }
+    
+    /**
+     * Handle admin notices
+     */
+    public function admin_notices() {
+        // Add any admin notices here if needed
     }
 
     /**

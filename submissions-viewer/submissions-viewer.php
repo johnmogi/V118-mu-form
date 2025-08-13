@@ -12,23 +12,234 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Load Composer autoloader
-if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
-    require_once __DIR__ . '/../vendor/autoload.php';
-}
+/**
+ * Simple Submissions Viewer Class
+ */
+class Simple_Submissions_Viewer {
+    private static $instance = null;
+    private $table_name;
 
-use Vider\SubmissionsViewer\SubmissionsViewer;
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    private function __construct() {
+        global $wpdb;
+        $this->table_name = $wpdb->prefix . 'quiz_submissions';
+        
+        add_action('admin_menu', array($this, 'add_admin_menu'));
+        add_action('admin_post_delete_submission', array($this, 'handle_delete_submission'));
+    }
+
+    public function add_admin_menu() {
+        add_menu_page(
+            'Submissions Viewer',
+            'Submissions Viewer', 
+            'read',
+            'submissions-viewer',
+            array($this, 'render_page'),
+            'dashicons-list-view',
+            25
+        );
+    }
+
+    public function handle_delete_submission() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Insufficient permissions');
+        }
+        
+        if (!wp_verify_nonce($_POST['_wpnonce'], 'delete_submission')) {
+            wp_die('Invalid nonce');
+        }
+        
+        global $wpdb;
+        $id = intval($_POST['submission_id']);
+        $wpdb->delete($this->table_name, array('id' => $id), array('%d'));
+        
+        wp_redirect(admin_url('admin.php?page=submissions-viewer&deleted=1'));
+        exit;
+    }
+
+    public function render_page() {
+        global $wpdb;
+        
+        // Handle search
+        $search = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+        $where_clause = '';
+        if ($search) {
+            $where_clause = $wpdb->prepare(" WHERE name LIKE %s OR email LIKE %s", 
+                '%' . $wpdb->esc_like($search) . '%',
+                '%' . $wpdb->esc_like($search) . '%'
+            );
+        }
+        
+        // Get submissions
+        $submissions = $wpdb->get_results("SELECT * FROM {$this->table_name} {$where_clause} ORDER BY created_at DESC");
+        
+        ?>
+        <div class="wrap">
+            <h1>Submissions Viewer</h1>
+            
+            <?php if (isset($_GET['deleted'])): ?>
+                <div class="notice notice-success is-dismissible">
+                    <p>Submission deleted successfully.</p>
+                </div>
+            <?php endif; ?>
+            
+            <form method="get">
+                <input type="hidden" name="page" value="submissions-viewer">
+                <p class="search-box">
+                    <input type="search" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search submissions...">
+                    <input type="submit" class="button" value="Search">
+                </p>
+            </form>
+            
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($submissions)): ?>
+                        <tr>
+                            <td colspan="7">No submissions found.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($submissions as $submission): ?>
+                            <tr>
+                                <td><?php echo esc_html($submission->id); ?></td>
+                                <td><?php echo esc_html($submission->name); ?></td>
+                                <td><?php echo esc_html($submission->email); ?></td>
+                                <td><?php echo esc_html($submission->phone); ?></td>
+                                <td>
+                                    <?php if ($submission->is_complete): ?>
+                                        <span style="color: green;">Complete</span>
+                                    <?php else: ?>
+                                        <span style="color: orange;">Step 1 Only</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html($submission->created_at); ?></td>
+                                <td>
+                                    <a href="#" onclick="viewSubmission(<?php echo $submission->id; ?>)" class="button button-small">View</a>
+                                    <?php if (current_user_can('manage_options')): ?>
+                                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline;">
+                                            <input type="hidden" name="action" value="delete_submission">
+                                            <input type="hidden" name="submission_id" value="<?php echo $submission->id; ?>">
+                                            <?php wp_nonce_field('delete_submission'); ?>
+                                            <input type="submit" class="button button-small" value="Delete" onclick="return confirm('Are you sure?')">
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            
+            <div id="submission-details" style="display: none; margin-top: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
+                <h3>Submission Details</h3>
+                <div id="submission-content"></div>
+                <button type="button" onclick="document.getElementById('submission-details').style.display='none'">Close</button>
+            </div>
+        </div>
+        
+        <script>
+        function viewSubmission(id) {
+            // Find the submission data
+            <?php foreach ($submissions as $submission): ?>
+                if (id === <?php echo $submission->id; ?>) {
+                    var content = '<strong>ID:</strong> <?php echo esc_js($submission->id); ?><br>';
+                    content += '<strong>Name:</strong> <?php echo esc_js($submission->name); ?><br>';
+                    content += '<strong>Email:</strong> <?php echo esc_js($submission->email); ?><br>';
+                    content += '<strong>Phone:</strong> <?php echo esc_js($submission->phone); ?><br>';
+                    <?php if ($submission->id_number): ?>
+                    content += '<strong>ID Number:</strong> <?php echo esc_js($submission->id_number); ?><br>';
+                    <?php endif; ?>
+                    <?php if ($submission->birth_date): ?>
+                    content += '<strong>Birth Date:</strong> <?php echo esc_js($submission->birth_date); ?><br>';
+                    <?php endif; ?>
+                    content += '<strong>Status:</strong> <?php echo $submission->is_complete ? 'Complete' : 'Step 1 Only'; ?><br>';
+                    content += '<strong>Created:</strong> <?php echo esc_js($submission->created_at); ?><br>';
+                    content += '<strong>IP Address:</strong> <?php echo esc_js($submission->ip_address); ?><br>';
+                    
+                    document.getElementById('submission-content').innerHTML = content;
+                    document.getElementById('submission-details').style.display = 'block';
+                }
+            <?php endforeach; ?>
+        }
+        </script>
+        
+        <?php
+    }
+}
 
 /**
  * Initialize the submissions viewer
  */
 function submissions_viewer_init() {
-    if (class_exists('Vider\SubmissionsViewer\SubmissionsViewer')) {
-        return SubmissionsViewer::get_instance();
+    error_log('Submissions Viewer: Plugin initializing...');
+    return Simple_Submissions_Viewer::get_instance();
+}
+
+// Initialize immediately instead of waiting for plugins_loaded
+add_action('init', 'submissions_viewer_init', 1);
+
+// Also add a direct admin menu hook as backup
+add_action('admin_menu', function() {
+    error_log('Submissions Viewer: Direct admin_menu hook triggered');
+    add_menu_page(
+        'Submissions Viewer (Direct)',
+        'Submissions Viewer', 
+        'read',
+        'submissions-viewer-direct',
+        'submissions_viewer_direct_page',
+        'dashicons-list-view',
+        26
+    );
+});
+
+function submissions_viewer_direct_page() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'quiz_submissions';
+    
+    echo '<div class="wrap">';
+    echo '<h1>Submissions Viewer (Direct Access)</h1>';
+    echo '<p>This is a direct access version to test if the plugin is working.</p>';
+    
+    // Check if table exists
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+    if (!$table_exists) {
+        echo '<div class="notice notice-error"><p>Table ' . $table_name . ' does not exist!</p></div>';
+    } else {
+        echo '<div class="notice notice-success"><p>Table ' . $table_name . ' exists.</p></div>';
+        
+        // Get count of submissions
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        echo '<p>Total submissions: ' . $count . '</p>';
+        
+        // Show recent submissions
+        $submissions = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC LIMIT 5");
+        if ($submissions) {
+            echo '<h3>Recent Submissions:</h3>';
+            echo '<ul>';
+            foreach ($submissions as $submission) {
+                echo '<li>ID: ' . $submission->id . ' - ' . esc_html($submission->name) . ' (' . esc_html($submission->email) . ') - ' . $submission->created_at . '</li>';
+            }
+            echo '</ul>';
+        }
     }
     
-    // Fallback if autoloader fails
-    return Submissions_Viewer_Fallback::get_instance();
+    echo '</div>';
 }
 
 /**
