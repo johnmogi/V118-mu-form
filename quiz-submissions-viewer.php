@@ -38,6 +38,7 @@ class Quiz_Submissions_Viewer {
         // Add AJAX handlers for real-time actions
         add_action('wp_ajax_get_submission_details', array($this, 'ajax_get_submission_details'));
         add_action('wp_ajax_delete_submission_ajax', array($this, 'ajax_delete_submission'));
+        add_action('wp_ajax_bulk_delete_submissions', array($this, 'ajax_bulk_delete_submissions'));
     }
 
     /**
@@ -48,15 +49,25 @@ class Quiz_Submissions_Viewer {
         if (!current_user_can($this->capability)) {
             return;
         }
-
+        
         $hook = add_menu_page(
-            __('Quiz Submissions', 'quiz-submissions-viewer'),
-            __('Quiz Submissions', 'quiz-submissions-viewer'),
+            'צפייה בהגשות טפסים', // Hebrew: View Form Submissions
+            'הגשות טפסים', // Hebrew: Form Submissions
             $this->capability,
             'quiz-submissions-viewer',
             array($this, 'render_admin_page'),
             'dashicons-clipboard',
             26
+        );
+        
+        // Add cleanup submenu
+        add_submenu_page(
+            'quiz-submissions-viewer',
+            'ניקוי כפילויות', // Hebrew: Clean Duplicates
+            'ניקוי כפילויות',
+            $this->capability,
+            'quiz-submissions-cleanup',
+            array($this, 'render_cleanup_page')
         );
 
         // Add page load hook
@@ -80,7 +91,22 @@ class Quiz_Submissions_Viewer {
      * Handle admin actions
      */
     private function handle_admin_actions() {
-        // Handle delete action
+        // Handle bulk delete action
+        if (isset($_POST['action']) && $_POST['action'] === 'bulk_delete') {
+            if (!wp_verify_nonce($_POST['_wpnonce'], 'bulk_delete_submissions')) {
+                wp_die(__('Security check failed.'));
+            }
+
+            $submission_ids = isset($_POST['submission_ids']) ? array_map('intval', $_POST['submission_ids']) : array();
+            if (!empty($submission_ids)) {
+                $deleted_count = $this->bulk_delete_submissions($submission_ids);
+                add_action('admin_notices', function() use ($deleted_count) {
+                    echo '<div class="notice notice-success is-dismissible"><p>' . sprintf('נמחקו %d הגשות בהצלחה.', $deleted_count) . '</p></div>';
+                });
+            }
+        }
+
+        // Handle single delete action
         if (isset($_POST['action']) && $_POST['action'] === 'delete_submission') {
             if (!wp_verify_nonce($_POST['_wpnonce'], 'delete_submission_' . $_POST['submission_id'])) {
                 wp_die(__('Security check failed.'));
@@ -89,11 +115,11 @@ class Quiz_Submissions_Viewer {
             $submission_id = intval($_POST['submission_id']);
             if ($this->delete_submission($submission_id)) {
                 add_action('admin_notices', function() {
-                    echo '<div class="notice notice-success is-dismissible"><p>Submission deleted successfully.</p></div>';
+                    echo '<div class="notice notice-success is-dismissible"><p>ההגשה נמחקה בהצלחה.</p></div>';
                 });
             } else {
                 add_action('admin_notices', function() {
-                    echo '<div class="notice notice-error is-dismissible"><p>Failed to delete submission.</p></div>';
+                    echo '<div class="notice notice-error is-dismissible"><p>שגיאה במחיקת ההגשה.</p></div>';
                 });
             }
         }
@@ -103,13 +129,25 @@ class Quiz_Submissions_Viewer {
      * Enqueue admin scripts and styles
      */
     public function enqueue_admin_scripts($hook) {
-        if ($hook !== 'toplevel_page_quiz-submissions-viewer') {
+        if (strpos($hook, 'quiz-submissions-viewer') === false) {
             return;
         }
 
         wp_enqueue_script('jquery');
-        wp_add_inline_script('jquery', $this->get_inline_javascript());
-        wp_add_inline_style('wp-admin', $this->get_inline_css());
+        
+        // Add inline JavaScript directly to the page
+        add_action('admin_footer', function() {
+            echo '<script type="text/javascript">';
+            echo $this->get_inline_javascript();
+            echo '</script>';
+        });
+        
+        // Add inline CSS
+        add_action('admin_head', function() {
+            echo '<style type="text/css">';
+            echo $this->get_inline_css();
+            echo '</style>';
+        });
     }
 
     /**
@@ -132,7 +170,7 @@ class Quiz_Submissions_Viewer {
                         $('#submission-details-content').html(response.data.html);
                         $('#submission-details-modal').show();
                     } else {
-                        alert('Failed to load submission details: ' + response.data.message);
+                        alert('שגיאה בטעינת פרטי ההגשה: ' + response.data.message);
                     }
                 });
             };
@@ -144,7 +182,7 @@ class Quiz_Submissions_Viewer {
 
             // Delete submission with AJAX
             window.deleteSubmissionAjax = function(id) {
-                if (!confirm('Are you sure you want to delete this submission?')) {
+                if (!confirm('האם אתה בטוח שברצונך למחוק הגשה זו?')) {
                     return;
                 }
 
@@ -156,10 +194,61 @@ class Quiz_Submissions_Viewer {
                     if (response.success) {
                         location.reload();
                     } else {
-                        alert('Failed to delete submission: ' + response.data.message);
+                        alert('שגיאה במחיקת ההגשה: ' + response.data.message);
                     }
                 });
             };
+
+            // Bulk delete functionality
+            window.bulkDeleteSubmissions = function() {
+                var checkedBoxes = $('.submission-checkbox:checked');
+                if (checkedBoxes.length === 0) {
+                    alert('אנא בחר לפחות הגשה אחת למחיקה.');
+                    return;
+                }
+
+                if (!confirm('האם אתה בטוח שברצונך למחוק ' + checkedBoxes.length + ' הגשות?')) {
+                    return;
+                }
+
+                var submissionIds = [];
+                checkedBoxes.each(function() {
+                    submissionIds.push($(this).val());
+                });
+
+                $.post('{$ajax_url}', {
+                    action: 'bulk_delete_submissions',
+                    submission_ids: submissionIds,
+                    nonce: '{$nonce}'
+                }, function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('שגיאה במחיקה המרובה: ' + response.data.message);
+                    }
+                });
+            };
+
+            // Select all checkboxes
+            $('#select-all-submissions').change(function() {
+                $('.submission-checkbox').prop('checked', $(this).is(':checked'));
+                updateBulkActions();
+            });
+
+            // Update bulk actions visibility
+            $('.submission-checkbox').change(function() {
+                updateBulkActions();
+            });
+
+            function updateBulkActions() {
+                var checkedCount = $('.submission-checkbox:checked').length;
+                if (checkedCount > 0) {
+                    $('#bulk-actions-container').show();
+                    $('#selected-count').text(checkedCount);
+                } else {
+                    $('#bulk-actions-container').hide();
+                }
+            }
 
             // Close modal when clicking outside
             $('#submission-details-modal').click(function(e) {
@@ -227,6 +316,35 @@ class Quiz_Submissions_Viewer {
             right: 15px;
             font-size: 24px;
             cursor: pointer;
+        }
+        #bulk-actions-container {
+            display: none;
+            background: #f1f1f1;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #bulk-actions-container.show {
+            display: block;
+        }
+        .bulk-action-button {
+            background: #dc3232;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .bulk-action-button:hover {
+            background: #a00;
+        }
+        .column-cb {
+            width: 2.2em;
+        }
+        .check-column {
+            text-align: center;
         }
         ";
     }
@@ -335,6 +453,52 @@ class Quiz_Submissions_Viewer {
     }
 
     /**
+     * Bulk delete submissions
+     */
+    private function bulk_delete_submissions($ids) {
+        global $wpdb;
+        
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $ids = array_map('intval', $ids);
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        
+        $deleted = $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$this->table_name} WHERE id IN ($placeholders)",
+            ...$ids
+        ));
+
+        return $deleted;
+    }
+
+    /**
+     * AJAX: Bulk delete submissions
+     */
+    public function ajax_bulk_delete_submissions() {
+        if (!wp_verify_nonce($_POST['nonce'], 'quiz_submissions_ajax')) {
+            wp_send_json_error(array('message' => 'Security check failed'));
+        }
+
+        if (!current_user_can($this->capability)) {
+            wp_send_json_error(array('message' => 'Insufficient permissions'));
+        }
+
+        $submission_ids = isset($_POST['submission_ids']) ? array_map('intval', $_POST['submission_ids']) : array();
+        if (empty($submission_ids)) {
+            wp_send_json_error(array('message' => 'No submissions selected'));
+        }
+
+        $deleted_count = $this->bulk_delete_submissions($submission_ids);
+        if ($deleted_count > 0) {
+            wp_send_json_success(array('message' => sprintf('נמחקו %d הגשות בהצלחה', $deleted_count)));
+        } else {
+            wp_send_json_error(array('message' => 'Failed to delete submissions'));
+        }
+    }
+
+    /**
      * Render submission details
      */
     private function render_submission_details($submission) {
@@ -428,18 +592,24 @@ class Quiz_Submissions_Viewer {
 
         ?>
         <div class="wrap">
-            <h1 class="wp-heading-inline"><?php _e('Quiz Submissions', 'quiz-submissions-viewer'); ?></h1>
+            <h1 class="wp-heading-inline">הגשות טפסים</h1>
             
             <form method="get" class="search-form" style="float: right;">
                 <input type="hidden" name="page" value="quiz-submissions-viewer">
                 <p class="search-box">
-                    <label class="screen-reader-text" for="submission-search-input">Search Submissions:</label>
-                    <input type="search" id="submission-search-input" name="s" value="<?php echo esc_attr($search); ?>" placeholder="Search submissions...">
-                    <input type="submit" id="search-submit" class="button" value="Search Submissions">
+                    <label class="screen-reader-text" for="submission-search-input">חיפוש הגשות:</label>
+                    <input type="search" id="submission-search-input" name="s" value="<?php echo esc_attr($search); ?>" placeholder="חיפוש הגשות...">
+                    <input type="submit" id="search-submit" class="button" value="חיפוש">
                 </p>
             </form>
             
             <div class="clear"></div>
+            
+            <!-- Bulk Actions Container -->
+            <div id="bulk-actions-container">
+                <span>נבחרו <span id="selected-count">0</span> הגשות</span>
+                <button type="button" class="bulk-action-button" onclick="bulkDeleteSubmissions()">מחק נבחרות</button>
+            </div>
             
             <div class="tablenav top">
                 <div class="alignleft actions">
@@ -465,25 +635,31 @@ class Quiz_Submissions_Viewer {
             <table class="wp-list-table widefat fixed striped quiz-submissions-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="manage-column column-id">ID</th>
-                        <th scope="col" class="manage-column column-name">Name</th>
-                        <th scope="col" class="manage-column column-email">Email</th>
-                        <th scope="col" class="manage-column column-phone">Phone</th>
-                        <th scope="col" class="manage-column column-package">Package</th>
-                        <th scope="col" class="manage-column column-score">Score</th>
-                        <th scope="col" class="manage-column column-status">Status</th>
-                        <th scope="col" class="manage-column column-date">Date</th>
-                        <th scope="col" class="manage-column column-actions">Actions</th>
+                        <th scope="col" class="manage-column column-cb check-column">
+                            <input type="checkbox" id="select-all-submissions">
+                        </th>
+                        <th scope="col" class="manage-column column-id">מזהה</th>
+                        <th scope="col" class="manage-column column-name">שם</th>
+                        <th scope="col" class="manage-column column-email">אימייל</th>
+                        <th scope="col" class="manage-column column-phone">טלפון</th>
+                        <th scope="col" class="manage-column column-package">חבילה</th>
+                        <th scope="col" class="manage-column column-score">ציון</th>
+                        <th scope="col" class="manage-column column-status">סטטוס</th>
+                        <th scope="col" class="manage-column column-date">תאריך</th>
+                        <th scope="col" class="manage-column column-actions">פעולות</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($submissions)): ?>
                         <tr class="no-items">
-                            <td class="colspanchange" colspan="9">No submissions found.</td>
+                            <td class="colspanchange" colspan="10">לא נמצאו הגשות.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($submissions as $submission): ?>
                             <tr>
+                                <th scope="row" class="check-column">
+                                    <input type="checkbox" class="submission-checkbox" value="<?php echo $submission->id; ?>">
+                                </th>
                                 <td class="column-id"><?php echo esc_html($submission->id); ?></td>
                                 <td class="column-name">
                                     <strong><?php echo esc_html($submission->first_name . ' ' . $submission->last_name); ?></strong>
@@ -496,7 +672,7 @@ class Quiz_Submissions_Viewer {
                                 <td class="column-package">
                                     <?php echo esc_html($submission->package_selected); ?>
                                     <?php if ($submission->package_price > 0): ?>
-                                        <br><small>$<?php echo esc_html($submission->package_price); ?></small>
+                                        <br><small>₪<?php echo esc_html($submission->package_price); ?></small>
                                     <?php endif; ?>
                                 </td>
                                 <td class="column-score">
@@ -507,19 +683,19 @@ class Quiz_Submissions_Viewer {
                                 </td>
                                 <td class="column-status">
                                     <?php if ($submission->completed): ?>
-                                        <span class="status-complete">✓ Complete</span>
+                                        <span class="status-complete">✓ הושלם</span>
                                     <?php elseif ($submission->passed): ?>
-                                        <span class="status-complete">✓ Passed</span>
+                                        <span class="status-complete">✓ עבר</span>
                                     <?php elseif ($submission->current_step > 1): ?>
-                                        <span class="status-incomplete">⚠ In Progress</span>
+                                        <span class="status-incomplete">⚠ בתהליך</span>
                                     <?php else: ?>
-                                        <span class="status-incomplete">⚠ Started</span>
+                                        <span class="status-incomplete">⚠ התחיל</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="column-date"><?php echo esc_html(date('M j, Y g:i A', strtotime($submission->submission_time))); ?></td>
+                                <td class="column-date"><?php echo esc_html(date('j/m/Y H:i', strtotime($submission->submission_time))); ?></td>
                                 <td class="column-actions">
-                                    <button type="button" class="button button-small" onclick="viewSubmissionDetails(<?php echo $submission->id; ?>)">View</button>
-                                    <button type="button" class="button button-small button-link-delete" onclick="deleteSubmissionAjax(<?php echo $submission->id; ?>)">Delete</button>
+                                    <button type="button" class="button button-small" onclick="viewSubmissionDetails(<?php echo $submission->id; ?>)">צפה</button>
+                                    <button type="button" class="button button-small button-link-delete" onclick="deleteSubmissionAjax(<?php echo $submission->id; ?>)">מחק</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -551,6 +727,172 @@ class Quiz_Submissions_Viewer {
         </div>
         
         <?php
+    }
+
+    /**
+     * Render cleanup page for duplicate submissions
+     */
+    public function render_cleanup_page() {
+        if (!current_user_can($this->capability)) {
+            wp_die(__('You do not have sufficient permissions to access this page.'));
+        }
+
+        // Handle cleanup action
+        if (isset($_POST['action']) && $_POST['action'] === 'cleanup_duplicates') {
+            if (!wp_verify_nonce($_POST['_wpnonce'], 'cleanup_duplicates')) {
+                wp_die(__('Security check failed.'));
+            }
+
+            $cleaned = $this->cleanup_duplicate_submissions();
+            echo '<div class="notice notice-success is-dismissible"><p>נוקו ' . $cleaned . ' הגשות כפולות.</p></div>';
+        }
+
+        // Find potential duplicates
+        $duplicates = $this->find_duplicate_submissions();
+
+        ?>
+        <div class="wrap">
+            <h1>ניקוי הגשות כפולות</h1>
+            
+            <div class="notice notice-info">
+                <p><strong>הסבר:</strong> המערכת יוצרת לפעמים הגשות כפולות כאשר משתמש ממלא שלב 1 ואז שלב 2. 
+                כלי זה ימזג הגשות כפולות לרשומה אחת.</p>
+            </div>
+
+            <?php if (empty($duplicates)): ?>
+                <div class="notice notice-success">
+                    <p>לא נמצאו הגשות כפולות! 🎉</p>
+                </div>
+            <?php else: ?>
+                <div class="notice notice-warning">
+                    <p>נמצאו <?php echo count($duplicates); ?> קבוצות של הגשות כפולות.</p>
+                </div>
+
+                <form method="post">
+                    <input type="hidden" name="action" value="cleanup_duplicates">
+                    <?php wp_nonce_field('cleanup_duplicates'); ?>
+                    
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>אימייל</th>
+                                <th>מספר הגשות</th>
+                                <th>מזהים</th>
+                                <th>פרטים</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($duplicates as $email => $submissions): ?>
+                                <tr>
+                                    <td><?php echo esc_html($email); ?></td>
+                                    <td><?php echo count($submissions); ?></td>
+                                    <td><?php echo implode(', ', array_column($submissions, 'id')); ?></td>
+                                    <td>
+                                        <?php foreach ($submissions as $sub): ?>
+                                            <small>ID <?php echo $sub->id; ?>: שלב <?php echo $sub->current_step; ?> 
+                                            (<?php echo $sub->submission_time; ?>)</small><br>
+                                        <?php endforeach; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    
+                    <p class="submit">
+                        <input type="submit" class="button button-primary" value="נקה הגשות כפולות" 
+                               onclick="return confirm('האם אתה בטוח? פעולה זו תמזג הגשות כפולות ותמחק את הכפילויות.')">
+                    </p>
+                </form>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Find duplicate submissions by email
+     */
+    private function find_duplicate_submissions() {
+        global $wpdb;
+        
+        $duplicates = array();
+        
+        // Find emails with multiple submissions
+        $results = $wpdb->get_results("
+            SELECT user_email, COUNT(*) as count 
+            FROM {$this->table_name} 
+            WHERE user_email IS NOT NULL AND user_email != '' 
+            GROUP BY user_email 
+            HAVING count > 1
+            ORDER BY count DESC
+        ");
+
+        foreach ($results as $result) {
+            $submissions = $wpdb->get_results($wpdb->prepare("
+                SELECT id, current_step, submission_time, first_name, last_name 
+                FROM {$this->table_name} 
+                WHERE user_email = %s 
+                ORDER BY submission_time ASC
+            ", $result->user_email));
+            
+            $duplicates[$result->user_email] = $submissions;
+        }
+
+        return $duplicates;
+    }
+
+    /**
+     * Cleanup duplicate submissions
+     */
+    private function cleanup_duplicate_submissions() {
+        global $wpdb;
+        
+        $duplicates = $this->find_duplicate_submissions();
+        $cleaned_count = 0;
+
+        foreach ($duplicates as $email => $submissions) {
+            if (count($submissions) < 2) continue;
+
+            // Sort by submission time
+            usort($submissions, function($a, $b) {
+                return strtotime($a->submission_time) - strtotime($b->submission_time);
+            });
+
+            // Keep the latest submission, merge data from others
+            $keep_submission = end($submissions);
+            $merge_submissions = array_slice($submissions, 0, -1);
+
+            // Get full data for all submissions
+            $keep_data = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$this->table_name} WHERE id = %d", $keep_submission->id));
+            
+            foreach ($merge_submissions as $merge_sub) {
+                $merge_data = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$this->table_name} WHERE id = %d", $merge_sub->id));
+                
+                // Merge non-empty fields from older submission to newer one
+                $update_data = array();
+                
+                if (empty($keep_data->first_name) && !empty($merge_data->first_name)) {
+                    $update_data['first_name'] = $merge_data->first_name;
+                }
+                if (empty($keep_data->last_name) && !empty($merge_data->last_name)) {
+                    $update_data['last_name'] = $merge_data->last_name;
+                }
+                if (empty($keep_data->package_selected) && !empty($merge_data->package_selected)) {
+                    $update_data['package_selected'] = $merge_data->package_selected;
+                    $update_data['package_price'] = $merge_data->package_price;
+                }
+
+                // Update the keep submission with merged data
+                if (!empty($update_data)) {
+                    $wpdb->update($this->table_name, $update_data, array('id' => $keep_submission->id));
+                }
+
+                // Delete the duplicate
+                $wpdb->delete($this->table_name, array('id' => $merge_sub->id), array('%d'));
+                $cleaned_count++;
+            }
+        }
+
+        return $cleaned_count;
     }
 }
 
