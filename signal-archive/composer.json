@@ -1,0 +1,18 @@
+{
+    "name": "vider/signal-archive",
+    "description": "Signal Archive Management System",
+    "type": "wordpress-muplugin",
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vider\\SignalArchive\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Vider Development Team"
+        }
+    ]
+}
