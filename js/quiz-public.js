@@ -101,7 +101,22 @@ jQuery(document).ready(function($) {
             console.log('=== HANDLE SUBMIT CALLED ===');
             e.preventDefault();
             
-            if (this.isSubmitting) {
+            // CRITICAL: Set formSubmitting flag IMMEDIATELY to prevent beforeunload
+            if (typeof window.formSubmitting !== 'undefined') {
+                window.formSubmitting = true;
+                console.log('Set window.formSubmitting = true');
+            }
+            
+            // Also try to access the parent scope formSubmitting variable
+            if (typeof formSubmitting !== 'undefined') {
+                formSubmitting = true;
+                console.log('Set formSubmitting = true');
+            }
+            
+            // Set our own flag
+            this.isSubmitting = true;
+            
+            if (this.isSubmitting && this.isSubmitting !== true) {
                 console.log('Already submitting, returning false');
                 return false;
             }
@@ -326,44 +341,49 @@ jQuery(document).ready(function($) {
                 // Validate first name
                 if (!firstName) {
                     isValid = false;
-                    $firstNameField.addClass('error');
+                    $firstNameField.addClass('error touched');
                     errorMessage = 'אנא מלא את השם הפרטי';
                 } else {
-                    $firstNameField.removeClass('error');
+                    $firstNameField.removeClass('error touched');
                 }
                 
                 // Validate last name
                 if (!lastName) {
                     isValid = false;
-                    $lastNameField.addClass('error');
+                    $lastNameField.addClass('error touched');
                     if (!errorMessage) errorMessage = 'אנא מלא את שם המשפחה';
                 } else {
-                    $lastNameField.removeClass('error');
+                    $lastNameField.removeClass('error touched');
                 }
                 
                 // Validate phone
                 if (!userPhone) {
                     isValid = false;
-                    $phoneField.addClass('error');
+                    $phoneField.addClass('error touched');
                     if (!errorMessage) errorMessage = 'אנא מלא את מספר הטלפון';
                 } else {
-                    $phoneField.removeClass('error');
+                    $phoneField.removeClass('error touched');
                 }
                 
                 // Validate email
                 if (!userEmail) {
                     isValid = false;
-                    $emailField.addClass('error');
+                    $emailField.addClass('error touched');
                     if (!errorMessage) errorMessage = 'אנא מלא את כתובת האימייל';
                 } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
                     isValid = false;
-                    $emailField.addClass('error');
+                    $emailField.addClass('error touched');
                     if (!errorMessage) errorMessage = 'אנא הזן כתובת אימייל תקינה';
                 } else {
-                    $emailField.removeClass('error');
+                    $emailField.removeClass('error touched');
                 }
             } else {
-                // Just validate without showing errors
+                // Just validate without showing errors - remove any existing error classes
+                $firstNameField.removeClass('error touched');
+                $lastNameField.removeClass('error touched');
+                $phoneField.removeClass('error touched');
+                $emailField.removeClass('error touched');
+                
                 if (!firstName || !lastName || !userPhone || !userEmail) {
                     isValid = false;
                 }
@@ -376,23 +396,28 @@ jQuery(document).ready(function($) {
             const currentStepElement = $(`.form-step[data-step="${this.currentStep}"]`);
             let isValid = true;
             
-            // Validate required fields in current step
-            currentStepElement.find('input[required], select[required], textarea[required]').each(function() {
-                const $field = $(this);
-                const value = $field.val();
-                
-                if (!value || (value && value.trim() === '')) {
-                    isValid = false;
-                    if (showErrors) {
-                        $field.addClass('error');
+            // Step-specific validation
+            if (this.currentStep === 1) {
+                // Use dedicated personal details validation for step 1
+                const personalValidation = this.validatePersonalDetails(showErrors);
+                isValid = personalValidation.isValid;
+            } else if (this.currentStep === 2) {
+                // Validate required fields in step 2
+                currentStepElement.find('input[required], select[required], textarea[required]').each(function() {
+                    const $field = $(this);
+                    const value = $field.val();
+                    
+                    if (!value || (value && value.trim() === '')) {
+                        isValid = false;
+                        if (showErrors) {
+                            $field.addClass('error touched');
+                        }
+                    } else {
+                        $field.removeClass('error touched');
                     }
-                } else {
-                    $field.removeClass('error');
-                }
-            });
-            
-            // Special validation for radio button groups in quiz steps
-            if (this.currentStep === 3 || this.currentStep === 4) {
+                });
+            } else if (this.currentStep === 3 || this.currentStep === 4) {
+                // Special validation for radio button groups in quiz steps
                 const questionStart = this.currentStep === 3 ? 0 : 5;
                 const questionEnd = this.currentStep === 3 ? 5 : 10;
                 
@@ -401,6 +426,19 @@ jQuery(document).ready(function($) {
                     if (!questionAnswered) {
                         isValid = false;
                         break;
+                    }
+                }
+                
+                // Also check final declaration checkbox for step 4
+                if (this.currentStep === 4) {
+                    const finalDeclaration = $('#final_declaration').is(':checked');
+                    if (!finalDeclaration) {
+                        isValid = false;
+                        if (showErrors) {
+                            $('#final_declaration').closest('.checkbox-group').addClass('error');
+                        }
+                    } else {
+                        $('#final_declaration').closest('.checkbox-group').removeClass('error');
                     }
                 }
             }
@@ -417,6 +455,33 @@ jQuery(document).ready(function($) {
             
             // Show current step
             $(`.form-step[data-step="${stepNumber}"]`).addClass('active');
+            
+            // HOTFIX: Remove error/touched classes from step 2 fields when step loads
+            if (stepNumber === 2) {
+                console.log('=== STEP 2 HOTFIX: Removing error/touched classes ===');
+                setTimeout(() => {
+                    const step2Fields = $(`.form-step[data-step="2"] .field-input`);
+                    console.log('Found step 2 fields:', step2Fields.length);
+                    
+                    step2Fields.each(function(index) {
+                        const $field = $(this);
+                        const beforeClasses = $field.attr('class');
+                        $field.removeClass('error touched');
+                        const afterClasses = $field.attr('class');
+                        
+                        console.log(`Field ${index + 1}:`, {
+                            id: $field.attr('id'),
+                            name: $field.attr('name'),
+                            beforeClasses: beforeClasses,
+                            afterClasses: afterClasses,
+                            hasError: $field.hasClass('error'),
+                            hasTouched: $field.hasClass('touched')
+                        });
+                    });
+                    
+                    console.log('=== STEP 2 HOTFIX COMPLETE ===');
+                }, 100);
+            }
             
             // Update step indicators
             $('.step-indicator .step').removeClass('active completed');

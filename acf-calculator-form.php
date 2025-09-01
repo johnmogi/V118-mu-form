@@ -769,14 +769,44 @@ class ACF_Quiz_System {
                     border-right-color: #007cba;
                 }
                 
-                /* Remove initial red styling from required fields */
-                .field-input:required {
+                /* Remove initial error styling - fields should only show red after user interaction */
+                .field-input.error:not(.touched) {
                     border-color: #ddd !important;
+                    background-color: #fff !important;
+                }
+                
+                .field-input.touched.error {
+                    border-color: #e74c3c !important;
+                    background-color: #fdf2f2 !important;
+                }
+
+                /* Ensure all fields start with normal styling regardless of error class */
+                .field-input,
+                .field-input.error {
+                    border-color: #ddd !important;
+                    background-color: #fff !important;
+                }
+                
+                /* Force override any server-side error classes */
+                select.field-input.error,
+                input.field-input.error,
+                textarea.field-input.error {
+                    border-color: #ddd !important;
+                    background-color: #fff !important;
                 }
                 
                 /* Show red only when invalid and user tried to submit */
                 .field-input:invalid.touched {
-                    border-color: #e74c3c !important;
+                    border-color: #e74c3c ;
+                    background-color: #fff5f5 ;
+                }
+                
+                /* Override all error styling to use grey instead of red */
+                .field-input.error,
+                .field-input.error.touched,
+                .field-input.error.touched:invalid {
+                    border-color: rgb(221, 221, 221) ;
+                    background-color: rgb(255, 255, 255) ;
                 }
                 
                 /* Remove select background image */
@@ -833,6 +863,25 @@ class ACF_Quiz_System {
                     color: white;
                 }
                 
+                
+                /* Button icon styling */
+                .nav-btn .elementor-button-icon {
+                    display: inline-block;
+                    margin-right: 8px;
+                    vertical-align: middle;
+                }
+                
+                .nav-btn .elementor-button-icon i {
+                    font-size: 16px;
+                    vertical-align: middle;
+                }
+                
+                /* Ensure arrow icon displays properly */
+                .nav-btn .elementor-button-icon i.arrow_carrot-2left:before {
+                    content: '\\e649';
+                    font-family: 'ElegantIcons';
+                }
+                
                 @media (max-width: 768px) {
                     .date-input-group {
                         flex-direction: column;
@@ -851,6 +900,28 @@ class ACF_Quiz_System {
                 }
             ";
             wp_add_inline_style('acf-quiz-public', $custom_css);
+            
+            // Add custom CSS for WooCommerce checkout
+            $checkout_css = '
+                /* Hide quantity display and replace placeholder image with logo */
+                .wc-block-components-order-summary-item__quantity {
+                    display: none !important;
+                }
+                
+                .wc-block-components-order-summary-item__image img {
+                    display: none !important;
+                }
+                
+                .wc-block-components-order-summary-item__image {
+                    width: 60px !important;
+                    height: 60px !important;
+                    background-image: url("/wp-content/uploads/2025/08/לוגו-וידר-04.svg") !important;
+                    background-size: contain !important;
+                    background-repeat: no-repeat !important;
+                    background-position: center !important;
+                }
+            ';
+            wp_add_inline_style('acf-quiz-public', $checkout_css);
 
             // Enqueue Font Awesome for icons
             wp_enqueue_style(
@@ -858,6 +929,14 @@ class ACF_Quiz_System {
                 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
                 array(),
                 '6.0.0'
+            );
+
+            // Enqueue Elegant Icons for arrow_carrot-2left
+            wp_enqueue_style(
+                'elegant-icons',
+                'https://cdnjs.cloudflare.com/ajax/libs/elegant-icons/1.0.1/style.min.css',
+                array(),
+                '1.0.1'
             );
 
             // Enqueue JavaScript
@@ -1075,7 +1154,7 @@ class ACF_Quiz_System {
                         
                         <div class="field-group">
                             <label for="address" class="field-label">כתובת <span class="required">*</span></label>
-                            <textarea id="address" name="address" class="field-input" rows="3" required></textarea>
+                            <input type="text" id="address" name="address" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
@@ -1218,16 +1297,12 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Navigation Buttons -->
                 <div class="form-navigation">
                     <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">חזרה</button>
                     <button type="button" id="next-step" class="nav-btn next-btn">
-                        <?php 
-                        $button_text = get_field('button_text', 'option');
-                        echo $button_text ? $button_text : 'המשך';
-                        ?>
+                        <?php echo get_field('button_text', 'option') ?: 'המשך'; ?>
                         <span class="elementor-button-icon">
-                            <i aria-hidden="true" class="arrow_carrot-2left"></i>
+                            >>
                         </span>
                     </button>
                     <button type="submit" id="submit-form" class="nav-btn submit-btn" style="display: none;">שלח שאלון</button>
@@ -1239,6 +1314,7 @@ class ACF_Quiz_System {
                 <div class="modal-content">
                     <h3>האם אתה בטוח?</h3>
                     <p>יציאה מהטופס תגרום לאיבוד כל המידע שמילאת. האם אתה בטוח שברצונך לעזוב?</p>
+                    <p><small>💡 השתמש בכפתורי "חזרה" ו"המשך" בתחתית הטופס כדי לנווט בין השלבים</small></p>
                     <div class="modal-buttons">
                         <button class="modal-btn cancel" id="modal-cancel">ביטול</button>
                         <button class="modal-btn confirm" id="modal-confirm">כן, צא מהטופס</button>
@@ -1304,6 +1380,33 @@ class ACF_Quiz_System {
                 formStarted = true;
             });
             
+            // Remove error class from all fields on page load and ensure clean styling
+            function resetFieldStyling() {
+                $('#acf-quiz-form .field-input').each(function() {
+                    // Remove all error-related classes
+                    $(this).removeClass('error touched rtl-input');
+                    
+                    // Remove any existing classes that might cause red styling
+                    var classes = $(this).attr('class');
+                    if (classes) {
+                        var cleanClasses = classes.split(' ').filter(function(cls) {
+                            return cls !== 'error' && cls !== 'touched' && cls !== 'rtl-input';
+                        }).join(' ');
+                        $(this).attr('class', cleanClasses);
+                    }
+                    
+                    // Force clean styling
+                    this.style.setProperty('border-color', '#ddd', 'important');
+                    this.style.setProperty('background-color', '#fff', 'important');
+                });
+            }
+            
+            // Run multiple times to ensure complete override
+            resetFieldStyling();
+            setTimeout(resetFieldStyling, 50);
+            setTimeout(resetFieldStyling, 200);
+            setTimeout(resetFieldStyling, 1000);
+            
             // Add touched class for validation styling
             $('#acf-quiz-form input, #acf-quiz-form select, #acf-quiz-form textarea').on('blur', function() {
                 if ($(this).is(':invalid')) {
@@ -1322,16 +1425,57 @@ class ACF_Quiz_System {
             
             // Browser back button protection
             window.addEventListener('beforeunload', function(e) {
-                if (formStarted) {
+                console.log('beforeunload triggered - formStarted:', formStarted, 'formSubmitting:', formSubmitting, 'window.formSubmitting:', window.formSubmitting);
+                if (formStarted && !formSubmitting && !window.formSubmitting) {
+                    console.log('Showing beforeunload confirmation');
                     e.preventDefault();
                     e.returnValue = '';
                     return '';
+                } else {
+                    console.log('Allowing navigation - no confirmation needed');
+                }
+            });
+
+            window.addEventListener('popstate', function(e) {
+                console.log('popstate triggered - formStarted:', formStarted, 'formSubmitting:', formSubmitting, 'window.formSubmitting:', window.formSubmitting);
+                if (formStarted && !formSubmitting && !window.formSubmitting) {
+                    console.log('Showing popstate confirmation modal');
+                    e.preventDefault();
+                    showConfirmationModal(
+                        'לצאת מהטופס?',
+                        'האם אתה בטוח שברצונך לצאת? השינויים שביצעת לא יישמרו.',
+                        function() {
+                            formStarted = false;
+                            window.history.back();
+                        }
+                    );
+                    return false;
+                } else {
+                    console.log('Allowing popstate navigation - no confirmation needed');
                 }
             });
             
+            // Track form submission to disable navigation warning
+            var formSubmitting = false;
+            window.formSubmitting = false; // Make it globally accessible
+            
+            $('#acf-quiz-form').on('submit', function() {
+                console.log('Form submit event triggered - setting formSubmitting = true');
+                formSubmitting = true;
+                window.formSubmitting = true;
+            });
+            
+            // Also track submit button clicks directly
+            $('#submit-form').on('click', function() {
+                console.log('Submit button clicked - setting formSubmitting = true');
+                formSubmitting = true;
+                window.formSubmitting = true;
+            });
+            
+            
             // Handle browser back/forward buttons
             window.addEventListener('popstate', function(e) {
-                if (formStarted) {
+                if (formStarted && !formSubmitting) {
                     e.preventDefault();
                     showConfirmationModal(function() {
                         formStarted = false;
