@@ -321,6 +321,29 @@ class ACF_Quiz_System {
                     'media_upload' => 1,
                     'delay' => 0,
                 ),
+                // Button Text Content
+                array(
+                    'key' => 'field_button_text',
+                    'label' => 'Button Text',
+                    'name' => 'button_text',
+                    'type' => 'text',
+                    'instructions' => 'Enter the text for the next button (default: המשך)',
+                    'required' => 0,
+                    'default_value' => 'המשך',
+                ),
+                // Final Declaration Content
+                array(
+                    'key' => 'field_final_declaration',
+                    'label' => 'Final Declaration Text',
+                    'name' => 'final_declaration_text',
+                    'type' => 'wysiwyg',
+                    'instructions' => 'Enter the final declaration text that users must agree to',
+                    'required' => 0,
+                    'tabs' => 'all',
+                    'toolbar' => 'full',
+                    'media_upload' => 1,
+                    'delay' => 0,
+                ),
                 // Quiz Title
                 array(
                     'key' => 'field_quiz_title',
@@ -693,6 +716,150 @@ class ACF_Quiz_System {
                 '1.0.0'
             );
 
+            // Add inline CSS for date input styling
+            $custom_css = "
+                .date-input-group {
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
+                
+                .date-select {
+                    flex: 1;
+                    min-width: 80px;
+                    max-width: 120px;
+                }
+                
+                .elementor-button-icon {
+                    margin-right: 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    white-space: nowrap;
+                }
+                
+                .nav-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    white-space: nowrap;
+                }
+                
+                .step-indicator .step.completed::after {
+                    display: none !important;
+                }
+                
+                .step-indicator .step {
+                    position: relative;
+                }
+                
+                .step-indicator .step:not(:last-child)::after {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: -15px;
+                    transform: translateY(-50%);
+                    width: 0;
+                    height: 0;
+                    border-right: 8px solid #ddd;
+                    border-top: 6px solid transparent;
+                    border-bottom: 6px solid transparent;
+                }
+                
+                .step-indicator .step.active:not(:last-child)::after {
+                    border-right-color: #007cba;
+                }
+                
+                /* Remove initial red styling from required fields */
+                .field-input:required {
+                    border-color: #ddd !important;
+                }
+                
+                /* Show red only when invalid and user tried to submit */
+                .field-input:invalid.touched {
+                    border-color: #e74c3c !important;
+                }
+                
+                /* Remove select background image */
+                select.field-input {
+                    background-image: none !important;
+                    padding-left: 12px !important;
+                }
+                
+                /* Modal styles */
+                .confirmation-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    display: none;
+                    z-index: 9999;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .modal-content {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    max-width: 400px;
+                    text-align: center;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                }
+                
+                .modal-buttons {
+                    margin-top: 20px;
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                }
+                
+                .modal-btn {
+                    padding: 10px 20px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                }
+                
+                .modal-btn.confirm {
+                    background: #e74c3c;
+                    color: white;
+                }
+                
+                .modal-btn.cancel {
+                    background: #95a5a6;
+                    color: white;
+                }
+                
+                @media (max-width: 768px) {
+                    .date-input-group {
+                        flex-direction: column;
+                        gap: 8px;
+                    }
+                    
+                    .date-select {
+                        width: 100%;
+                        max-width: none;
+                    }
+                    
+                    .modal-content {
+                        margin: 20px;
+                        padding: 20px;
+                    }
+                }
+            ";
+            wp_add_inline_style('acf-quiz-public', $custom_css);
+
+            // Enqueue Font Awesome for icons
+            wp_enqueue_style(
+                'font-awesome',
+                'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
+                array(),
+                '6.0.0'
+            );
+
             // Enqueue JavaScript
             wp_enqueue_script(
                 'acf-quiz-public',
@@ -852,13 +1019,13 @@ class ACF_Quiz_System {
                     
                     <div class="personal-fields">
                         <div class="field-group">
-                            <label for="id_number" class="field-label">תעודת זהות / דרכון</label>
-                            <input type="text" id="id_number" name="id_number" class="field-input">
+                            <label for="id_number" class="field-label">תעודת זהות / דרכון <span class="required">*</span></label>
+                            <input type="text" id="id_number" name="id_number" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
-                            <label for="gender" class="field-label">מין</label>
-                            <select id="gender" name="gender" class="field-input">
+                            <label for="gender" class="field-label">מין <span class="required">*</span></label>
+                            <select id="gender" name="gender" class="field-input" required>
                                 <option value="">בחר</option>
                                 <option value="male">זכר</option>
                                 <option value="female">נקבה</option>
@@ -866,23 +1033,54 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="birth_date" class="field-label">תאריך לידה</label>
-                            <input type="date" id="birth_date" name="birth_date" class="field-input">
+                            <label for="birth_date" class="field-label">תאריך לידה <span class="required">*</span></label>
+                            <div class="date-input-group">
+                                <select id="birth_day" name="birth_day" class="field-input date-select" required>
+                                    <option value="">יום</option>
+                                    <?php for($i = 1; $i <= 31; $i++): ?>
+                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <select id="birth_month" name="birth_month" class="field-input date-select" required>
+                                    <option value="">חודש</option>
+                                    <option value="1">ינואר</option>
+                                    <option value="2">פברואר</option>
+                                    <option value="3">מרץ</option>
+                                    <option value="4">אפריל</option>
+                                    <option value="5">מאי</option>
+                                    <option value="6">יוני</option>
+                                    <option value="7">יולי</option>
+                                    <option value="8">אוגוסט</option>
+                                    <option value="9">ספטמבר</option>
+                                    <option value="10">אוקטובר</option>
+                                    <option value="11">נובמבר</option>
+                                    <option value="12">דצמבר</option>
+                                </select>
+                                <select id="birth_year" name="birth_year" class="field-input date-select" required>
+                                    <option value="">שנה</option>
+                                    <?php 
+                                    $current_year = date('Y');
+                                    for($i = $current_year; $i >= ($current_year - 100); $i--): ?>
+                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                                <input type="hidden" id="birth_date" name="birth_date" required>
+                            </div>
                         </div>
                         
                         <div class="field-group">
-                            <label for="citizenship" class="field-label">אזרחות</label>
-                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
+                            <label for="citizenship" class="field-label">אזרחות <span class="required">*</span></label>
+                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית" required>
                         </div>
                         
                         <div class="field-group">
-                            <label for="address" class="field-label">כתובת</label>
-                            <textarea id="address" name="address" class="field-input" rows="3"></textarea>
+                            <label for="address" class="field-label">כתובת <span class="required">*</span></label>
+                            <textarea id="address" name="address" class="field-input" rows="3" required></textarea>
                         </div>
                         
                         <div class="field-group">
-                            <label for="marital_status" class="field-label">מצב משפחתי</label>
-                            <select id="marital_status" name="marital_status" class="field-input">
+                            <label for="marital_status" class="field-label">מצב משפחתי <span class="required">*</span></label>
+                            <select id="marital_status" name="marital_status" class="field-input" required>
                                 <option value="">בחר</option>
                                 <option value="single">רווק/ה</option>
                                 <option value="married">נשוי/ה</option>
@@ -892,8 +1090,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="employment_status" class="field-label">מצב תעסוקתי</label>
-                            <select id="employment_status" name="employment_status" class="field-input">
+                            <label for="employment_status" class="field-label">מצב תעסוקתי <span class="required">*</span></label>
+                            <select id="employment_status" name="employment_status" class="field-input" required>
                                 <option value="">בחר</option>
                                 <option value="employed">שכיר/ה</option>
                                 <option value="self_employed">עצמאי/ת</option>
@@ -904,8 +1102,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="education" class="field-label">השכלה</label>
-                            <select id="education" name="education" class="field-input">
+                            <label for="education" class="field-label">השכלה <span class="required">*</span></label>
+                            <select id="education" name="education" class="field-input" required>
                                 <option value="">בחר</option>
                                 <option value="high_school">תיכון</option>
                                 <option value="bachelor">תואר ראשון</option>
@@ -916,8 +1114,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="profession" class="field-label">מקצוע</label>
-                            <input type="text" id="profession" name="profession" class="field-input">
+                            <label for="profession" class="field-label">מקצוע <span class="required">*</span></label>
+                            <input type="text" id="profession" name="profession" class="field-input" required>
                         </div>
                     </div>
                 </div>
@@ -1006,7 +1204,14 @@ class ACF_Quiz_System {
                         <div class="checkbox-group">
                             <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input rtl-input" required checked style="display: inline-block !important; visibility: visible !important;">
                             <label for="final_declaration" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">
-                                אני מצהיר/ה כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין/ה את הסיכונים הכרוכים בהשקעות.
+                                <?php 
+                                $final_declaration_text = get_field('final_declaration_text', 'option');
+                                if ($final_declaration_text) {
+                                    echo $final_declaration_text;
+                                } else {
+                                    echo 'אני מצהיר/ה כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין/ה את הסיכונים הכרוכים בהשקעות.';
+                                }
+                                ?>
                                 <span class="required">*</span>
                             </label>
                         </div>
@@ -1016,10 +1221,30 @@ class ACF_Quiz_System {
                 <!-- Navigation Buttons -->
                 <div class="form-navigation">
                     <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">חזרה</button>
-                    <button type="button" id="next-step" class="nav-btn next-btn">המשך</button>
+                    <button type="button" id="next-step" class="nav-btn next-btn">
+                        <?php 
+                        $button_text = get_field('button_text', 'option');
+                        echo $button_text ? $button_text : 'המשך';
+                        ?>
+                        <span class="elementor-button-icon">
+                            <i aria-hidden="true" class="arrow_carrot-2left"></i>
+                        </span>
+                    </button>
                     <button type="submit" id="submit-form" class="nav-btn submit-btn" style="display: none;">שלח שאלון</button>
                 </div>
             </form>
+            
+            <!-- Confirmation Modal -->
+            <div id="confirmation-modal" class="confirmation-modal">
+                <div class="modal-content">
+                    <h3>האם אתה בטוח?</h3>
+                    <p>יציאה מהטופס תגרום לאיבוד כל המידע שמילאת. האם אתה בטוח שברצונך לעזוב?</p>
+                    <div class="modal-buttons">
+                        <button class="modal-btn cancel" id="modal-cancel">ביטול</button>
+                        <button class="modal-btn confirm" id="modal-confirm">כן, צא מהטופס</button>
+                    </div>
+                </div>
+            </div>
             
             <!-- Results container -->
             <div id="quiz-results" class="quiz-results" style="display: none;">
@@ -1055,6 +1280,88 @@ class ACF_Quiz_System {
                 step4Subtitle: 'שלב 4 מתוך 4'
             }
         };
+        
+        // Combine date fields into hidden birth_date field
+        jQuery(document).ready(function($) {
+            var formStarted = false;
+            var originalBeforeUnload = window.onbeforeunload;
+            
+            function updateBirthDate() {
+                var day = $('#birth_day').val();
+                var month = $('#birth_month').val();
+                var year = $('#birth_year').val();
+                
+                if (day && month && year) {
+                    var formattedDate = year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0');
+                    $('#birth_date').val(formattedDate);
+                } else {
+                    $('#birth_date').val('');
+                }
+            }
+            
+            // Track form interaction
+            $('#acf-quiz-form input, #acf-quiz-form select, #acf-quiz-form textarea').on('input change', function() {
+                formStarted = true;
+            });
+            
+            // Add touched class for validation styling
+            $('#acf-quiz-form input, #acf-quiz-form select, #acf-quiz-form textarea').on('blur', function() {
+                if ($(this).is(':invalid')) {
+                    $(this).addClass('touched');
+                }
+            });
+            
+            // Remove touched class when field becomes valid
+            $('#acf-quiz-form input, #acf-quiz-form select, #acf-quiz-form textarea').on('input change', function() {
+                if ($(this).is(':valid')) {
+                    $(this).removeClass('touched');
+                }
+            });
+            
+            $('#birth_day, #birth_month, #birth_year').on('change', updateBirthDate);
+            
+            // Browser back button protection
+            window.addEventListener('beforeunload', function(e) {
+                if (formStarted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                    return '';
+                }
+            });
+            
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(e) {
+                if (formStarted) {
+                    e.preventDefault();
+                    showConfirmationModal(function() {
+                        formStarted = false;
+                        window.history.back();
+                    });
+                    return false;
+                }
+            });
+            
+            // Show confirmation modal
+            function showConfirmationModal(confirmCallback) {
+                $('#confirmation-modal').css('display', 'flex');
+                
+                $('#modal-confirm').off('click').on('click', function() {
+                    $('#confirmation-modal').hide();
+                    if (confirmCallback) confirmCallback();
+                });
+                
+                $('#modal-cancel').off('click').on('click', function() {
+                    $('#confirmation-modal').hide();
+                });
+                
+                // Close modal on background click
+                $('#confirmation-modal').off('click').on('click', function(e) {
+                    if (e.target === this) {
+                        $(this).hide();
+                    }
+                });
+            }
+        });
         </script>
         
         <?php
