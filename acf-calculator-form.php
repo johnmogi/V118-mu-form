@@ -295,6 +295,32 @@ class ACF_Quiz_System {
                     'placement' => 'top',
                     'endpoint' => 0,
                 ),
+                // Step 1 Intro Content
+                array(
+                    'key' => 'field_step_1_intro',
+                    'label' => 'Step 1 - Intro Content',
+                    'name' => 'step_1_intro',
+                    'type' => 'wysiwyg',
+                    'instructions' => 'Enter the introduction text for step 1',
+                    'required' => 0,
+                    'tabs' => 'all',
+                    'toolbar' => 'full',
+                    'media_upload' => 1,
+                    'delay' => 0,
+                ),
+                // Legal Notice Content
+                array(
+                    'key' => 'field_legal_notice',
+                    'label' => 'Legal Notice',
+                    'name' => 'legal_notice',
+                    'type' => 'wysiwyg',
+                    'instructions' => 'Enter the legal notice text shown at the bottom of step 1',
+                    'required' => 0,
+                    'tabs' => 'all',
+                    'toolbar' => 'full',
+                    'media_upload' => 1,
+                    'delay' => 0,
+                ),
                 // Quiz Title
                 array(
                     'key' => 'field_quiz_title',
@@ -767,10 +793,18 @@ class ACF_Quiz_System {
                 <!-- Step 1: Basic Personal Information -->
                 <div class="form-step active" data-step="1">
                     <div class="step-intro">
-                        <h3>שלום ברוך הבא!</h3>
-                        <p>אני שמח שבחרת להצטרף לשירות שלי</p>
-                        <p>היות ואני מנהל השקעות, מס' רישיון 7955 השירות מנוהל בהתאם לתקנות של הרשות לניירות ערך</p>
-                        <p>ולכן מבוצע איתך הליך מקוון של בירור התאמה לשירות שמטרתו לאסוף את המידע הרלוונטי אודותיך ולברר האם הינך עם הבנה מספקת בשוק הון שכן זהו תנאי הכרחי להרשמה לשרות ונדרש על-פי חוק</p>
+                        <?php 
+                        $step_1_intro = get_field('step_1_intro', 'option');
+                        if ($step_1_intro) {
+                            echo $step_1_intro;
+                        } else {
+                            // Default content if no ACF field is set
+                            echo '<h3>שלום ברוך הבא!</h3>';
+                            echo '<p>אני שמח שבחרת להצטרף לשירות שלי</p>';
+                            echo '<p>היות ואני מנהל השקעות, מס\' רישיון 7955 השירות מנוהל בהתאם לתקנות של הרשות לניירות ערך</p>';
+                            echo '<p>ולכן מבוצע איתך הליך מקוון של בירור התאמה לשירות שמטרתו לאסוף את המידע הרלוונטי אודותיך ולברר האם הינך עם הבנה מספקת בשוק הון שכן זהו תנאי הכרחי להרשמה לשרות ונדרש על-פי חוק</p>';
+                        }
+                        ?>
                     </div>
                     
                     <div class="personal-fields">
@@ -796,9 +830,17 @@ class ACF_Quiz_System {
                     </div>
                     
                     <div class="legal-notice">
-                        <h4>לתשומת ליבך:</h4>
-                        <p>על מנת שנוכל לבחון בצורה המיטבית את התאמתך לשירות המידע, שיתוף הפעולה מצידך הינו קריטי לשם ביצוע הליך הבירור באופן יעיל. אי מסירת פרטים או מסירת פרטים חלקיים עשויות למנוע ממפעיל השרות לספק לך את השירות.</p>
-                        <p>על פי תיקון ההוראה לבעלי רישיון בקשר למתן שירותים תוך שימוש באמצעים טכנולוגיים מאוגוסט 2023, אנחנו מדגישים כי שירות הייעוץ למסחר עצמאי אינו מותאם אישית, ועל כן השירותים אינם מותאמים באופן פרטני ללקוח או לצרכיו.</p>
+                        <?php
+                        $legal_notice = get_field('legal_notice', 'option');
+                        if ($legal_notice) {
+                            echo $legal_notice;
+                        } else {
+                            // Default content if no ACF field is set
+                            echo '<h4>לתשומת ליבך:</h4>';
+                            echo '<p>על מנת שנוכל לבחון בצורה המיטבית את התאמתך לשירות המידע, שיתוף הפעולה מצידך הינו קריטי לשם ביצוע הליך הבירור באופן יעיל. אי מסירת פרטים או מסירת פרטים חלקיים עשויות למנוע ממפעיל השרות לספק לך את השירות.</p>';
+                            echo '<p>על פי תיקון ההוראה לבעלי רישיון בקשר למתן שירותים תוך שימוש באמצעים טכנולוגיים מאוגוסט 2023, אנחנו מדגישים כי שירות הייעוץ למסחר עצמאי אינו מותאם אישית, ועל כן השירותים אינם מותאמים באופן פרטני ללקוח או לצרכיו.</p>';
+                        }
+                        ?>
                     </div>
                 </div>
 
