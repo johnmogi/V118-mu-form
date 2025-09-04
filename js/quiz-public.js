@@ -326,65 +326,37 @@ jQuery(document).ready(function($) {
             let errorMessage = '';
             
             // Get field values
-            const $firstNameField = $('#first_name');
-            const $lastNameField = $('#last_name');
-            const $phoneField = $('#user_phone');
-            const $emailField = $('#user_email');
+            const $idNumberField = $('#id_number');
+            const $genderField = $('#gender');
             
-            const firstName = $firstNameField.val().trim();
-            const lastName = $lastNameField.val().trim();
-            const userPhone = $phoneField.val().trim();
-            const userEmail = $emailField.val().trim();
+            const idNumber = $idNumberField.val().trim();
+            const gender = $genderField.val();
             
             // Only validate and show errors if showErrors is true
             if (showErrors) {
-                // Validate first name
-                if (!firstName) {
+                // Validate ID number
+                if (!idNumber) {
                     isValid = false;
-                    $firstNameField.addClass('error touched');
-                    errorMessage = 'אנא מלא את השם הפרטי';
+                    $idNumberField.addClass('error touched');
+                    errorMessage = 'אנא מלא את מספר תעודת הזהות';
                 } else {
-                    $firstNameField.removeClass('error touched');
+                    $idNumberField.removeClass('error touched');
                 }
                 
-                // Validate last name
-                if (!lastName) {
+                // Validate gender
+                if (!gender) {
                     isValid = false;
-                    $lastNameField.addClass('error touched');
-                    if (!errorMessage) errorMessage = 'אנא מלא את שם המשפחה';
+                    $genderField.addClass('error touched');
+                    if (!errorMessage) errorMessage = 'אנא בחר מין';
                 } else {
-                    $lastNameField.removeClass('error touched');
-                }
-                
-                // Validate phone
-                if (!userPhone) {
-                    isValid = false;
-                    $phoneField.addClass('error touched');
-                    if (!errorMessage) errorMessage = 'אנא מלא את מספר הטלפון';
-                } else {
-                    $phoneField.removeClass('error touched');
-                }
-                
-                // Validate email
-                if (!userEmail) {
-                    isValid = false;
-                    $emailField.addClass('error touched');
-                    if (!errorMessage) errorMessage = 'אנא מלא את כתובת האימייל';
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
-                    isValid = false;
-                    $emailField.addClass('error touched');
-                    if (!errorMessage) errorMessage = 'אנא הזן כתובת אימייל תקינה';
-                } else {
-                    $emailField.removeClass('error touched');
+                    $genderField.removeClass('error touched');
                 }
             } else {
                 // Just validate without showing errors - remove any existing error classes
-                $firstNameField.removeClass('error touched');
-                $lastNameField.removeClass('error touched');
-                $phoneField.removeClass('error touched');
-                $emailField.removeClass('error touched');
+                $idNumberField.removeClass('error touched');
+                $genderField.removeClass('error touched');
                 
-                if (!firstName || !lastName || !userPhone || !userEmail) {
+                if (!idNumber || !gender) {
                     isValid = false;
                 }
             }
@@ -398,24 +370,38 @@ jQuery(document).ready(function($) {
             
             // Step-specific validation
             if (this.currentStep === 1) {
-                // Use dedicated personal details validation for step 1
-                const personalValidation = this.validatePersonalDetails(showErrors);
-                isValid = personalValidation.isValid;
+                // Step 1 has no required fields, always valid
+                isValid = true;
+                
+                // Remove any error classes from step 1 fields
+                currentStepElement.find('input, select').removeClass('error touched');
             } else if (this.currentStep === 2) {
-                // Validate required fields in step 2
-                currentStepElement.find('input[required], select[required], textarea[required]').each(function() {
-                    const $field = $(this);
-                    const value = $field.val();
-                    
-                    if (!value || (value && value.trim() === '')) {
-                        isValid = false;
-                        if (showErrors) {
-                            $field.addClass('error touched');
-                        }
-                    } else {
-                        $field.removeClass('error touched');
+                // Only validate gender and ID number in step 2
+                const $idField = $('#id_number');
+                const $genderField = $('#gender');
+                
+                // Reset error classes
+                $idField.removeClass('error touched');
+                $genderField.removeClass('error touched');
+                
+                // Check ID number
+                if (!$idField.val() || $idField.val().trim() === '') {
+                    isValid = false;
+                    if (showErrors) {
+                        $idField.addClass('error touched');
                     }
-                });
+                }
+                
+                // Check gender
+                if (!$genderField.val() || $genderField.val().trim() === '') {
+                    isValid = false;
+                    if (showErrors) {
+                        $genderField.addClass('error touched');
+                    }
+                }
+                
+                // Remove error classes from other fields
+                currentStepElement.find('input:not(#id_number), select:not(#gender)').removeClass('error touched');
             } else if (this.currentStep === 3 || this.currentStep === 4) {
                 // Special validation for radio button groups in quiz steps
                 const questionStart = this.currentStep === 3 ? 0 : 5;

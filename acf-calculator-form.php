@@ -1055,23 +1055,23 @@ class ACF_Quiz_System {
                     
                     <div class="personal-fields">
                         <div class="field-group">
-                            <label for="first_name" class="field-label">שם פרטי <span class="required">*</span></label>
-                            <input type="text" id="first_name" name="first_name" class="field-input" required>
+                            <label for="first_name" class="field-label">שם פרטי</label>
+                            <input type="text" id="first_name" name="first_name" class="field-input">
                         </div>
                         
                         <div class="field-group">
-                            <label for="last_name" class="field-label">שם משפחה <span class="required">*</span></label>
-                            <input type="text" id="last_name" name="last_name" class="field-input" required>
+                            <label for="last_name" class="field-label">שם משפחה</label>
+                            <input type="text" id="last_name" name="last_name" class="field-input">
                         </div>
                         
                         <div class="field-group">
-                            <label for="user_phone" class="field-label">טלפון <span class="required">*</span></label>
-                            <input type="tel" id="user_phone" name="user_phone" class="field-input" required>
+                            <label for="user_phone" class="field-label">טלפון</label>
+                            <input type="tel" id="user_phone" name="user_phone" class="field-input">
                         </div>
                         
                         <div class="field-group">
-                            <label for="user_email" class="field-label">אימייל <span class="required">*</span></label>
-                            <input type="email" id="user_email" name="user_email" class="field-input" required>
+                            <label for="user_email" class="field-label">אימייל</label>
+                            <input type="email" id="user_email" name="user_email" class="field-input">
                         </div>
                     </div>
                     
@@ -1112,15 +1112,15 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="birth_date" class="field-label">תאריך לידה <span class="required">*</span></label>
+                            <label for="birth_date" class="field-label">תאריך לידה</label>
                             <div class="date-input-group">
-                                <select id="birth_day" name="birth_day" class="field-input date-select" required>
+                                <select id="birth_day" name="birth_day" class="field-input date-select">
                                     <option value="">יום</option>
                                     <?php for($i = 1; $i <= 31; $i++): ?>
                                         <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
                                     <?php endfor; ?>
                                 </select>
-                                <select id="birth_month" name="birth_month" class="field-input date-select" required>
+                                <select id="birth_month" name="birth_month" class="field-input date-select">
                                     <option value="">חודש</option>
                                     <option value="1">ינואר</option>
                                     <option value="2">פברואר</option>
@@ -1135,7 +1135,7 @@ class ACF_Quiz_System {
                                     <option value="11">נובמבר</option>
                                     <option value="12">דצמבר</option>
                                 </select>
-                                <select id="birth_year" name="birth_year" class="field-input date-select" required>
+                                <select id="birth_year" name="birth_year" class="field-input date-select">
                                     <option value="">שנה</option>
                                     <?php 
                                     $current_year = date('Y');
@@ -1143,23 +1143,23 @@ class ACF_Quiz_System {
                                         <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
                                     <?php endfor; ?>
                                 </select>
-                                <input type="hidden" id="birth_date" name="birth_date" required>
+                                <input type="hidden" id="birth_date" name="birth_date">
                             </div>
                         </div>
                         
                         <div class="field-group">
-                            <label for="citizenship" class="field-label">אזרחות <span class="required">*</span></label>
-                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית" required>
+                            <label for="citizenship" class="field-label">אזרחות</label>
+                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
                         </div>
                         
                         <div class="field-group">
-                            <label for="address" class="field-label">כתובת <span class="required">*</span></label>
-                            <input type="text" id="address" name="address" class="field-input" required>
+                            <label for="address" class="field-label">כתובת</label>
+                            <input type="text" id="address" name="address" class="field-input">
                         </div>
                         
                         <div class="field-group">
-                            <label for="marital_status" class="field-label">מצב משפחתי <span class="required">*</span></label>
-                            <select id="marital_status" name="marital_status" class="field-input" required>
+                            <label for="marital_status" class="field-label">מצב משפחתי</label>
+                            <select id="marital_status" name="marital_status" class="field-input">
                                 <option value="">בחר</option>
                                 <option value="single">רווק/ה</option>
                                 <option value="married">נשוי/ה</option>
@@ -1169,8 +1169,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="employment_status" class="field-label">מצב תעסוקתי <span class="required">*</span></label>
-                            <select id="employment_status" name="employment_status" class="field-input" required>
+                            <label for="employment_status" class="field-label">מצב תעסוקתי</label>
+                            <select id="employment_status" name="employment_status" class="field-input">
                                 <option value="">בחר</option>
                                 <option value="employed">שכיר/ה</option>
                                 <option value="self_employed">עצמאי/ת</option>
@@ -1181,8 +1181,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="education" class="field-label">השכלה <span class="required">*</span></label>
-                            <select id="education" name="education" class="field-input" required>
+                            <label for="education" class="field-label">השכלה</label>
+                            <select id="education" name="education" class="field-input">
                                 <option value="">בחר</option>
                                 <option value="high_school">תיכון</option>
                                 <option value="bachelor">תואר ראשון</option>
@@ -1193,8 +1193,8 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="profession" class="field-label">מקצוע <span class="required">*</span></label>
-                            <input type="text" id="profession" name="profession" class="field-input" required>
+                            <label for="profession" class="field-label">מקצוע</label>
+                            <input type="text" id="profession" name="profession" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -1298,7 +1298,12 @@ class ACF_Quiz_System {
                 </div>
 
                 <div class="form-navigation">
-                    <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">חזרה</button>
+                    <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">
+                        <span class="elementor-button-icon">
+                            <<
+                        </span>
+                        חזרה
+                    </button>
                     <button type="button" id="next-step" class="nav-btn next-btn">
                         <?php echo get_field('button_text', 'option') ?: 'המשך'; ?>
                         <span class="elementor-button-icon">
