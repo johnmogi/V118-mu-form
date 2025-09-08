@@ -636,13 +636,30 @@ jQuery(document).ready(function($) {
             // Show/hide prev button - only show from step 2 onwards
             // Initialize signature pad when step 4 is shown
         $(document).on('formStepChanged', function(e, step) {
+            console.log('Step changed to:', step);
             if (step === 4) {
                 // Small delay to ensure the step is fully visible
-                setTimeout(initSignaturePad, 100);
+                setTimeout(function() {
+                    console.log('Initializing signature pad...');
+                    initSignaturePad();
+                }, 100);
             } else if (window.signaturePad) {
-                // Clean up signature pad when leaving step 4
+                console.log('Cleaning up signature pad...');
+                // Save signature data before cleanup
+                const signatureData = window.signaturePad.toData();
                 window.signaturePad.off();
                 window.signaturePad = null;
+                
+                // Restore signature if returning to step 4
+                $(document).one('formStepChanged', function(e, newStep) {
+                    if (newStep === 4) {
+                        setTimeout(function() {
+                            if (window.signaturePad && signatureData && signatureData.length > 0) {
+                                window.signaturePad.fromData(signatureData);
+                            }
+                        }, 100);
+                    }
+                });
             }
         });    
             // Handle next/submit buttons visibility
@@ -1034,6 +1051,47 @@ jQuery(document).ready(function($) {
                     });
                 }
             });
+        },
+        
+        validateStep: function(step) {
+            let isValid = true;
+            const $currentStep = $(`.form-step[data-step="${step}"]`);
+            let firstInvalidField = null;
+            
+            // Check required fields in current step
+            $currentStep.find('input[required], select[required]').each(function() {
+                const $field = $(this);
+                const isCheckbox = $field.is(':checkbox');
+                const isChecked = isCheckbox ? $field.is(':checked') : true;
+                const hasValue = $field.val() && $field.val().trim() !== '';
+                
+                if ((isCheckbox && !isChecked) || (!isCheckbox && !hasValue)) {
+                    isValid = false;
+                    $field.addClass('error');
+                    $field.closest('.form-group, .checkbox-group').addClass('has-error');
+                    
+                    if (!firstInvalidField) {
+                        firstInvalidField = $field;
+                    }
+                } else {
+                    $field.removeClass('error');
+                    $field.closest('.form-group, .checkbox-group').removeClass('has-error');
+                }
+            });
+            
+            // If there are validation errors, scroll to the first one
+            if (!isValid && firstInvalidField) {
+                $('html, body').animate({
+                    scrollTop: firstInvalidField.offset().top - 100
+                }, 500);
+                
+                // Focus the first invalid field if it's not a checkbox
+                if (!firstInvalidField.is(':checkbox')) {
+                    firstInvalidField.focus();
+                }
+            }
+            
+            return isValid;
         },
         
         showValidationErrors: function() {

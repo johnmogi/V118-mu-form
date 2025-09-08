@@ -455,8 +455,183 @@ textarea.field-input {
 
 /* Remove duplicate error rule - handled above with higher specificity */
 
-.checkbox-group {
+.checkb.form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+/* Declaration Section */
+.final-declaration {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    direction: rtl;
+}
+
+.declaration-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.declaration-text {
+    margin-bottom: 20px;
+    line-height: 1.6;
+    color: #333;
+}
+
+.declaration-text p,
+.declaration-text li {
+    margin-bottom: 10px;
+}
+
+.declaration-text ul {
+    padding-right: 20px;
+    margin: 10px 0;
+}
+
+.declaration-text li {
+    margin-bottom: 8px;
+    position: relative;
+    padding-right: 15px;
+}
+
+.declaration-text li:before {
+    content: '•';
+    position: absolute;
+    right: -15px;
+    color: #0073aa;
+}
+
+/* Checkbox Styling */
+.declaration-checkbox {
+    margin: 25px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    margin: 0;
+}
+
+.checkbox-input {
+    margin-left: 10px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-label .checkmark {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #0073aa;
+    border-radius: 4px;
+    margin-left: 10px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.checkbox-input:checked + .checkbox-label .checkmark:after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0073aa;
+    font-weight: bold;
+}
+
+/* Signature Section */
+.signature-section {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.signature-section h5 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+}
+
+.signature-container {
+    position: relative;
+    margin: 10px 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+#signature_pad {
+    width: 100%;
+    height: 150px;
+    border: 1px dashed #ccc;
+    background: #fff;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.signature-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 10px;
+}
+
+.clear-signature-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.clear-signature-btn:hover {
+    background: #d32f2f;
+}
+
+#signature_status {
+    color: #666;
+    font-size: 14px;
+    margin-right: 15px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .final-declaration {
+        padding: 15px;
+    }
+    
+    .declaration-checkbox {
+        padding: 10px;
+    }
+    
+    .signature-section {
+        padding: 15px;
+    }
+    
+    .signature-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .clear-signature-btn {
+        margin-bottom: 10px;
+    }
 }
 
 .checkbox-label {

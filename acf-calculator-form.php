@@ -1321,45 +1321,43 @@ class ACF_Quiz_System {
                         <?php endfor; ?>
                     </div>
                     
-                    <div class="final-declaration monthly-declaration">
-                        <h4 style="margin-bottom: 15px; color: #333;">הצהרת הלקוח</h4>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="monthly_declaration" name="final_declaration" class="checkbox-input rtl-input" required>
-                            <label for="monthly_declaration" class="checkbox-label">
-                                אני מצהיר בזאת כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין את התנאים וההגבלות של השירות. אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="final-declaration yearly-declaration">
-                        <h4 style="margin-bottom: 15px; color: #333;">הצהרת הלקוח</h4>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="yearly_declaration" name="final_declaration" class="checkbox-input rtl-input" required>
-                            <label for="yearly_declaration" class="checkbox-label">
-                                אני מצהיר בזאת כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין את התנאים וההגבלות של השירות. אני מאשר כי קראתי והבנתי את תנאי המנוי השנתי.
-                            </label>
-                        </div>
-                        
-                        <!-- Conditional subscription checkbox for other packages -->
-                        <div class="subscription-checkbox other-packages" style="margin-top: 20px;">
-                            <input type="checkbox" id="other_subscription_terms" name="other_subscription_terms" class="checkbox-input rtl-input">
-                            <label for="other_subscription_terms" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">
-                                אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
-                            </label>
-                        </div>
-                        
-                        <!-- Signature field - always visible and optional -->
-                        <div class="signature-section" style="margin-top: 20px;">
-                            <h5 style="margin-bottom: 10px; color: #333;">חתימה דיגיטלית</h5>
-                            <div class="signature-container" style="width: 100%; max-width: 500px;">
-                                <canvas id="signature_pad" style="border: 1px solid #ccc; background: white; width: 100%; height: 150px; display: block;"></canvas>
-                                <div class="signature-controls" style="margin-top: 10px;">
-                                    <button type="button" id="clear_signature" class="clear-signature-btn">נקה חתימה</button>
-                                    <span id="signature_status" style="margin-right: 15px; color: #666;">אנא חתום במסגרת</span>
+                    <div class="final-declaration">
+                        <div class="declaration-content">
+                            <div class="declaration-text">
+                                <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
+                                <p>אני מאשר ש:</p>
+                                <ul>
+                                    <li>השירות אינו מהווה ייעוץ השקעות אישי שמותאם לי</li>
+                                    <li>כל פעולה שאני מבצע בעקבות איתות או מידע שהתקבל במסגרת השירות היא על אחריותי הבלעדית</li>
+                                    <li>אני מבין שהשירות כולל גם מידע כללי, פרשנויות שוק, ניתוחים ודעות מקצועיות, אך אין בו התאמה אישית לתיק ההשקעות שלי.</li>
+                                    <li>שייתכן שלא אקבל הודעה מסוימת בזמן אמת או כלל, לאור העובדה שהשירות ניתן באמצעים טכנולוגיים בלבד כגון וואטסאפ, וייתכנו תקלות, עיכובים או כשל בהעברת הודעות.</li>
+                                    <li>אני מבין שאין אפשרות לשוחח עם מנהל השירות על כל המלצה או איתות באופן מותאם ואישי.</li>
+                                </ul>
+                                <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר עם מתן השירות והפסקתו כאמור.</p>
+                            </div>
+                            
+                            <div class="declaration-checkbox">
+                                <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input" required>
+                                <label for="final_declaration" class="checkbox-label">
+                                    <span class="checkmark"></span>
+                                    אני מאשר כי קראתי והבנתי את כל האמור לעיל
+                                    <span class="required">*</span>
+                                </label>
+                            </div>
+                            
+                            <div class="signature-section">
+                                <h5>חתימה דיגיטלית</h5>
+                                <div class="signature-container">
+                                    <canvas id="signature_pad"></canvas>
+                                    <div class="signature-controls">
+                                        <button type="button" id="clear_signature" class="clear-signature-btn">נקה חתימה</button>
+                                        <span id="signature_status">אנא חתום במסגרת</span>
+                                    </div>
+                                    <input type="hidden" id="signature_data" name="signature_data">
                                 </div>
-                                <input type="hidden" id="signature_data" name="signature_data" value="">
                             </div>
                         </div>
+                    </div>
                     </div>
                 </div>
 
