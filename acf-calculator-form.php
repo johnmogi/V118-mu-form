@@ -1098,23 +1098,23 @@ class ACF_Quiz_System {
                     
                     <div class="personal-fields">
                         <div class="field-group">
-                            <label for="first_name" class="field-label">שם פרטי</label>
-                            <input type="text" id="first_name" name="first_name" class="field-input">
+                            <label for="first_name" class="field-label">שם פרטי <span class="required">*</span></label>
+                            <input type="text" id="first_name" name="first_name" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
-                            <label for="last_name" class="field-label">שם משפחה</label>
-                            <input type="text" id="last_name" name="last_name" class="field-input">
+                            <label for="last_name" class="field-label">שם משפחה <span class="required">*</span></label>
+                            <input type="text" id="last_name" name="last_name" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
-                            <label for="user_phone" class="field-label">טלפון</label>
-                            <input type="tel" id="user_phone" name="user_phone" class="field-input">
+                            <label for="user_phone" class="field-label">טלפון <span class="required">*</span></label>
+                            <input type="tel" id="user_phone" name="user_phone" class="field-input" required>
                         </div>
                         
                         <div class="field-group">
-                            <label for="user_email" class="field-label">אימייל</label>
-                            <input type="email" id="user_email" name="user_email" class="field-input">
+                            <label for="user_email" class="field-label">אימייל <span class="required">*</span></label>
+                            <input type="email" id="user_email" name="user_email" class="field-input" required>
                         </div>
                     </div>
                     
@@ -2804,6 +2804,12 @@ class ACF_Quiz_System {
      * Add custom fields to WooCommerce checkout
      */
     public function add_checkout_custom_fields($checkout) {
+        // Check if $checkout is valid object before using it
+        if (!is_object($checkout) || !method_exists($checkout, 'get_value')) {
+            error_log('Invalid checkout object passed to add_checkout_custom_fields');
+            return;
+        }
+        
         echo '<div id="custom_checkout_fields"><h3>' . __('פרטים נוספים') . '</h3>';
         
         // Full Name Field (replacing first_name and last_name)

@@ -239,15 +239,17 @@ jQuery(document).ready(function($) {
                     console.log('Redirecting directly to checkout for package type:', packageType);
                     
                     if (packageType === 'yearly') {
-                        // For yearly package, redirect to checkout with yearly product
+                        // For yearly package, redirect to checkout with yearly product ID
                         window.location.href = '/checkout/?add-to-cart=1999&yearly=1&quiz_passed=1&score=' + totalScore;
                     } else if (packageType === 'monthly') {
-                        // For monthly package, redirect to checkout with monthly product
+                        // For monthly package, redirect to checkout with monthly product ID  
                         window.location.href = '/checkout/?add-to-cart=199&monthly=1&quiz_passed=1&score=' + totalScore;
                     } else {
-                        // For trial package, redirect to checkout with trial product
+                        // For trial package, redirect to checkout with trial product ID
                         window.location.href = '/checkout/?add-to-cart=99&trial=1&quiz_passed=1&score=' + totalScore;
                     }
+                    
+                    console.log('Redirecting to:', window.location.href);
                 } else {
                     console.log('FAILED - Redirecting to test page');
                     window.location.href = '/test?score=' + totalScore;
@@ -546,8 +548,8 @@ jQuery(document).ready(function($) {
             
             // Make sure label clicks work properly
             $('.checkbox-label-new').on('click', function(e) {
-                e.preventDefault();
-                checkbox.trigger('click');
+                const checkbox = $(this).prev('.checkbox-input-new');
+                checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
             });
         },
         

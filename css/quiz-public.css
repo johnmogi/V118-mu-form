@@ -790,6 +790,8 @@ body.monthly-trial .monthly-declaration {
     flex-shrink: 0;
     margin-top: 3px;
     transform: scale(1.2);
+    pointer-events: auto;
+    z-index: 10;
 }
 
 .checkbox-label-new {
