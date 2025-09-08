@@ -40,7 +40,6 @@ jQuery(document).ready(function($) {
                 this.updateStepDisplay();
                 this.validateCurrentStep();
                 this.setupConditionalElements();
-                this.setupToggleButton();
             }
         },
         
