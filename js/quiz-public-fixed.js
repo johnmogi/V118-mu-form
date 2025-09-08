@@ -23,7 +23,7 @@ jQuery(document).ready(function($) {
             console.log('Initializing MultiStepQuiz...');
             
             // Cache DOM elements
-            this.form = $('#acf-quiz-form');
+            this.form = $('#acf-calculator-form');
             this.nextButton = $('#next-step');
             this.prevButton = $('#prev-step');
             this.submitButton = $('#submit-form');
@@ -33,28 +33,11 @@ jQuery(document).ready(function($) {
                 return;
             }
             
-            // Debug: Check if ID field exists
-            setTimeout(() => {
-                const idField = document.getElementById('id_number');
-                const idFieldJQuery = $('#id_number');
-                const idFieldByName = $('[name="id_number"]');
-                
-                console.log('=== ID FIELD DEBUG ===');
-                console.log('ID field by getElementById:', idField);
-                console.log('ID field by jQuery ID:', idFieldJQuery.length);
-                console.log('ID field by name attribute:', idFieldByName.length);
-                console.log('ID field value:', idField ? idField.value : 'N/A');
-                console.log('=== END ID FIELD DEBUG ===');
-            }, 1000);
-            
             // Bind events
             this.bindEvents();
             
             // Initialize first step
             this.showStep(1);
-            
-            // Ensure submit button is hidden initially
-            this.submitButton.hide();
             
             // Setup conditional elements
             this.setupConditionalElements();
@@ -63,39 +46,10 @@ jQuery(document).ready(function($) {
         },
         
         bindEvents: function() {
-            console.log('Binding events...');
-            console.log('Next button found:', this.nextButton.length);
-            console.log('Prev button found:', this.prevButton.length);
-            console.log('Submit button found:', this.submitButton.length);
-            
-            // Navigation buttons with debugging
-            this.nextButton.on('click', (e) => {
-                console.log('Next button clicked!');
-                this.handleNextStep(e);
-            });
-            this.prevButton.on('click', (e) => {
-                console.log('Prev button clicked!');
-                this.handlePrevStep(e);
-            });
-            this.submitButton.on('click', (e) => {
-                console.log('Submit button clicked!');
-                this.handleSubmit(e);
-            });
-            
-            // Also bind to the button content wrapper in case of event delegation issues
-            $(document).on('click', '#next-step, #next-step *', (e) => {
-                console.log('Next button or child clicked via delegation');
-                e.preventDefault();
-                e.stopPropagation();
-                this.handleNextStep(e);
-            });
-            
-            $(document).on('click', '#prev-step, #prev-step *', (e) => {
-                console.log('Prev button or child clicked via delegation');
-                e.preventDefault();
-                e.stopPropagation();
-                this.handlePrevStep(e);
-            });
+            // Navigation buttons
+            this.nextButton.on('click', this.handleNextStep.bind(this));
+            this.prevButton.on('click', this.handlePrevStep.bind(this));
+            this.submitButton.on('click', this.handleSubmit.bind(this));
             
             // Form field changes
             this.form.on('input change', 'input, select, textarea', this.handleAnswerChange.bind(this));
@@ -114,30 +68,22 @@ jQuery(document).ready(function($) {
                 return false;
             });
             
-            // Exit intent modal removed to prevent inappropriate popups
+            // Warn before leaving page
+            $(window).on('beforeunload', function() {
+                if (!MultiStepQuiz.isSubmitting) {
+                    return 'יציאה מהטופס תגרום לאיבוד כל המידע שמילאת. האם אתה בטוח?';
+                }
+            });
         },
         
-        handleNextStep: function(e) {
-            console.log('=== HANDLE NEXT STEP CALLED ===');
-            console.log('Current step:', this.currentStep);
-            
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            
+        handleNextStep: function() {
             if (this.validateCurrentStep(true)) {
-                console.log('Validation passed, moving to next step');
                 this.saveCurrentStepData();
                 
                 if (this.currentStep < this.totalSteps) {
                     this.currentStep++;
                     this.showStep(this.currentStep);
-                } else {
-                    console.log('Already at last step');
                 }
-            } else {
-                console.log('Validation failed, staying on current step');
             }
         },
         
@@ -227,7 +173,6 @@ jQuery(document).ready(function($) {
         },
         
         handleAnswerChange: function(e) {
-            console.log('Answer changed:', e.target.name, '=', e.target.value);
             // Validate current step when answers change
             setTimeout(() => {
                 this.validateCurrentStep();
@@ -247,32 +192,23 @@ jQuery(document).ready(function($) {
             
             if (this.currentStep === 1) {
                 // Step 1: Basic contact information
-                const requiredFields = ['first_name', 'last_name', 'user_phone', 'user_email'];
+                const requiredFields = ['first_name', 'last_name', 'phone', 'email'];
                 
-                console.log('=== STEP 1 VALIDATION DEBUG ===');
                 requiredFields.forEach(fieldName => {
                     const $field = $(`input[name="${fieldName}"]`);
                     const value = $field.val();
                     
-                    console.log(`Field: ${fieldName}`);
-                    console.log(`  - Element found: ${$field.length > 0}`);
-                    console.log(`  - Value: "${value}"`);
-                    console.log(`  - Is empty: ${!value || value.trim() === ''}`);
-                    
                     if (!value || value.trim() === '') {
                         isValid = false;
-                        console.log(`  - INVALID: Field ${fieldName} is empty`);
                         if (showErrors) {
                             $field.addClass('error');
                             $field.closest('.form-group').addClass('has-error');
                         }
                     } else {
-                        console.log(`  - VALID: Field ${fieldName} has value`);
                         $field.removeClass('error');
                         $field.closest('.form-group').removeClass('has-error');
                     }
                 });
-                console.log('=== END STEP 1 VALIDATION DEBUG ===');
                 
             } else if (this.currentStep === 2) {
                 // Step 2: Personal details
@@ -280,50 +216,25 @@ jQuery(document).ready(function($) {
                                       'citizenship', 'address', 'marital_status', 'employment_status', 
                                       'education', 'profession'];
                 
-                console.log('=== STEP 2 VALIDATION DEBUG ===');
-                console.log('All step 2 inputs:', $currentStep.find('input, select').length);
-                
-                // Check if we're looking in the right step
-                console.log('Current step element found:', $currentStep.length);
-                
                 requiredFields.forEach(fieldName => {
                     const $field = $(`[name="${fieldName}"]`);
-                    const $fieldInStep = $currentStep.find(`[name="${fieldName}"]`);
                     let value = $field.val();
-                    
-                    console.log(`Field: ${fieldName}`);
-                    console.log(`  - Element found globally: ${$field.length > 0}`);
-                    console.log(`  - Element found in current step: ${$fieldInStep.length > 0}`);
-                    console.log(`  - Is select: ${$field.is('select')}`);
-                    console.log(`  - Field ID: ${$field.attr('id')}`);
-                    console.log(`  - Field classes: ${$field.attr('class')}`);
                     
                     if ($field.is('select')) {
                         value = $field.find('option:selected').val();
-                        console.log(`  - Selected value: "${value}"`);
-                        console.log(`  - Selected text: "${$field.find('option:selected').text()}"`);
-                    } else {
-                        console.log(`  - Input value: "${value}"`);
-                        console.log(`  - Input type: ${$field.attr('type')}`);
                     }
                     
-                    const isEmpty = !value || value === '' || value === 'בחר';
-                    console.log(`  - Is empty/invalid: ${isEmpty}`);
-                    
-                    if (isEmpty) {
+                    if (!value || value === '' || value === 'בחר') {
                         isValid = false;
-                        console.log(`  - INVALID: Field ${fieldName} is empty or has default value`);
                         if (showErrors) {
                             $field.addClass('error');
                             $field.closest('.form-group').addClass('has-error');
                         }
                     } else {
-                        console.log(`  - VALID: Field ${fieldName} has value`);
                         $field.removeClass('error');
                         $field.closest('.form-group').removeClass('has-error');
                     }
                 });
-                console.log('=== END STEP 2 VALIDATION DEBUG ===');
                 
             } else if (this.currentStep === 3) {
                 // Step 3: Quiz questions 1-5
@@ -426,7 +337,7 @@ jQuery(document).ready(function($) {
             
             // Scroll to top of form smoothly
             $('html, body').animate({
-                scrollTop: $('#acf-quiz-form').offset().top - 100
+                scrollTop: $('#acf-calculator-form').offset().top - 100
             }, 300);
         },
         
@@ -443,36 +354,25 @@ jQuery(document).ready(function($) {
         },
         
         updateNavigationButtons: function(isValid) {
-            console.log(`=== UPDATE NAVIGATION BUTTONS ===`);
-            console.log(`Current step: ${this.currentStep}, Total steps: ${this.totalSteps}, Is valid: ${isValid}`);
-            
             // Show/hide prev button - only show from step 2 onwards
             if (this.currentStep > 1) {
                 this.prevButton.show();
-                console.log('Showing prev button');
             } else {
                 this.prevButton.hide();
-                console.log('Hiding prev button');
             }
             
             // Handle next/submit buttons visibility
             if (this.currentStep < this.totalSteps) {
-                // On steps 1-3, show next button and hide submit button
+                // On steps 1-3, show next button if valid
                 this.nextButton.show();
                 this.submitButton.hide();
                 this.nextButton.prop('disabled', !isValid);
-                console.log(`Showing next button, disabled: ${!isValid}`);
-                console.log('Hiding submit button');
-            } else if (this.currentStep === this.totalSteps) {
+            } else {
                 // Only on step 4, show submit button and hide next button
                 this.nextButton.hide();
                 this.submitButton.show();
                 this.submitButton.prop('disabled', !isValid);
-                console.log('Hiding next button');
-                console.log(`Showing submit button, disabled: ${!isValid}`);
             }
-            
-            console.log(`=== END UPDATE NAVIGATION BUTTONS ===`);
         },
         
         saveCurrentStepData: function() {
@@ -598,94 +498,6 @@ jQuery(document).ready(function($) {
             console.log('Setting up conditional elements...');
         }
     };
-
-    // Signature pad initialization function
-    function initSignaturePad() {
-        console.log('Initializing signature pad...');
-        
-        const canvas = document.getElementById('signature_pad');
-        if (!canvas) {
-            console.error('Signature pad canvas not found');
-            return;
-        }
-
-        // Get the device pixel ratio for high DPI displays
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        
-        // Set canvas size
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-
-        // Initialize SignaturePad
-        if (typeof SignaturePad !== 'undefined') {
-            window.signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgba(255, 255, 255, 0)',
-                penColor: 'rgb(0, 0, 0)',
-                velocityFilterWeight: 0.7,
-                minWidth: 0.5,
-                maxWidth: 2.5,
-                throttle: 16,
-                minPointDistance: 3
-            });
-
-            // Handle signature events
-            window.signaturePad.addEventListener('endStroke', function() {
-                console.log('Signature stroke completed');
-                
-                // Save signature data
-                const signatureData = window.signaturePad.toDataURL();
-                document.getElementById('signature_data').value = signatureData;
-                
-                // Trigger validation update
-                if (window.MultiStepQuiz) {
-                    setTimeout(() => {
-                        window.MultiStepQuiz.validateCurrentStep();
-                    }, 100);
-                }
-            });
-
-            // Clear signature button
-            const clearButton = document.getElementById('clear_signature');
-            if (clearButton) {
-                clearButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    window.signaturePad.clear();
-                    document.getElementById('signature_data').value = '';
-                    
-                    // Trigger validation update
-                    if (window.MultiStepQuiz) {
-                        setTimeout(() => {
-                            window.MultiStepQuiz.validateCurrentStep();
-                        }, 100);
-                    }
-                });
-            }
-
-            // Handle window resize
-            function resizeCanvas() {
-                const rect = canvas.getBoundingClientRect();
-                canvas.width = rect.width * ratio;
-                canvas.height = rect.height * ratio;
-                canvas.getContext('2d').scale(ratio, ratio);
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-                window.signaturePad.clear();
-            }
-
-            window.addEventListener('resize', resizeCanvas);
-            
-            console.log('Signature pad initialized successfully');
-        } else {
-            console.error('SignaturePad library not loaded');
-        }
-    }
-
-    // Make signature pad function globally available
-    window.initSignaturePad = initSignaturePad;
     
     // Initialize the multi-step quiz system
     MultiStepQuiz.init();
