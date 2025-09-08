@@ -65,8 +65,8 @@ jQuery(document).ready(function($) {
                 this.validateCurrentStep(false);
             });
             
-            // Final declaration checkbox validation - new implementation
-            this.form.on('change', '#final_declaration_new', function() {
+            // Final declaration checkbox validation
+            this.form.on('change', '#final_declaration', function() {
                 MultiStepQuiz.validateCurrentStep();
             });
             
@@ -135,18 +135,19 @@ jQuery(document).ready(function($) {
             console.log('Current step:', this.currentStep);
             
             if (this.currentStep === 4) {
-                console.log('STEP 4 DETECTED - BYPASSING ALL VALIDATION');
+                console.log('STEP 4 DETECTED');
                 // Only check if final declaration is checked
-                const finalDeclaration = $('#final_declaration_new').is(':checked');
+                const finalDeclaration = $('#final_declaration').is(':checked');
                 console.log('Final declaration checked:', finalDeclaration);
                 
                 if (!finalDeclaration) {
                     console.log('Final declaration not checked - stopping submission');
                     this.showError('אנא אשר את ההצהרה הסופית');
+                    this.isSubmitting = false;
                     return false;
                 }
                 
-                console.log('Final declaration OK - BYPASSING ALL OTHER VALIDATION - proceeding with submission');
+                console.log('Final declaration OK - proceeding with submission');
             } else {
                 // Normal validation for other steps
                 console.log('Validating step', this.currentStep);
@@ -596,20 +597,12 @@ jQuery(document).ready(function($) {
                     scrollTop: $('.acf-quiz-container').offset().top - 50
                 }, 500);
                 
-                // Initialize new checkbox functionality
-                this.setupNewCheckbox();
-                
-                // Ensure new checkbox elements are visible
-                const newDeclaration = $('.final-declaration-new');
-                const newCheckboxGroup = $('.checkbox-group-new');
-                const newCheckbox = $('#final_declaration_new');
-                
-                // Make elements visible
-                newDeclaration.show().css('visibility', 'visible');
-                newCheckboxGroup.show().css('visibility', 'visible');
-                newCheckbox.show().css('visibility', 'visible');
-                
-                console.log('New checkbox elements initialized');
+                // Initialize signature pad when step 4 is shown
+                setTimeout(() => {
+                    if (typeof initSignaturePad === 'function') {
+                        initSignaturePad();
+                    }
+                }, 200);
             }
             
             // Update UI and validate
@@ -1146,4 +1139,92 @@ jQuery(document).ready(function($) {
             'opacity': '1'
         }, 500).css('transform', 'translateY(0px)');
     });
+    
+    // Signature pad initialization function
+    function initSignaturePad() {
+        console.log('Initializing signature pad...');
+        
+        const canvas = document.getElementById('signature_pad');
+        if (!canvas) {
+            console.error('Signature pad canvas not found');
+            return;
+        }
+
+        // Get the device pixel ratio for high DPI displays
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        
+        // Set canvas size
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+
+        // Initialize SignaturePad
+        if (typeof SignaturePad !== 'undefined') {
+            window.signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgba(255, 255, 255, 0)',
+                penColor: 'rgb(0, 0, 0)',
+                velocityFilterWeight: 0.7,
+                minWidth: 0.5,
+                maxWidth: 2.5,
+                throttle: 16,
+                minPointDistance: 3
+            });
+
+            // Handle signature events
+            window.signaturePad.addEventListener('endStroke', function() {
+                console.log('Signature stroke completed');
+                
+                // Save signature data
+                const signatureData = window.signaturePad.toDataURL();
+                document.getElementById('signature_data').value = signatureData;
+                
+                // Trigger validation update
+                if (window.MultiStepQuiz) {
+                    setTimeout(() => {
+                        window.MultiStepQuiz.validateCurrentStep();
+                    }, 100);
+                }
+            });
+
+            // Clear signature button
+            const clearButton = document.getElementById('clear_signature');
+            if (clearButton) {
+                clearButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.signaturePad.clear();
+                    document.getElementById('signature_data').value = '';
+                    
+                    // Trigger validation update
+                    if (window.MultiStepQuiz) {
+                        setTimeout(() => {
+                            window.MultiStepQuiz.validateCurrentStep();
+                        }, 100);
+                    }
+                });
+            }
+
+            // Handle window resize
+            function resizeCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width * ratio;
+                canvas.height = rect.height * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                window.signaturePad.clear();
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            
+            console.log('Signature pad initialized successfully');
+        } else {
+            console.error('SignaturePad library not loaded');
+        }
+    }
+
+    // Make signature pad function globally available
+    window.initSignaturePad = initSignaturePad;
 });

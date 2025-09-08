@@ -815,12 +815,12 @@ body.monthly-trial .monthly-declaration {
     color: #007cba;
 }
 
-.checkbox-group.error .checkbox-input {
+.checkbox-group.has-error .checkbox-input {
     border-color: #dc3545 !important;
     box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);
 }
 
-.checkbox-group.error .checkbox-label {
+.checkbox-group.has-error .checkbox-label {
     color: #dc3545;
 }
 
