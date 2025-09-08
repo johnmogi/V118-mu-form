@@ -112,6 +112,9 @@ class ACF_Quiz_System {
         // Remove default WooCommerce fields (classic checkout)
         add_filter('woocommerce_checkout_fields', array($this, 'remove_checkout_fields'));
         
+        // Remove additional fields and make single column
+        add_action('init', array($this, 'remove_checkout_additional_fields'));
+        
         // Handle WooCommerce block checkout
         add_action('woocommerce_blocks_loaded', array($this, 'register_checkout_block_integration'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_block_checkout_scripts'));
@@ -1341,6 +1344,23 @@ class ACF_Quiz_System {
                                 <label for="final_declaration" class="checkbox-label">
                                     <span class="checkmark"></span>
                                     אני מאשר כי קראתי והבנתי את כל האמור לעיל
+                                    <span class="required">*</span>
+                                </label>
+                            </div>
+                            
+                            <!-- Conditional subscription checkbox based on package type -->
+                            <div class="subscription-checkbox trial-packages" style="display: none;">
+                                <input type="checkbox" id="subscription_terms_3month" name="subscription_terms_3month" class="checkbox-input-new" required>
+                                <label for="subscription_terms_3month" class="checkbox-label-new">
+                                    אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי לאחר תקופת ההטבה (3 חודשים במחיר מוזל), יתחדש המנוי אוטומטית מדי חודש במחיר המלא.
+                                    <span class="required">*</span>
+                                </label>
+                            </div>
+                            
+                            <div class="subscription-checkbox other-packages" style="display: none;">
+                                <input type="checkbox" id="subscription_terms_other" name="subscription_terms_other" class="checkbox-input-new" required>
+                                <label for="subscription_terms_other" class="checkbox-label-new">
+                                    אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
                                     <span class="required">*</span>
                                 </label>
                             </div>
@@ -2810,7 +2830,8 @@ class ACF_Quiz_System {
             return;
         }
         
-        echo '<div id="custom_checkout_fields"><h3>' . __('פרטים נוספים') . '</h3>';
+        // Remove the extra info section header
+        echo '<div id="custom_checkout_fields">';
         
         // Full Name Field (replacing first_name and last_name)
         woocommerce_form_field('full_name', array(
@@ -2863,6 +2884,31 @@ class ACF_Quiz_System {
         echo '</div>';
     }
     
+    /**
+     * Remove WooCommerce checkout additional fields and shipping section
+     */
+    public function remove_checkout_additional_fields() {
+        // Remove additional fields section completely
+        remove_action('woocommerce_checkout_after_customer_details', 'woocommerce_checkout_shipping');
+        
+        // Add CSS to hide col-2 section
+        add_action('wp_head', function() {
+            echo '<style>
+                .woocommerce-checkout .col2-set .col-2 {
+                    display: none !important;
+                }
+                .woocommerce-checkout .col2-set .col-1 {
+                    width: 100% !important;
+                    float: none !important;
+                }
+                .woocommerce-additional-fields h3,
+                .woocommerce-shipping-fields {
+                    display: none !important;
+                }
+            </style>';
+        });
+    }
+
     /**
      * Remove default WooCommerce checkout fields
      */
