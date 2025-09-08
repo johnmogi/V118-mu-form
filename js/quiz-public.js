@@ -19,6 +19,7 @@ jQuery(document).ready(function($) {
         prevButton: null,
         submitButton: null,
         resultsContainer: null,
+        planType: 'monthly', // Default to monthly
         
         init: function() {
             this.form = $('#acf-quiz-form');
@@ -27,10 +28,19 @@ jQuery(document).ready(function($) {
             this.submitButton = $('#submit-form');
             this.resultsContainer = $('#quiz-results');
             
+            // Detect plan type from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            this.planType = urlParams.has('yearly') ? 'yearly' : 'monthly';
+            
+            // Add plan type class to body
+            $('body').addClass(this.planType + '-trial');
+            
             if (this.form.length) {
                 this.bindEvents();
                 this.updateStepDisplay();
                 this.validateCurrentStep();
+                this.setupConditionalElements();
+                this.setupToggleButton();
             }
         },
         
@@ -45,7 +55,7 @@ jQuery(document).ready(function($) {
                 if (this.nextButton.prop('disabled')) {
                     e.preventDefault();
                     this.showValidationErrors(); // Show errors when clicking disabled button
-                    this.showError('אנא מלא את כל השדות הנדרשים');
+                    this.showError('אנא מלאו את כל השדות הנדרשים');
                     return false;
                 }
             });
@@ -55,8 +65,8 @@ jQuery(document).ready(function($) {
                 this.validateCurrentStep(false);
             });
             
-            // Final declaration checkbox validation
-            this.form.on('change', '#final_declaration', function() {
+            // Final declaration checkbox validation - new implementation
+            this.form.on('change', '#final_declaration_new', function() {
                 MultiStepQuiz.validateCurrentStep();
             });
             
@@ -86,7 +96,7 @@ jQuery(document).ready(function($) {
             } else {
                 // Force show errors on current step fields
                 this.showValidationErrors();
-                this.showError('אנא מלא את כל השדות הנדרשים');
+                this.showError('אנא מלאו את כל השדות הנדרשים');
             }
         },
         
@@ -127,7 +137,7 @@ jQuery(document).ready(function($) {
             if (this.currentStep === 4) {
                 console.log('STEP 4 DETECTED - BYPASSING ALL VALIDATION');
                 // Only check if final declaration is checked
-                const finalDeclaration = $('#final_declaration').is(':checked');
+                const finalDeclaration = $('#final_declaration_new').is(':checked');
                 console.log('Final declaration checked:', finalDeclaration);
                 
                 if (!finalDeclaration) {
@@ -145,7 +155,7 @@ jQuery(document).ready(function($) {
                 
                 if (!isValid) {
                     console.log('Step validation FAILED - stopping submission');
-                    this.showError('אנא מלא את כל השדות הנדרשים');
+                    this.showError('אנא מלאו את כל השדות הנדרשים');
                     return false;
                 }
                 
@@ -250,8 +260,8 @@ jQuery(document).ready(function($) {
                         window.location.href = '/shop/?' + packageType + '=1&quiz_passed=1&score=' + totalScore;
                     }
                 } else {
-                    console.log('FAILED - Redirecting to followup page');
-                    window.location.href = '/followup?score=' + totalScore;
+                    console.log('FAILED - Redirecting to test page');
+                    window.location.href = '/test?score=' + totalScore;
                 }
             }, 1000); // 1 second delay
             
@@ -370,11 +380,48 @@ jQuery(document).ready(function($) {
             
             // Step-specific validation
             if (this.currentStep === 1) {
-                // Step 1 has no required fields, always valid
-                isValid = true;
+                // Step 1 - validate all personal details fields
+                const $firstNameField = $('#first_name');
+                const $lastNameField = $('#last_name');
+                const $phoneField = $('#user_phone');
+                const $emailField = $('#user_email');
                 
-                // Remove any error classes from step 1 fields
-                currentStepElement.find('input, select').removeClass('error touched');
+                // Reset error classes
+                currentStepElement.find('input').removeClass('error touched');
+                
+                // Validate first name
+                if (!$firstNameField.val() || $firstNameField.val().trim() === '') {
+                    isValid = false;
+                    if (showErrors) {
+                        $firstNameField.addClass('error touched');
+                    }
+                }
+                
+                // Validate last name
+                if (!$lastNameField.val() || $lastNameField.val().trim() === '') {
+                    isValid = false;
+                    if (showErrors) {
+                        $lastNameField.addClass('error touched');
+                    }
+                }
+                
+                // Validate phone
+                if (!$phoneField.val() || $phoneField.val().trim() === '') {
+                    isValid = false;
+                    if (showErrors) {
+                        $phoneField.addClass('error touched');
+                    }
+                }
+                
+                // Validate email
+                const emailValue = $emailField.val().trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailValue || !emailRegex.test(emailValue)) {
+                    isValid = false;
+                    if (showErrors) {
+                        $emailField.addClass('error touched');
+                    }
+                }
             } else if (this.currentStep === 2) {
                 // Only validate gender and ID number in step 2
                 const $idField = $('#id_number');
@@ -384,12 +431,27 @@ jQuery(document).ready(function($) {
                 $idField.removeClass('error touched');
                 $genderField.removeClass('error touched');
                 
-                // Check ID number
-                if (!$idField.val() || $idField.val().trim() === '') {
+                // Check ID number with enhanced validation
+                const idValue = $idField.val().trim();
+                const idNumberRegex = /^[\d-]{8,12}$/; // 8-12 digits or dashes
+                
+                if (!idValue || !idNumberRegex.test(idValue)) {
                     isValid = false;
-                    if (showErrors) {
+                    // Only show visual error styling when there's input that doesn't match the pattern
+                    if (idValue.length > 0 && !idNumberRegex.test(idValue)) {
                         $idField.addClass('error touched');
                     }
+                    if (showErrors) {
+                        $idField.addClass('error touched');
+                        if (!idValue) {
+                            this.showError('אנא הזן מספר זהות');
+                        } else if (!idNumberRegex.test(idValue)) {
+                            this.showError('מספר זהות חייב להכיל בין 8-12 ספרות או מקפים בלבד');
+                        }
+                    }
+                } else {
+                    // Remove error styling when valid
+                    $idField.removeClass('error touched');
                 }
                 
                 // Check gender
@@ -414,25 +476,90 @@ jQuery(document).ready(function($) {
                         break;
                     }
                 }
-                
-                // Also check final declaration checkbox for step 4
-                if (this.currentStep === 4) {
-                    const finalDeclaration = $('#final_declaration').is(':checked');
-                    if (!finalDeclaration) {
-                        isValid = false;
-                        if (showErrors) {
-                            $('#final_declaration').closest('.checkbox-group').addClass('error');
-                        }
-                    } else {
-                        $('#final_declaration').closest('.checkbox-group').removeClass('error');
-                    }
-                }
             }
             
-            // Update navigation buttons
-            this.updateNavigationButtons(isValid);
+            // Handle button state based on step
+            if (this.currentStep === 2) {
+                // On step 2, enable button only when ID is valid (not just has input)
+                const $idField = $('#id_number');
+                const $genderField = $('#gender');
+                const idValue = $idField.val().trim();
+                const idNumberRegex = /^[\d-]{8,12}$/;
+                const hasValidId = idValue && idNumberRegex.test(idValue);
+                const hasGender = $genderField.val() && $genderField.val().trim() !== '';
+                
+                this.nextButton.prop('disabled', !(hasValidId && hasGender));
+            } else {
+                this.nextButton.prop('disabled', !isValid);
+            }
             
             return isValid;
+        },
+        
+        setupConditionalElements: function() {
+            console.log('Setting up conditional elements...');
+            
+            // Get package type from hidden input or URL parameter
+            let packageType = '';
+            
+            // First try to get from hidden input
+            const packageInput = $('input[name="package_type"]');
+            if (packageInput.length && packageInput.val()) {
+                packageType = packageInput.val();
+                console.log('Package type from hidden input:', packageType);
+            } else {
+                // Try to get from URL parameter - check for 'monthly' param existence
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('monthly')) {
+                    packageType = 'monthly';
+                    console.log('Package type from URL parameter: monthly detected');
+                }
+                console.log('URL search params:', window.location.search);
+                console.log('All URL params:', Array.from(urlParams.entries()));
+            }
+            
+            console.log('Final package type:', packageType);
+            
+            // Show/hide subscription checkboxes based on package type
+            if (packageType === 'monthly') {
+                // For monthly package, show trial subscription checkbox and hide other
+                $('.subscription-checkbox.trial-packages').show().css('display', 'block');
+                $('.subscription-checkbox.other-packages').hide().css('display', 'none');
+                console.log('Showing trial subscription checkbox for monthly package');
+            } else {
+                // For other packages, show other subscription checkbox and hide trial
+                $('.subscription-checkbox.other-packages').show().css('display', 'block');
+                $('.subscription-checkbox.trial-packages').hide().css('display', 'none');
+                console.log('Showing other subscription checkbox for non-monthly package');
+            }
+            
+            // Initialize confirmation modal as hidden
+            $('#confirmation-modal').hide().css({
+                'display': 'none',
+                'visibility': 'hidden',
+                'opacity': '0'
+            });
+        },
+        
+        setupNewCheckbox: function() {
+            // Simple checkbox functionality - no forced behavior
+            const checkbox = $('#final_declaration_new');
+            
+            // Ensure checkbox starts unchecked
+            checkbox.prop('checked', false);
+            
+            // Add click handler for proper validation
+            checkbox.on('change', function() {
+                const isChecked = $(this).is(':checked');
+                console.log('Final declaration checkbox changed:', isChecked);
+                MultiStepQuiz.validateCurrentStep();
+            });
+            
+            // Make sure label clicks work properly
+            $('.checkbox-label-new').on('click', function(e) {
+                e.preventDefault();
+                checkbox.trigger('click');
+            });
         },
         
         showStep: function(stepNumber) {
@@ -442,31 +569,14 @@ jQuery(document).ready(function($) {
             // Show current step
             $(`.form-step[data-step="${stepNumber}"]`).addClass('active');
             
-            // HOTFIX: Remove error/touched classes from step 2 fields when step loads
+            // Keep error message visible when moving to step 2
             if (stepNumber === 2) {
-                console.log('=== STEP 2 HOTFIX: Removing error/touched classes ===');
-                setTimeout(() => {
-                    const step2Fields = $(`.form-step[data-step="2"] .field-input`);
-                    console.log('Found step 2 fields:', step2Fields.length);
-                    
-                    step2Fields.each(function(index) {
-                        const $field = $(this);
-                        const beforeClasses = $field.attr('class');
-                        $field.removeClass('error touched');
-                        const afterClasses = $field.attr('class');
-                        
-                        console.log(`Field ${index + 1}:`, {
-                            id: $field.attr('id'),
-                            name: $field.attr('name'),
-                            beforeClasses: beforeClasses,
-                            afterClasses: afterClasses,
-                            hasError: $field.hasClass('error'),
-                            hasTouched: $field.hasClass('touched')
-                        });
-                    });
-                    
-                    console.log('=== STEP 2 HOTFIX COMPLETE ===');
-                }, 100);
+                console.log('=== STEP 2: Keeping error message visible ===');
+                // Don't auto-hide error message on step 2
+                const errorContainer = $('#quiz-error');
+                if (errorContainer.length && errorContainer.is(':visible')) {
+                    console.log('Error message kept visible for step 2');
+                }
             }
             
             // Update step indicators
@@ -479,36 +589,35 @@ jQuery(document).ready(function($) {
                 }
             }
             
-            // Scroll to top when moving to step 4
+            // Handle step-specific logic
             if (stepNumber === 4) {
+                // Scroll to top
                 $('html, body').animate({
                     scrollTop: $('.acf-quiz-container').offset().top - 50
                 }, 500);
                 
-                // Ensure final declaration checkbox is visible and checked by default
-                setTimeout(() => {
-                    const checkbox = $('#final_declaration');
-                    const checkboxGroup = $('.checkbox-group');
-                    const finalDeclaration = $('.final-declaration');
-                    
-                    // Force visibility
-                    finalDeclaration.show().css('visibility', 'visible');
-                    checkboxGroup.show().css('visibility', 'visible');
-                    checkbox.show().css('visibility', 'visible');
-                    
-                    // Check the checkbox
-                    checkbox.prop('checked', true);
-                    
-                    console.log('Step 4: Checkbox visibility enforced', {
-                        checkbox: checkbox.length,
-                        visible: checkbox.is(':visible'),
-                        checked: checkbox.is(':checked')
-                    });
-                }, 100);
+                // Initialize new checkbox functionality
+                this.setupNewCheckbox();
+                
+                // Ensure new checkbox elements are visible
+                const newDeclaration = $('.final-declaration-new');
+                const newCheckboxGroup = $('.checkbox-group-new');
+                const newCheckbox = $('#final_declaration_new');
+                
+                // Make elements visible
+                newDeclaration.show().css('visibility', 'visible');
+                newCheckboxGroup.show().css('visibility', 'visible');
+                newCheckbox.show().css('visibility', 'visible');
+                
+                console.log('New checkbox elements initialized');
             }
             
+            // Update UI and validate
             this.updateStepDisplay();
             this.validateCurrentStep(false); // Don't show errors on initial load
+            
+            // Trigger custom event for step change
+            $(document).trigger('formStepChanged', [stepNumber]);
         },
         
         updateStepDisplay: function() {
@@ -524,21 +633,29 @@ jQuery(document).ready(function($) {
         },
         
         updateNavigationButtons: function(isValid) {
-            // Show/hide prev button
-            if (this.currentStep > 1) {
-                this.prevButton.show();
-            } else {
-                this.prevButton.hide();
+            // Show/hide prev button - only show from step 2 onwards
+            // Initialize signature pad when step 4 is shown
+        $(document).on('formStepChanged', function(e, step) {
+            if (step === 4) {
+                // Small delay to ensure the step is fully visible
+                setTimeout(initSignaturePad, 100);
+            } else if (window.signaturePad) {
+                // Clean up signature pad when leaving step 4
+                window.signaturePad.off();
+                window.signaturePad = null;
             }
-            
-            // Show/hide next/submit buttons
+        });    
+            // Handle next/submit buttons visibility
             if (this.currentStep < this.totalSteps) {
-                this.nextButton.show();
+                // On steps 1-3, show next button if valid
+                this.nextButton.toggle(isValid);
                 this.submitButton.hide();
                 this.nextButton.prop('disabled', !isValid);
-            } else {
+            } 
+            else {
+                // Only on step 4, show submit button and hide next button
                 this.nextButton.hide();
-                this.submitButton.show();
+                this.submitButton.toggle(isValid);
                 this.submitButton.prop('disabled', !isValid);
             }
         },
@@ -775,10 +892,12 @@ jQuery(document).ready(function($) {
                 .addClass('error-message')
                 .slideDown(300);
             
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                this.hideError();
-            }, 5000);
+            // Don't auto-hide error message on step 2, otherwise auto-hide after 5 seconds
+            if (this.currentStep !== 2) {
+                setTimeout(() => {
+                    this.hideError();
+                }, 5000);
+            }
             
             // Scroll to error message
             $('html, body').animate({
@@ -953,14 +1072,29 @@ jQuery(document).ready(function($) {
             $('.acf-quiz-container').attr('dir', 'rtl');
         }
         
-        // Initialize the multi-step quiz system
-        MultiStepQuiz.init();
-        
         // Add RTL class to form elements
         $('.acf-quiz-container input, .acf-quiz-container textarea, .acf-quiz-container select').addClass('rtl-input');
         
         // Ensure all text is right-aligned
         $('.question-text, .answer-text').css('text-align', 'right');
+        
+        // Initialize the quiz
+        MultiStepQuiz.init();
+        
+        // Re-initialize signature pad on window resize
+        let resizeTimer;
+        $(window).on('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                if (MultiStepQuiz.currentStep === 4 && window.signaturePad) {
+                    const data = window.signaturePad.toData();
+                    initSignaturePad();
+                    if (data && data.length > 0) {
+                        window.signaturePad.fromData(data);
+                    }
+                }
+            }, 250);
+        });
     });
     
     // Add some additional styling via JavaScript for better UX

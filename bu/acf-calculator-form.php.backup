@@ -894,7 +894,7 @@ class ACF_Quiz_System {
                 <div class="form-step" data-step="3">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
-                        <p>אנא ענה על השאלות הבאות בהתאם לידע וניסיון שלך</p>
+                        <p>אנא השיבו על השאלות הבאות בהתאם לידע ולניסיון שלכם</p>
                     </div>
                     
                     <div class="questions-container">
@@ -970,7 +970,7 @@ class ACF_Quiz_System {
                     </div>
                     
                     <div class="final-declaration" style="display: block !important; visibility: visible !important;">
-                        <h4 style="margin-bottom: 15px; color: #333;">הצהרה סופית</h4>
+                        <h4 style="margin-bottom: 15px; color: #333;">הצהרת הלקוח</h4>
                         <div class="checkbox-group">
                             <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input rtl-input" required checked style="display: inline-block !important; visibility: visible !important;">
                             <label for="final_declaration" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">

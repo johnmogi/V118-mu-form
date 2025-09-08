@@ -75,15 +75,16 @@ class ACF_Quiz_System {
     private function init_hooks() {
         add_action('acf/init', array($this, 'add_options_page'));
         add_action('acf/init', array($this, 'register_fields'));
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_public_assets'));
-        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
-        add_shortcode('acf_quiz', array($this, 'render_quiz_form'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_block_checkout_scripts'));
+        add_action('wp_footer', array($this, 'add_quiz_scripts'));
         add_action('wp_ajax_submit_quiz', array($this, 'handle_quiz_submission'));
         add_action('wp_ajax_nopriv_submit_quiz', array($this, 'handle_quiz_submission'));
-        
-        // Database and admin hooks
-        register_activation_hook(__FILE__, array($this, 'create_submissions_table'));
-        add_action('admin_menu', array($this, 'add_submissions_page'));
+        add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
+        add_action('woocommerce_checkout_update_order_meta', array($this, 'save_custom_checkout_fields'));
+        add_filter('woocommerce_checkout_fields', array($this, 'customize_checkout_fields'));
+        // Temporarily disable render_block filter to prevent 500 errors
+        // add_filter('render_block', array($this, 'filter_woocommerce_checkout_blocks'), 10, 2);
         
         // Multi-step form AJAX handlers
         add_action('wp_ajax_save_step_data', array($this, 'handle_step_data'));
@@ -93,11 +94,27 @@ class ACF_Quiz_System {
         add_action('wp_ajax_simple_lead_capture', array($this, 'simple_lead_capture'));
         add_action('wp_ajax_nopriv_simple_lead_capture', array($this, 'simple_lead_capture'));
         
+        // Register shortcodes
+        add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
+        
         // WooCommerce integration
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
         add_filter('woocommerce_checkout_get_value', array($this, 'get_checkout_field_value'), 10, 2);
         add_filter('woocommerce_add_cart_item_data', array($this, 'handle_custom_cart_item'), 10, 3);
         add_action('woocommerce_before_calculate_totals', array($this, 'set_custom_cart_item_price'));
+        
+        // Add custom checkout fields
+        add_action('woocommerce_checkout_billing', array($this, 'add_checkout_custom_fields'));
+        add_action('woocommerce_checkout_process', array($this, 'validate_checkout_custom_fields'));
+        add_action('woocommerce_checkout_update_order_meta', array($this, 'save_checkout_custom_fields'));
+        add_action('woocommerce_admin_order_data_after_billing_address', array($this, 'display_admin_order_meta'));
+        
+        // Remove default WooCommerce fields (classic checkout)
+        add_filter('woocommerce_checkout_fields', array($this, 'remove_checkout_fields'));
+        
+        // Handle WooCommerce block checkout
+        add_action('woocommerce_blocks_loaded', array($this, 'register_checkout_block_integration'));
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_block_checkout_scripts'));
         
         // Create WooCommerce products if they don't exist
         add_action('init', array($this, 'create_quiz_products'));
@@ -173,6 +190,7 @@ class ACF_Quiz_System {
             submission_time datetime DEFAULT CURRENT_TIMESTAMP,
             ip_address varchar(45) DEFAULT '',
             user_agent text DEFAULT '',
+            signature_data longtext DEFAULT '',
             
             PRIMARY KEY (id),
             KEY passed (passed),
@@ -183,6 +201,12 @@ class ACF_Quiz_System {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+        
+        // Add signature_data column if it doesn't exist (for existing installations)
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'signature_data'");
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN signature_data longtext DEFAULT ''");
+        }
     }
 
     /**
@@ -704,6 +728,38 @@ class ACF_Quiz_System {
     }
 
     /**
+     * Enqueue scripts and styles
+     */
+    public function enqueue_scripts() {
+        // Enqueue jQuery if not already loaded
+        wp_enqueue_script('jquery');
+        
+        // Enqueue signature pad library
+        wp_enqueue_script(
+            'signature-pad',
+            'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
+            array('jquery'),
+            '4.0.0',
+            true
+        );
+        
+        // Enqueue quiz public JS
+        wp_enqueue_script(
+            'quiz-public-js',
+            plugins_url('js/quiz-public.js', __FILE__),
+            array('jquery'),
+            '1.0.0',
+            true
+        );
+        
+        // Add AJAX URL for frontend
+        wp_localize_script('quiz-public-js', 'quiz_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('quiz_nonce')
+        ));
+    }
+
+    /**
      * Enqueue public assets
      */
     public function enqueue_public_assets() {
@@ -761,256 +817,198 @@ class ACF_Quiz_System {
             
             wp_add_inline_script('jquery', $custom_js);
             
-            // Add inline CSS for date input styling
-            $custom_css = "
-                .date-input-group {
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                    flex-wrap: wrap;
-                }
-                
-                .date-select {
-                    flex: 1;
-                    min-width: 80px;
-                    max-width: 120px;
-                }
-                
-                .elementor-button-icon {
-                    margin-right: 8px;
-                    display: inline-flex;
-                    align-items: center;
-                    white-space: nowrap;
-                }
-                
-                .nav-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    white-space: nowrap;
-                }
-                
-                .step-indicator .step.completed::after {
-                    display: none !important;
-                }
-                
-                .step-indicator .step {
-                    position: relative;
-                }
-                
-                .step-indicator .step:not(:last-child)::after {
-                    content: '';
-                    position: absolute;
-                    top: 50%;
-                    left: -15px;
-                    transform: translateY(-50%);
-                    width: 0;
-                    height: 0;
-                    border-right: 8px solid #ddd;
-                    border-top: 6px solid transparent;
-                    border-bottom: 6px solid transparent;
-                }
-                
-                .step-indicator .step.active:not(:last-child)::after {
-                    border-right-color: #007cba;
-                }
-                
-                /* Remove initial error styling - fields should only show red after user interaction */
-                .field-input.error:not(.touched) {
-                    border-color: #ddd !important;
-                    background-color: #fff !important;
-                }
-                
-                .field-input.touched.error {
-                    border-color: #e74c3c !important;
-                    background-color: #fdf2f2 !important;
-                }
-
-                /* Ensure all fields start with normal styling regardless of error class */
-                .field-input,
-                .field-input.error {
-                    border-color: #ddd !important;
-                    background-color: #fff !important;
-                }
-                
-                /* Force override any server-side error classes */
-                select.field-input.error,
-                input.field-input.error,
-                textarea.field-input.error {
-                    border-color: #ddd !important;
-                    background-color: #fff !important;
-                }
-                
-                /* Show red only when invalid and user tried to submit */
-                .field-input:invalid.touched {
-                    border-color: #e74c3c ;
-                    background-color: #fff5f5 ;
-                }
-                
-                /* Override all error styling to use grey instead of red */
-                .field-input.error,
-                .field-input.error.touched,
-                .field-input.error.touched:invalid {
-                    border-color: rgb(221, 221, 221) ;
-                    background-color: rgb(255, 255, 255) ;
-                }
-                
-                /* Remove select background image */
-                select.field-input {
-                    background-image: none !important;
-                    padding-left: 12px !important;
-                }
-                
-                /* Modal styles */
-                .confirmation-modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0,0,0,0.5);
-                    display: none;
-                    z-index: 9999;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .modal-content {
-                    background: white;
-                    padding: 30px;
-                    border-radius: 8px;
-                    max-width: 400px;
-                    text-align: center;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                }
-                
-                .modal-buttons {
-                    margin-top: 20px;
-                    display: flex;
-                    gap: 10px;
-                    justify-content: center;
-                }
-                
-                .modal-btn {
-                    padding: 10px 20px;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 14px;
-                }
-                
-                .modal-btn.confirm {
-                    background: #e74c3c;
-                    color: white;
-                }
-                
-                .modal-btn.cancel {
-                    background: #95a5a6;
-                    color: white;
-                }
-                
-                
-                /* Button icon styling */
-                .nav-btn .elementor-button-icon {
-                    display: inline-block;
-                    margin-right: 8px;
-                    vertical-align: middle;
-                }
-                
-                .nav-btn .elementor-button-icon i {
-                    font-size: 16px;
-                    vertical-align: middle;
-                }
-                
-                /* Ensure arrow icon displays properly */
-                .nav-btn .elementor-button-icon i.arrow_carrot-2left:before {
-                    content: '\\e649';
-                    font-family: 'ElegantIcons';
-                }
-                
-                @media (max-width: 768px) {
-                    .date-input-group {
-                        flex-direction: column;
-                        gap: 8px;
-                    }
-                    
-                    .date-select {
-                        width: 100%;
-                        max-width: none;
-                    }
-                    
-                    .modal-content {
-                        margin: 20px;
-                        padding: 20px;
-                    }
-                }
-            ";
-            wp_add_inline_style('acf-quiz-public', $custom_css);
-            
-            // Add custom CSS for WooCommerce checkout
-            $checkout_css = '
-                /* Hide quantity display and replace placeholder image with logo */
-                .wc-block-components-order-summary-item__quantity {
-                    display: none !important;
-                }
-                
-                .wc-block-components-order-summary-item__image img {
-                    display: none !important;
-                }
-                
-                .wc-block-components-order-summary-item__image {
-                    width: 60px !important;
-                    height: 60px !important;
-                    background-image: url("/wp-content/uploads/2025/08/לוגו-וידר-04.svg") !important;
-                    background-size: contain !important;
-                    background-repeat: no-repeat !important;
-                    background-position: center !important;
-                }
-            ';
-            wp_add_inline_style('acf-quiz-public', $checkout_css);
-
-            // Enqueue Font Awesome for icons
-            wp_enqueue_style(
-                'font-awesome',
-                'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-                array(),
-                '6.0.0'
-            );
-
-            // Enqueue Elegant Icons for arrow_carrot-2left
-            wp_enqueue_style(
-                'elegant-icons',
-                'https://cdnjs.cloudflare.com/ajax/libs/elegant-icons/1.0.1/style.min.css',
-                array(),
-                '1.0.1'
-            );
-
-            // Enqueue JavaScript
+            // Enqueue signature pad library
             wp_enqueue_script(
-                'acf-quiz-public',
-                $this->plugin_url . 'js/quiz-public.js',
+                'signature-pad',
+                'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
                 array('jquery'),
-                '1.0.0',
+                '4.0.0',
                 true
             );
-
-            // Localize script
-            wp_localize_script('acf-quiz-public', 'acfQuiz', array(
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('acf_quiz_nonce'),
-                'productIds' => array(
-                    'trial' => get_option('quiz_trial_product_id', ''),
-                    'monthly' => get_option('quiz_monthly_product_id', ''),
-                    'yearly' => get_option('quiz_yearly_product_id', '')
-                ),
-                'strings' => array(
-                    'fillAllFields' => __('אנא מלא את כל השדות הנדרשים', 'acf-quiz'),
-                    'submitError' => __('שגיאה בשליחת הטופס. אנא נסה שוב.', 'acf-quiz'),
-                    'securityError' => __('בדיקת אבטחה נכשלה. אנא רענן את הדף ונסה שוב.', 'acf-quiz'),
-                    'networkError' => __('שגיאת רשת. אנא בדוק את החיבור לאינטרנט ונסה שוב.', 'acf-quiz'),
-                    'unexpectedError' => __('שגיאה לא צפויה. אנא נסה שוב מאוחר יותר.', 'acf-quiz')
-                )
-            ));
+            
+            // Add signature pad initialization
+            $signature_js = "
+            jQuery(document).ready(function($) {
+                // Ensure final declaration checkbox is unchecked by default - multiple approaches
+                function forceUncheckDeclaration() {
+                    $('#final_declaration').prop('checked', false);
+                    $('#final_declaration').removeAttr('checked');
+                    $('#final_declaration')[0].checked = false;
+                    console.log('Final declaration checkbox forced to unchecked');
+                }
+                
+                // Run immediately and repeatedly
+                forceUncheckDeclaration();
+                setTimeout(forceUncheckDeclaration, 100);
+                setTimeout(forceUncheckDeclaration, 500);
+                
+                // Also run when form is interacted with
+                $(document).on('DOMContentLoaded', forceUncheckDeclaration);
+                $(document).on('click', '.form-step', forceUncheckDeclaration);
+                
+                // Initialize signature pad when step 4 is shown
+                $(document).on('formStepChanged', function(e, step) {
+                    if (step === 4) {
+                        initSignaturePad();
+                    }
+                });
+                
+                function initSignaturePad() {
+                    console.log('Initializing signature pad...');
+                    
+                    const canvas = document.getElementById('signature_pad');
+                    if (!canvas) {
+                        console.error('Signature pad canvas not found');
+                        return;
+                    }
+                    
+                    // Clear any existing instance
+                    if (window.signaturePad) {
+                        window.signaturePad.off();
+                    }
+                    
+                    const container = canvas.parentElement;
+                    
+                    // Set proper canvas dimensions
+                    function setCanvasDimensions() {
+                        if (!container) return;
+                        
+                        const containerRect = container.getBoundingClientRect();
+                        const containerWidth = Math.max(containerRect.width || 400, 400);
+                        const canvasHeight = 150;
+                        
+                        // Set canvas display size
+                        canvas.style.width = '100%';
+                        canvas.style.height = canvasHeight + 'px';
+                        
+                        // Set canvas actual size (for high DPI displays)
+                        const ratio = window.devicePixelRatio || 1;
+                        canvas.width = containerWidth * ratio;
+                        canvas.height = canvasHeight * ratio;
+                        
+                        // Scale the drawing context so everything draws at the correct size
+                        const ctx = canvas.getContext('2d');
+                        ctx.scale(ratio, ratio);
+                        
+                        console.log('Canvas dimensions set:', containerWidth, 'x', canvasHeight, 'ratio:', ratio);
+                    }
+                    
+                    setCanvasDimensions();
+                    
+                    // Initialize signature pad
+                    const signaturePad = new SignaturePad(canvas, {
+                        backgroundColor: 'rgb(255, 255, 255)',
+                        penColor: 'rgb(0, 0, 0)',
+                        minWidth: 1,
+                        maxWidth: 3,
+                        velocityFilterWeight: 0.7,
+                        minDistance: 3,
+                        throttle: 16 // ~60fps
+                    });
+                    
+                    // Make canvas focusable for keyboard navigation
+                    canvas.setAttribute('tabindex', '0');
+                    canvas.setAttribute('role', 'button');
+                    canvas.setAttribute('aria-label', 'חתימה דיגיטלית');
+                    
+                    // Clear signature button
+                    $('#clear_signature').off('click').on('click', function(e) {
+                        e.preventDefault();
+                        signaturePad.clear();
+                        $('#signature_data').val('');
+                        $('#signature_status').text('אנא חתום במסגרת').css('color', '#666');
+                        console.log('Signature cleared');
+                    });
+                    
+                    // Handle signature events
+                    function handleSignature() {
+                        if (!signaturePad.isEmpty()) {
+                            const dataURL = signaturePad.toDataURL('image/png');
+                            $('#signature_data').val(dataURL);
+                            $('#signature_status').text('חתימה נשמרה').css('color', '#28a745');
+                        } else {
+                            $('#signature_data').val('');
+                            $('#signature_status').text('אנא חתום במסגרת').css('color', '#666');
+                        }
+                    }
+                    
+                    // Save signature data when user signs
+                    canvas.addEventListener('endStroke', handleSignature);
+                    
+                    // Handle window resize with debounce
+                    let resizeTimeout;
+                    function handleResize() {
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            const data = signaturePad.toData();
+                            setCanvasDimensions();
+                            signaturePad.clear();
+                            if (data) {
+                                signaturePad.fromData(data);
+                            }
+                        }, 250);
+                    }
+                    
+                    // Make canvas responsive
+                    const resizeObserver = new ResizeObserver(handleResize);
+                    if (container) {
+                        resizeObserver.observe(container);
+                    }
+                    
+                    // Handle touch devices better
+                    function preventScrolling(e) {
+                        if (e.target === canvas) {
+                            e.preventDefault();
+                        }
+                    }
+                    
+                    // Disable scrolling when touching the canvas
+                    document.body.addEventListener('touchstart', preventScrolling, { passive: false });
+                    document.body.addEventListener('touchmove', preventScrolling, { passive: false });
+                    
+                    // Cleanup function
+                    function cleanup() {
+                        resizeObserver.disconnect();
+                        document.body.removeEventListener('touchstart', preventScrolling);
+                        document.body.removeEventListener('touchmove', preventScrolling);
+                        canvas.removeEventListener('endStroke', handleSignature);
+                    }
+                    
+                    // Store reference globally for debugging and cleanup
+                    window.signaturePad = signaturePad;
+                    
+                    // Clean up when navigating away
+                    $(window).on('beforeunload', cleanup);
+                    
+                    console.log('SignaturePad initialized successfully');
+                }
+                
+                // Initialize after DOM and scripts are ready
+                setTimeout(initSignaturePad, 100);
+            });";
+            
+            wp_add_inline_script('signature-pad', $signature_js);
         }
+    }
+
+    /**
+     * Add quiz scripts to footer
+     */
+    public function add_quiz_scripts() {
+        // This method is called by wp_footer hook
+        // Most scripts are now handled in enqueue_scripts() and enqueue_public_assets()
+        // Keep this method for any footer-specific scripts if needed
+    }
+
+    /**
+     * Add quiz form to pages with specific shortcode
+     */
+    public function add_quiz_form($atts) {
+        // Enqueue public assets when shortcode is used
+        $this->enqueue_public_assets();
+        
+        // Return the quiz form HTML
+        return $this->render_quiz_form($atts);
     }
 
     /**
@@ -1248,7 +1246,7 @@ class ACF_Quiz_System {
                 <div class="form-step" data-step="3">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
-                        <p>אנא ענה על השאלות הבאות בהתאם לידע וניסיון שלך</p>
+                        <p>אנא השיבו על השאלות הבאות בהתאם לידע ולניסיון שלכם</p>
                     </div>
                     
                     <div class="questions-container">
@@ -1323,21 +1321,44 @@ class ACF_Quiz_System {
                         <?php endfor; ?>
                     </div>
                     
-                    <div class="final-declaration" style="display: block !important; visibility: visible !important;">
-                        <h4 style="margin-bottom: 15px; color: #333;">הצהרה סופית</h4>
+                    <div class="final-declaration monthly-declaration">
+                        <h4 style="margin-bottom: 15px; color: #333;">הצהרת הלקוח</h4>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input rtl-input" required checked style="display: inline-block !important; visibility: visible !important;">
-                            <label for="final_declaration" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">
-                                <?php 
-                                $final_declaration_text = get_field('final_declaration_text', 'option');
-                                if ($final_declaration_text) {
-                                    echo $final_declaration_text;
-                                } else {
-                                    echo 'אני מצהיר/ה כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין/ה את הסיכונים הכרוכים בהשקעות.';
-                                }
-                                ?>
-                                <span class="required">*</span>
+                            <input type="checkbox" id="monthly_declaration" name="final_declaration" class="checkbox-input rtl-input" required>
+                            <label for="monthly_declaration" class="checkbox-label">
+                                אני מצהיר בזאת כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין את התנאים וההגבלות של השירות. אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
                             </label>
+                        </div>
+                    </div>
+                    
+                    <div class="final-declaration yearly-declaration">
+                        <h4 style="margin-bottom: 15px; color: #333;">הצהרת הלקוח</h4>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="yearly_declaration" name="final_declaration" class="checkbox-input rtl-input" required>
+                            <label for="yearly_declaration" class="checkbox-label">
+                                אני מצהיר בזאת כי כל המידע שמסרתי הוא נכון ומדויק, ואני מבין את התנאים וההגבלות של השירות. אני מאשר כי קראתי והבנתי את תנאי המנוי השנתי.
+                            </label>
+                        </div>
+                        
+                        <!-- Conditional subscription checkbox for other packages -->
+                        <div class="subscription-checkbox other-packages" style="margin-top: 20px;">
+                            <input type="checkbox" id="other_subscription_terms" name="other_subscription_terms" class="checkbox-input rtl-input">
+                            <label for="other_subscription_terms" class="checkbox-label" style="display: inline-block !important; margin-right: 10px;">
+                                אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
+                            </label>
+                        </div>
+                        
+                        <!-- Signature field - always visible and optional -->
+                        <div class="signature-section" style="margin-top: 20px;">
+                            <h5 style="margin-bottom: 10px; color: #333;">חתימה דיגיטלית</h5>
+                            <div class="signature-container" style="width: 100%; max-width: 500px;">
+                                <canvas id="signature_pad" style="border: 1px solid #ccc; background: white; width: 100%; height: 150px; display: block;"></canvas>
+                                <div class="signature-controls" style="margin-top: 10px;">
+                                    <button type="button" id="clear_signature" class="clear-signature-btn">נקה חתימה</button>
+                                    <span id="signature_status" style="margin-right: 15px; color: #666;">אנא חתום במסגרת</span>
+                                </div>
+                                <input type="hidden" id="signature_data" name="signature_data" value="">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1595,9 +1616,15 @@ class ACF_Quiz_System {
         $education = sanitize_text_field($quiz_data['education'] ?? '');
         $profession = sanitize_text_field($quiz_data['profession'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
+        $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
 
         if (empty($user_name) || empty($user_phone) || !$final_declaration) {
-            wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההסכמה ליצירת קשר.', 'acf-quiz')));
+            wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההצהרה הסופית.', 'acf-quiz')));
+        }
+        
+        // Signature is optional but recommended
+        if (empty($signature_data)) {
+            error_log('Quiz submission: No signature provided, but allowing submission to proceed');
         }
 
         // Get quiz data
@@ -1634,8 +1661,12 @@ class ACF_Quiz_System {
             wp_send_json_error(array('message' => __('אנא ענה על כל השאלות.', 'acf-quiz')));
         }
 
-        // Check if passed (21+ points out of 40)
+        // Check scoring rules:
+        // - 21+ points: Pass (proceed to checkout)
+        // - 19-22 points: Redirect to /test
+        // - Below 19: Fail (redirect to followup)
         $passed = $total_score >= 21;
+        $test_redirect = ($total_score >= 19 && $total_score <= 22);
         $score_percentage = round(($total_score / $max_possible_score) * 100);
 
         // Store or update submission in database
@@ -1708,7 +1739,8 @@ class ACF_Quiz_System {
                 'completed' => 1,
                 'submission_time' => current_time('mysql'),
                 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'signature_data' => $signature_data
             ));
             $submission_id = $wpdb->insert_id;
         }
@@ -1747,10 +1779,26 @@ class ACF_Quiz_System {
                 'price' => $package_price,
                 'source' => $package_source
             ),
-            'redirect_url' => $passed ? $this->get_checkout_url($package_type, $package_price) : '/followup'
+            'redirect_url' => $this->get_redirect_url($total_score, $passed, $test_redirect, $package_type, $package_price)
         );
 
         wp_send_json_success($response);
+    }
+
+    /**
+     * Get redirect URL based on score
+     */
+    private function get_redirect_url($score, $passed, $test_redirect, $package_type = '', $package_price = 0) {
+        if ($test_redirect) {
+            // Score 19-22: Redirect to /test
+            return '/test';
+        } elseif ($passed) {
+            // Score 21+: Proceed to checkout
+            return $this->get_checkout_url($package_type, $package_price);
+        } else {
+            // Score below 19: Redirect to followup
+            return '/followup';
+        }
     }
 
     /**
@@ -2406,7 +2454,195 @@ class ACF_Quiz_System {
         <?php
     }
 
+    /**
+     * Register WooCommerce Blocks checkout integration
+     */
+    public function register_checkout_block_integration() {
+        if (class_exists('Automattic\WooCommerce\Blocks\Integrations\IntegrationRegistry')) {
+            add_action(
+                'woocommerce_blocks_checkout_block_registration',
+                function($integration_registry) {
+                    // This will be handled via JavaScript and CSS
+                }
+            );
+        }
+    }
 
+    /**
+     * Hide specific WooCommerce Checkout inner blocks on the frontend using render_block filter
+     */
+    public function filter_woocommerce_checkout_blocks($block_content, $block) {
+        // Don't affect the admin/editor
+        if (is_admin()) {
+            return $block_content;
+        }
+
+        // Only touch checkout pages - add safety checks
+        if (!function_exists('is_checkout')) {
+            return $block_content;
+        }
+        
+        // Add try-catch to prevent fatal errors
+        try {
+            if (!is_checkout()) {
+                return $block_content;
+            }
+        } catch (Exception $e) {
+            error_log("Error in filter_woocommerce_checkout_blocks: " . $e->getMessage());
+            return $block_content;
+        }
+
+        // Blocks to suppress
+        $blocked_blocks = [
+            'woocommerce/checkout-shipping-method-block',
+            'woocommerce/checkout-pickup-options-block',
+            'woocommerce/checkout-shipping-address-block',
+            'woocommerce/checkout-shipping-methods-block',
+            'woocommerce/checkout-billing-address-block',
+            'woocommerce/checkout-additional-information-block',
+            'woocommerce/checkout-order-note-block',
+        ];
+
+        $block_name = isset($block['blockName']) ? $block['blockName'] : '';
+
+        // If it's one of the blocked blocks, remove it
+        if (in_array($block_name, $blocked_blocks, true)) {
+            error_log("Blocking WooCommerce checkout block: " . $block_name);
+            return '';
+        }
+
+        return $block_content;
+    }
+
+    /**
+     * Enqueue block checkout scripts for WooCommerce
+     */
+    public function enqueue_block_checkout_scripts() {
+        if (is_checkout() && function_exists('has_block') && has_block('woocommerce/checkout')) {
+            wp_enqueue_script(
+                'wc-block-checkout-custom',
+                plugins_url('js/wc-block-checkout.js', __FILE__),
+                array('wp-element', 'wp-components', 'wc-blocks-checkout'),
+                '1.0.0',
+                true
+            );
+
+            // Add inline script to hide specific WooCommerce block components
+            $custom_checkout_js = "
+            jQuery(document).ready(function($) {
+                console.log('WooCommerce block checkout customization loaded');
+                
+                // Function to hide specific WooCommerce block components
+                function hideBlockCheckoutComponents() {
+                    console.log('Attempting to hide specific WooCommerce block components...');
+                    
+                    // Hide shipping-related blocks
+                    $('.wp-block-woocommerce-checkout-shipping-method-block').hide();
+                    $('.wp-block-woocommerce-checkout-pickup-options-block').hide();
+                    $('.wp-block-woocommerce-checkout-shipping-address-block').hide();
+                    $('.wp-block-woocommerce-checkout-shipping-methods-block').hide();
+                    
+                    // Hide billing address block (but keep contact information)
+                    $('.wp-block-woocommerce-checkout-billing-address-block').hide();
+                    
+                    // Hide additional optional blocks
+                    $('.wp-block-woocommerce-checkout-additional-information-block').hide();
+                    $('.wp-block-woocommerce-checkout-order-note-block').hide();
+                    
+                    // Keep visible: contact information, payment, terms, actions, totals
+                    $('.wp-block-woocommerce-checkout-contact-information-block').show();
+                    $('.wp-block-woocommerce-checkout-payment-block').show();
+                    $('.wp-block-woocommerce-checkout-terms-block').show();
+                    $('.wp-block-woocommerce-checkout-actions-block').show();
+                    $('.wp-block-woocommerce-checkout-totals-block').show();
+                    
+                    console.log('Hidden shipping and billing address blocks, kept contact info and payment');
+                }
+                
+                // CSS to hide specific WooCommerce block components
+                function addBlockComponentCSS() {
+                    if (!$('#wc-block-component-css').length) {
+                        $('head').append('<style id=\"wc-block-component-css\">' +
+                            '.wp-block-woocommerce-checkout-shipping-method-block, ' +
+                            '.wp-block-woocommerce-checkout-pickup-options-block, ' +
+                            '.wp-block-woocommerce-checkout-shipping-address-block, ' +
+                            '.wp-block-woocommerce-checkout-shipping-methods-block, ' +
+                            '.wp-block-woocommerce-checkout-billing-address-block, ' +
+                            '.wp-block-woocommerce-checkout-additional-information-block, ' +
+                            '.wp-block-woocommerce-checkout-order-note-block { ' +
+                            'display: none !important; ' +
+                            'visibility: hidden !important; ' +
+                            'opacity: 0 !important; ' +
+                            'height: 0 !important; ' +
+                            'overflow: hidden !important; ' +
+                            '} ' +
+                            '.wp-block-woocommerce-checkout-contact-information-block, ' +
+                            '.wp-block-woocommerce-checkout-payment-block, ' +
+                            '.wp-block-woocommerce-checkout-terms-block, ' +
+                            '.wp-block-woocommerce-checkout-actions-block, ' +
+                            '.wp-block-woocommerce-checkout-totals-block { ' +
+                            'display: block !important; ' +
+                            'visibility: visible !important; ' +
+                            'opacity: 1 !important; ' +
+                            '}' +
+                        '</style>');
+                    }
+                }
+                
+                // Run immediately
+                addBlockComponentCSS();
+                hideBlockCheckoutComponents();
+                
+                // Use MutationObserver to detect when WooCommerce blocks are rendered
+                var observer = new MutationObserver(function(mutations) {
+                    hideBlockCheckoutComponents();
+                    addBlockComponentCSS();
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+                
+                // Run repeatedly to catch all loading states
+                setInterval(function() {
+                    hideBlockCheckoutComponents();
+                    addBlockComponentCSS();
+                }, 1000);
+            });";
+            
+            wp_add_inline_script('wc-block-checkout-custom', $custom_checkout_js);
+            
+            // Add CSS for WooCommerce block components
+            wp_add_inline_style('wc-block-checkout-custom', "
+                /* Hide specific WooCommerce block components */
+                .wp-block-woocommerce-checkout-shipping-method-block,
+                .wp-block-woocommerce-checkout-pickup-options-block,
+                .wp-block-woocommerce-checkout-shipping-address-block,
+                .wp-block-woocommerce-checkout-shipping-methods-block,
+                .wp-block-woocommerce-checkout-billing-address-block,
+                .wp-block-woocommerce-checkout-additional-information-block,
+                .wp-block-woocommerce-checkout-order-note-block {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                }
+                
+                /* Ensure important blocks remain visible */
+                .wp-block-woocommerce-checkout-contact-information-block,
+                .wp-block-woocommerce-checkout-payment-block,
+                .wp-block-woocommerce-checkout-terms-block,
+                .wp-block-woocommerce-checkout-actions-block,
+                .wp-block-woocommerce-checkout-totals-block {
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+            ");
+        }
+    }
 
     /**
      * Populate WooCommerce checkout fields with quiz data
@@ -2564,6 +2800,274 @@ class ACF_Quiz_System {
         }
         if (!file_exists($js_dir)) {
             wp_mkdir_p($js_dir);
+        }
+    }
+
+    /**
+     * Add custom fields to WooCommerce checkout
+     */
+    public function add_checkout_custom_fields($checkout) {
+        echo '<div id="custom_checkout_fields"><h3>' . __('פרטים נוספים') . '</h3>';
+        
+        // Full Name Field (replacing first_name and last_name)
+        woocommerce_form_field('full_name', array(
+            'type' => 'text',
+            'class' => array('form-row-wide'),
+            'label' => __('שם מלא'),
+            'placeholder' => __('הכנס שם מלא'),
+            'required' => true,
+        ), $checkout->get_value('full_name'));
+        
+        // Identification Field (ח.פ / ת.ז)
+        woocommerce_form_field('identification_number', array(
+            'type' => 'text',
+            'class' => array('form-row-wide'),
+            'label' => __('ח.פ / ת.ז'),
+            'placeholder' => __('הכנס מספר זהות או ח.פ'),
+            'required' => true,
+        ), $checkout->get_value('identification_number'));
+        
+        // ID Photo Upload Field
+        woocommerce_form_field('id_photo_upload', array(
+            'type' => 'file',
+            'class' => array('form-row-wide'),
+            'label' => __('העלאת תמונת תעודת זהות'),
+            'placeholder' => __('בחר קובץ...'),
+            'required' => true,
+            'custom_attributes' => array(
+                'accept' => 'image/*,.pdf',
+                'data-max-size' => '5242880' // 5MB
+            )
+        ), $checkout->get_value('id_photo_upload'));
+        
+        // Determine subscription type based on URL parameter
+        $is_3_month_plan = (isset($_GET['monthly']) || isset($_SESSION['package_type']) && $_SESSION['package_type'] === 'monthly');
+        
+        // Conditional subscription terms checkbox
+        if ($is_3_month_plan) {
+            $terms_text = 'אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי לאחר תקופת ההטבה (3 חודשים במחיר מוזל), יתחדש המנוי אוטומטית מדי חודש במחיר המלא.';
+        } else {
+            $terms_text = 'אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.';
+        }
+        
+        woocommerce_form_field('subscription_terms_agreement', array(
+            'type' => 'checkbox',
+            'class' => array('form-row-wide'),
+            'label' => $terms_text,
+            'required' => true,
+        ), $checkout->get_value('subscription_terms_agreement'));
+        
+        echo '</div>';
+    }
+    
+    /**
+     * Remove default WooCommerce checkout fields
+     */
+    public function remove_checkout_fields($fields) {
+        // Remove billing address fields
+        unset($fields['billing']['billing_first_name']);
+        unset($fields['billing']['billing_last_name']);
+        unset($fields['billing']['billing_address_1']);
+        unset($fields['billing']['billing_address_2']);
+        unset($fields['billing']['billing_city']);
+        unset($fields['billing']['billing_postcode']);
+        unset($fields['billing']['billing_state']);
+        unset($fields['billing']['billing_country']);
+        
+        // Remove shipping fields entirely
+        unset($fields['shipping']);
+        
+        // Add fullname field to replace first/last name
+        $fields['billing']['billing_full_name'] = array(
+            'label' => __('שם מלא'),
+            'placeholder' => __('הכנס שם מלא'),
+            'required' => true,
+            'class' => array('form-row-wide'),
+            'clear' => true,
+            'priority' => 10
+        );
+        
+        return $fields;
+        
+        // Add JavaScript for file upload handling
+        ?>
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // Handle file upload
+            $('#id_photo_upload').on('change', function() {
+                var file = this.files[0];
+                var maxSize = 5 * 1024 * 1024; // 5MB
+                var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+                
+                if (file) {
+                    if (file.size > maxSize) {
+                        alert('קובץ גדול מדי. גודל מקסימלי: 5MB');
+                        $(this).val('');
+                        return false;
+                    }
+                    
+                    if (!allowedTypes.includes(file.type)) {
+                        alert('סוג קובץ לא נתמך. אנא העלה תמונה או PDF');
+                        $(this).val('');
+                        return false;
+                    }
+                }
+            });
+        });
+        </script>
+        <style>
+        #custom_checkout_fields {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        #custom_checkout_fields h3 {
+            margin-top: 0;
+            color: #192954;
+        }
+        </style>
+        <?php
+    }
+
+    /**
+     * Validate custom checkout fields
+     */
+    public function validate_checkout_custom_fields() {
+        // Validate ID photo upload
+        if (empty($_FILES['id_photo_upload']['name'])) {
+            wc_add_notice(__('אנא העלה תמונת תעודת זהות.'), 'error');
+        } else {
+            $file = $_FILES['id_photo_upload'];
+            $max_size = 5 * 1024 * 1024; // 5MB
+            $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf');
+            
+            if ($file['size'] > $max_size) {
+                wc_add_notice(__('קובץ תעודת הזהות גדול מדי. גודל מקסימלי: 5MB'), 'error');
+            }
+            
+            $file_type = wp_check_filetype($file['name']);
+            if (!in_array($file_type['type'], $allowed_types)) {
+                wc_add_notice(__('סוג קובץ לא נתמך עבור תעודת זהות. אנא העלה תמונה או PDF'), 'error');
+            }
+        }
+        
+        // Validate subscription terms agreement
+        if (empty($_POST['subscription_terms_agreement'])) {
+            wc_add_notice(__('אנא אשר את תנאי המנוי.'), 'error');
+        }
+    }
+
+    /**
+     * Save custom checkout fields to order meta
+     */
+    public function save_checkout_custom_fields($order_id) {
+        // Handle file upload
+        if (!empty($_FILES['id_photo_upload']['name'])) {
+            $uploaded_file = wp_handle_upload($_FILES['id_photo_upload'], array('test_form' => false));
+            
+            if ($uploaded_file && !isset($uploaded_file['error'])) {
+                update_post_meta($order_id, '_id_photo_url', $uploaded_file['url']);
+                update_post_meta($order_id, '_id_photo_path', $uploaded_file['file']);
+            }
+        }
+        
+        // Save subscription terms agreement
+        if (!empty($_POST['subscription_terms_agreement'])) {
+            update_post_meta($order_id, '_subscription_terms_agreement', 'yes');
+        }
+    }
+
+    /**
+     * Customize WooCommerce checkout fields
+     */
+    public function customize_checkout_fields($fields) {
+        // Remove default billing fields except email
+        unset($fields['billing']['billing_first_name']);
+        unset($fields['billing']['billing_last_name']);
+        unset($fields['billing']['billing_company']);
+        unset($fields['billing']['billing_address_1']);
+        unset($fields['billing']['billing_address_2']);
+        unset($fields['billing']['billing_city']);
+        unset($fields['billing']['billing_postcode']);
+        unset($fields['billing']['billing_country']);
+        unset($fields['billing']['billing_state']);
+        unset($fields['billing']['billing_phone']);
+        
+        // Remove shipping fields
+        unset($fields['shipping']);
+        
+        // Remove order notes
+        unset($fields['order']['order_comments']);
+        
+        // Add custom fields
+        $fields['billing']['billing_full_name'] = array(
+            'label' => 'שם מלא',
+            'placeholder' => 'הזן שם מלא',
+            'required' => true,
+            'class' => array('form-row-wide'),
+            'priority' => 10,
+        );
+        
+        // Keep email field but modify it
+        $fields['billing']['billing_email']['label'] = 'אימייל';
+        $fields['billing']['billing_email']['placeholder'] = 'הזן כתובת אימייל';
+        $fields['billing']['billing_email']['priority'] = 20;
+        
+        $fields['billing']['billing_identification'] = array(
+            'label' => 'ח.פ/ת.ז',
+            'placeholder' => 'הזן מספר תעודת זהות או חברה',
+            'required' => true,
+            'class' => array('form-row-wide'),
+            'priority' => 30,
+        );
+        
+        $fields['billing']['billing_mobile_phone'] = array(
+            'label' => 'טלפון נייד',
+            'placeholder' => 'הזן מספר טלפון נייד',
+            'required' => true,
+            'class' => array('form-row-wide'),
+            'priority' => 40,
+            'type' => 'tel',
+        );
+        
+        return $fields;
+    }
+
+    /**
+     * Save custom checkout fields to order meta
+     */
+    public function save_custom_checkout_fields($order_id) {
+        if (!empty($_POST['billing_full_name'])) {
+            update_post_meta($order_id, '_billing_full_name', sanitize_text_field($_POST['billing_full_name']));
+        }
+        
+        if (!empty($_POST['billing_identification'])) {
+            update_post_meta($order_id, '_billing_identification', sanitize_text_field($_POST['billing_identification']));
+        }
+        
+        if (!empty($_POST['billing_mobile_phone'])) {
+            update_post_meta($order_id, '_billing_mobile_phone', sanitize_text_field($_POST['billing_mobile_phone']));
+        }
+    }
+
+    /**
+     * Display custom fields in admin order details
+     */
+    public function display_admin_order_meta($order) {
+        $id_photo_url = get_post_meta($order->get_id(), '_id_photo_url', true);
+        $terms_agreed = get_post_meta($order->get_id(), '_subscription_terms_agreement', true);
+        
+        echo '<h3>פרטים נוספים מהלקוח</h3>';
+        
+        if ($id_photo_url) {
+            echo '<p><strong>תמונת תעודת זהות:</strong><br>';
+            echo '<a href="' . esc_url($id_photo_url) . '" target="_blank">צפה בקובץ</a></p>';
+        }
+        
+        if ($terms_agreed) {
+            echo '<p><strong>אישור תנאי מנוי:</strong> כן</p>';
         }
     }
 }

@@ -108,7 +108,7 @@ handleNextStep: function() {
         }
     } else {
         this.showValidationErrors();
-        this.showError('אנא מלא את כל השדות הנדרשים');
+        this.showError('אנא מלאו את כל השדות הנדרשים');
     }
 }
 ```
@@ -726,7 +726,7 @@ $('#next-step').on('click', function(e) {
     if ($(this).prop('disabled')) {
         e.preventDefault();
         MultiStepQuiz.showValidationErrors();
-        MultiStepQuiz.showError('אנא מלא את כל השדות הנדרשים');
+        MultiStepQuiz.showError('אנא מלאו את כל השדות הנדרשים');
     }
 });
 ```

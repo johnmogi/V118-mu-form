@@ -25,6 +25,20 @@ html[dir="rtl"] .acf-quiz-container {
     text-align: center;
 }
 
+/* Date Input Group - Horizontal Layout */
+.date-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.date-select {
+    flex: 1;
+    min-width: 80px;
+    max-width: 120px;
+}
+
 /* Submit Button Styling - Only visible on step 4 */
 .submit-btn, #submit-form {
     background-color: #1e40af !important;
@@ -391,8 +405,14 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .field-input {
-    width:100%; border:2px solid var(--line); border-radius:10px; padding:12px 14px;
-    background:#fff; font-size:16px; line-height:1.4; color:var(--brand-text);
+    width: 100%;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    font-size: 16px;
+    line-height: 1.4;
+    color: #333;
     box-sizing: border-box;
     direction: rtl;
     text-align: right;
@@ -400,27 +420,31 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .field-input:focus {
-    outline:none; border-color:var(--brand-gold);
-    box-shadow:0 0 0 3px var(--bg-gold-soft);
+    outline: none;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
 }
 
-.field-input.error {
-    border-color: #dc3545;
-    background-color: #fff5f5;
+.field-input.error.touched {
+    border-color: #dc3545 !important;
+    background-color: #fff5f5 !important;
 }
 
-.field-input.error:focus {
-    border-color: #dc3545;
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+.field-input.error.touched:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
 }
 
 /* Select field styling */
 select.field-input {
-    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23666" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>');
+    background-image: none;
     background-repeat: no-repeat;
     background-position: left 12px center;
     background-size: 12px;
-    padding-left: 40px;
+    padding-left: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
 }
 
 /* Textarea styling */
@@ -429,10 +453,7 @@ textarea.field-input {
     min-height: 80px;
 }
 
-.field-input.error {
-    border-color: #e74c3c;
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-}
+/* Remove duplicate error rule - handled above with higher specificity */
 
 .checkbox-group {
     margin-top: 10px;
@@ -558,8 +579,15 @@ html[dir="rtl"] .question-block {
 }
 
 html[dir="rtl"] .answers-container {
-    margin-right: 45px;
+    margin-right: 0;
     margin-left: 0;
+}
+
+/* Add back margin for desktop */
+@media (min-width: 768px) {
+    html[dir="rtl"] .answers-container {
+        margin-right: 45px;
+    }
 }
 
 .answer-option {
@@ -666,6 +694,57 @@ html[dir="rtl"] .answer-marker {
     transition: all 0.2s ease;
 }
 
+/* Signature Pad Styling */
+.signature-container {
+    position: relative;
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+#signature_pad {
+    touch-action: none;
+    -ms-touch-action: none;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: block;
+    width: 100% !important;
+    height: 150px !important;
+}
+
+.signature-controls {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.clear-signature-btn {
+    background-color: #f8f9fa;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.clear-signature-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Plan-specific declarations */
+body.yearly-trial .monthly-declaration,
+body.monthly-trial .yearly-declaration {
+    display: none;
+}
+
+/* Show only the relevant declaration based on plan type */
+body.yearly-trial .yearly-declaration,
+body.monthly-trial .monthly-declaration {
+    display: block;
+}
+
 /* Final declaration styling */
 .final-declaration {
     background: #f8f9fa;
@@ -677,14 +756,29 @@ html[dir="rtl"] .answer-marker {
     text-align: right;
 }
 
-/* Checkbox styling for final declaration */
+/* Checkbox styling for final declaration - new implementation */
+.checkbox-group-new {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
 .checkbox-group {
     display: flex;
     align-items: flex-start;
-    gap: 15px;
-    direction: rtl;
-    text-align: right;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.checkbox-input-new {
+    width: 24px;
+    height: 24px;
+    margin: 0;
     cursor: pointer;
+    accent-color: #007cba;
+    flex-shrink: 0;
+    margin-top: 3px;
 }
 
 .checkbox-input {
@@ -698,9 +792,18 @@ html[dir="rtl"] .answer-marker {
     transform: scale(1.2);
 }
 
+.checkbox-label-new {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    cursor: pointer;
+    flex: 1;
+    user-select: none;
+}
+
 .checkbox-label {
-    font-size: 17px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.5;
     color: #333;
     cursor: pointer;
     flex: 1;

@@ -171,6 +171,11 @@ class Simple_Submissions_Viewer {
                     content += '<strong>Status:</strong> <?php echo $submission->is_complete ? 'Complete' : 'Step 1 Only'; ?><br>';
                     content += '<strong>Created:</strong> <?php echo esc_js($submission->created_at); ?><br>';
                     content += '<strong>IP Address:</strong> <?php echo esc_js($submission->ip_address); ?><br>';
+                    <?php if (!empty($submission->signature_data)): ?>
+                    content += '<strong>Signature:</strong><br><img src="<?php echo esc_js($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature"><br>';
+                    <?php else: ?>
+                    content += '<strong>Signature:</strong> No signature provided<br>';
+                    <?php endif; ?>
                     
                     document.getElementById('submission-content').innerHTML = content;
                     document.getElementById('submission-details').style.display = 'block';
@@ -369,6 +374,13 @@ class Submissions_Viewer_Fallback {
                             <tr><th>Created:</th><td><?php echo esc_html($submission->created_at); ?></td></tr>
                             <tr><th>Updated:</th><td><?php echo esc_html($submission->updated_at); ?></td></tr>
                             <tr><th>IP Address:</th><td><?php echo esc_html($submission->ip_address ?: 'Not recorded'); ?></td></tr>
+                            <tr><th>Signature:</th><td>
+                                <?php if (!empty($submission->signature_data)): ?>
+                                    <img src="<?php echo esc_attr($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature">
+                                <?php else: ?>
+                                    No signature provided
+                                <?php endif; ?>
+                            </td></tr>
                         </table>
                         
                         <p><a href="?page=submissions-viewer" class="button">← Back to List</a></p>
