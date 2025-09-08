@@ -134,19 +134,9 @@ jQuery(document).ready(function($) {
             console.log('Current step:', this.currentStep);
             
             if (this.currentStep === 4) {
-                console.log('STEP 4 DETECTED');
-                // Only check if final declaration is checked
-                const finalDeclaration = $('#final_declaration').is(':checked');
-                console.log('Final declaration checked:', finalDeclaration);
-                
-                if (!finalDeclaration) {
-                    console.log('Final declaration not checked - stopping submission');
-                    this.showError('אנא אשר את ההצהרה הסופית');
-                    this.isSubmitting = false;
-                    return false;
-                }
-                
-                console.log('Final declaration OK - proceeding with submission');
+                console.log('STEP 4 DETECTED - ALLOWING SUBMISSION');
+                // SOFTEN: Allow submission without checkbox validation
+                console.log('Bypassing checkbox validation - proceeding with submission');
             } else {
                 // Normal validation for other steps
                 console.log('Validating step', this.currentStep);
@@ -245,19 +235,18 @@ jQuery(document).ready(function($) {
                     
                     console.log('Package type detected:', packageType);
                     
-                    // Use the acfQuiz config to get product IDs if available
-                    let productId = null;
-                    if (typeof acfQuiz !== 'undefined' && acfQuiz.productIds) {
-                        productId = acfQuiz.productIds[packageType];
-                        console.log('Product ID from config:', productId);
-                    }
+                    // Direct checkout redirect based on package type
+                    console.log('Redirecting directly to checkout for package type:', packageType);
                     
-                    // Fallback: redirect to shop or a specific product page
-                    if (productId) {
-                        window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                    if (packageType === 'yearly') {
+                        // For yearly package, redirect to checkout with yearly product
+                        window.location.href = '/checkout/?add-to-cart=1999&yearly=1&quiz_passed=1&score=' + totalScore;
+                    } else if (packageType === 'monthly') {
+                        // For monthly package, redirect to checkout with monthly product
+                        window.location.href = '/checkout/?add-to-cart=199&monthly=1&quiz_passed=1&score=' + totalScore;
                     } else {
-                        console.log('No product ID found, redirecting to shop with parameters');
-                        window.location.href = '/shop/?' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                        // For trial package, redirect to checkout with trial product
+                        window.location.href = '/checkout/?add-to-cart=99&trial=1&quiz_passed=1&score=' + totalScore;
                     }
                 } else {
                     console.log('FAILED - Redirecting to test page');
