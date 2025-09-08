@@ -25,6 +25,22 @@ html[dir="rtl"] .acf-quiz-container {
     text-align: center;
 }
 
+/* Submit Button Styling - Only visible on step 4 */
+.submit-btn, #submit-form {
+    background-color: #1e40af !important;
+    color: white !important;
+    margin-right: 10px !important;
+    appearance: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    border-radius: 999px !important;
+    padding: 12px 22px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.06) !important;
+    transition: transform .05s ease, box-shadow .2s ease, background .2s ease !important;
+
+}
+
 .step-indicator {
     display: flex;
     justify-content: center;
@@ -173,24 +189,96 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .nav-btn {
-    padding: 12px 30px;
+    padding: 12px 25px;
     border: none;
     border-radius: 6px;
-    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 120px;
+    font-size: 16px;
+    min-width: 140px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Elementor button styling */
+.nav-btn .elementor-button-content-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
+.nav-btn .elementor-button-text {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.nav-btn .elementor-button-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    transition: transform 0.2s ease;
+    min-width: 16px;
+    min-height: 16px;
+}
+
+.nav-btn .elementor-button-icon i {
+    line-height: 1;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* FontAwesome fallback - if icons don't load, show text alternatives */
+.nav-btn .elementor-button-icon i.fas.fa-angle-left:before {
+    content: "<<";
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.nav-btn .elementor-button-icon i.fas.fa-angle-right:before {
+    content: ">>";
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Ensure FontAwesome icons display if loaded */
+.nav-btn .elementor-button-icon i[class*="fa-"]:before {
+    font-family: "Font Awesome 5 Free", "FontAwesome", Arial, sans-serif;
+    font-weight: 900;
+}
+
+.nav-btn.prev-btn .elementor-button-icon {
+    order: -1;
+}
+
+.nav-btn.next-btn .elementor-button-icon {
+    order: 1;
 }
 
 .nav-btn.prev-btn {
     background: #6c757d;
     color: white;
+    flex-direction: row-reverse;
 }
 
 .nav-btn.prev-btn:hover {
     background: #5a6268;
     transform: translateY(-2px);
+}
+
+.nav-btn.prev-btn:hover .button-icon {
+    transform: translateX(-3px);
 }
 
 .nav-btn.next-btn,
@@ -205,11 +293,19 @@ html[dir="rtl"] .acf-quiz-container {
     transform: translateY(-2px);
 }
 
+.nav-btn.next-btn:hover .button-icon {
+    transform: translateX(3px);
+}
+
 .nav-btn:disabled {
     background: #e9ecef;
     color: #6c757d;
     cursor: not-allowed;
-    transform: none;
+    transform: none !important;
+}
+
+.nav-btn:disabled .button-icon {
+    transform: none !important;
 }
 
 .nav-btn.loading {
@@ -295,19 +391,17 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .field-input {
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 6px;
-    font-size: 16px;
+    width:100%; border:2px solid var(--line); border-radius:10px; padding:12px 14px;
+    background:#fff; font-size:16px; line-height:1.4; color:var(--brand-text);
+    box-sizing: border-box;
     direction: rtl;
     text-align: right;
     transition: border-color 0.3s ease;
 }
 
 .field-input:focus {
-    outline: none;
-    border-color: #007cba;
-    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1);
+    outline:none; border-color:var(--brand-gold);
+    box-shadow:0 0 0 3px var(--bg-gold-soft);
 }
 
 .field-input.error {
@@ -457,6 +551,7 @@ html[dir="rtl"] .question-block {
 
 /* Answer Options */
 .answers-container {
+    display:flex; flex-direction:column; gap:10px;
     margin-right: 0;
     margin-left: 45px;
     direction: rtl;
@@ -980,6 +1075,12 @@ html[dir="rtl"] .answer-marker {
     .nav-btn {
         width: 100%;
         min-width: auto;
+        padding: 12px 15px;
+        font-size: 15px;
+    }
+    
+    .nav-btn .button-icon {
+        font-size: 13px;
     }
     
     .step-intro,
@@ -1003,8 +1104,12 @@ html[dir="rtl"] .answer-marker {
     }
     
     .nav-btn {
-        padding: 15px;
-        font-size: 16px;
+        padding: 14px 12px;
+        font-size: 15px;
+    }
+    
+    .nav-btn .button-icon {
+        font-size: 14px;
     }
     
     .field-input {

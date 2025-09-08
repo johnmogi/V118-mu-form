@@ -708,14 +708,59 @@ class ACF_Quiz_System {
      */
     public function enqueue_public_assets() {
         if (!is_admin()) {
-            // Enqueue CSS
+            // Auto-version CSS with filemtime
+            $css_path = $this->plugin_path . 'css/quiz-public.css';
+            $css_version = file_exists($css_path) ? filemtime($css_path) : '1.0.0';
+            
+            // Enqueue main CSS
             wp_enqueue_style(
                 'acf-quiz-public',
                 $this->plugin_url . 'css/quiz-public.css',
                 array(),
-                '1.0.0'
+                $css_version
             );
+            
+            // Remove elform.css - styles moved to quiz-public.css
+            // wp_enqueue_style(
+            //     'acf-quiz-elform',
+            //     $this->plugin_url . 'css/elform.css',
+            //     array('acf-quiz-public'),
+            //     '1.0.1'
+            // );
 
+            // Add jQuery to handle button visibility
+            wp_enqueue_script('jquery');
+            
+            // Add inline JavaScript for button visibility
+            $custom_js = "
+            jQuery(document).ready(function($) {
+                // Simple function to check if we're on step 4
+                function checkStep4() {
+                    var isStep4 = $('.step[data-step=\"4\"]').hasClass('active');
+                    
+                    if (isStep4) {
+                        $('.submit-btn, #submit-form').show();
+                        $('.next-btn').hide();
+                    } else {
+                        $('.submit-btn, #submit-form').hide();
+                        $('.next-btn').show();
+                    }
+                }
+                
+                // Run on page load
+                checkStep4();
+                
+                // Run when buttons are clicked
+                $(document).on('click', '.next-btn, .prev-btn', function() {
+                    setTimeout(checkStep4, 100);
+                });
+                
+                // Run periodically to catch any changes
+                setInterval(checkStep4, 1000);
+            });";
+            
+            wp_add_inline_script('jquery', $custom_js);
+            
             // Add inline CSS for date input styling
             $custom_css = "
                 .date-input-group {
@@ -1299,15 +1344,19 @@ class ACF_Quiz_System {
 
                 <div class="form-navigation">
                     <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">
-                        <span class="elementor-button-icon">
-                            <<
+                        <span class="elementor-button-content-wrapper">
+                            <span class="elementor-button-icon elementor-align-icon-right">
+                                <i aria-hidden="true" class="fas fa-angle-left"></i>
+                            </span>
+                            <span class="elementor-button-text">חזרה</span>
                         </span>
-                        חזרה
                     </button>
                     <button type="button" id="next-step" class="nav-btn next-btn">
-                        <?php echo get_field('button_text', 'option') ?: 'המשך'; ?>
-                        <span class="elementor-button-icon">
-                            >>
+                        <span class="elementor-button-content-wrapper">
+                            <span class="elementor-button-text"><?php echo get_field('button_text', 'option') ?: 'המשך'; ?></span>
+                            <span class="elementor-button-icon elementor-align-icon-left">
+                                <i aria-hidden="true" class="fas fa-angle-right"></i>
+                            </span>
                         </span>
                     </button>
                     <button type="submit" id="submit-form" class="nav-btn submit-btn" style="display: none;">שלח שאלון</button>
