@@ -471,53 +471,9 @@ function submissions_viewer_init() {
 // Initialize immediately instead of waiting for plugins_loaded
 add_action('init', 'submissions_viewer_init', 1);
 
-// Also add a direct admin menu hook as backup
-add_action('admin_menu', function() {
-    error_log('Submissions Viewer: Direct admin_menu hook triggered');
-    add_menu_page(
-        'Submissions Viewer (Direct)',
-        'Submissions Viewer', 
-        'read',
-        'submissions-viewer-direct',
-        'submissions_viewer_direct_page',
-        'dashicons-list-view',
-        26
-    );
-});
+// Duplicate menu removed - using main submissions viewer instead
 
-function submissions_viewer_direct_page() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'quiz_submissions';
-    
-    echo '<div class="wrap">';
-    echo '<h1>Submissions Viewer (Direct Access)</h1>';
-    echo '<p>This is a direct access version to test if the plugin is working.</p>';
-    
-    // Check if table exists
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
-    if (!$table_exists) {
-        echo '<div class="notice notice-error"><p>Table ' . $table_name . ' does not exist!</p></div>';
-    } else {
-        echo '<div class="notice notice-success"><p>Table ' . $table_name . ' exists.</p></div>';
-        
-        // Get count of submissions
-        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-        echo '<p>Total submissions: ' . $count . '</p>';
-        
-        // Show recent submissions
-        $submissions = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC LIMIT 5");
-        if ($submissions) {
-            echo '<h3>Recent Submissions:</h3>';
-            echo '<ul>';
-            foreach ($submissions as $submission) {
-                echo '<li>ID: ' . $submission->id . ' - ' . esc_html($submission->name) . ' (' . esc_html($submission->email) . ') - ' . $submission->created_at . '</li>';
-            }
-            echo '</ul>';
-        }
-    }
-    
-    echo '</div>';
-}
+// Removed duplicate direct page function - using main viewer
 
 /**
  * Fallback class if Composer autoloader fails

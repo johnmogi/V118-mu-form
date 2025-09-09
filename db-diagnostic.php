@@ -25,22 +25,14 @@ class DB_Diagnostic_Tool {
     }
 
     public function add_admin_menu() {
-        add_menu_page(
+        // Integrated into main quiz system - standalone menu removed
+        add_submenu_page(
+            'quiz-submissions',
             'Database Diagnostic',
             'DB Diagnostic',
             'manage_options',
             'db-diagnostic',
-            array($this, 'render_diagnostic_page'),
-            'dashicons-database',
-            30
-        );
-        add_submenu_page(
-            'db-diagnostic',
-            'Create Quiz Table',
-            'Create Quiz Table',
-            'manage_options',
-            'create-quiz-table',
-            array($this, 'render_table_creation_page')
+            array($this, 'diagnostic_page')
         );
     }
 
