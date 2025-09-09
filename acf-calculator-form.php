@@ -3259,28 +3259,10 @@ class ACF_Quiz_System {
      * Validate custom checkout fields
      */
     public function validate_checkout_custom_fields() {
-        // Validate ID photo upload
-        if (empty($_FILES['id_photo_upload']['name'])) {
-            wc_add_notice(__('אנא העלה תמונת תעודת זהות.'), 'error');
-        } else {
-            $file = $_FILES['id_photo_upload'];
-            $max_size = 5 * 1024 * 1024; // 5MB
-            $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf');
-            
-            if ($file['size'] > $max_size) {
-                wc_add_notice(__('קובץ תעודת הזהות גדול מדי. גודל מקסימלי: 5MB'), 'error');
-            }
-            
-            $file_type = wp_check_filetype($file['name']);
-            if (!in_array($file_type['type'], $allowed_types)) {
-                wc_add_notice(__('סוג קובץ לא נתמך עבור תעודת זהות. אנא העלה תמונה או PDF'), 'error');
-            }
-        }
+        // ID photo upload is now optional - no validation needed
         
-        // Validate subscription terms agreement
-        if (empty($_POST['subscription_terms_agreement'])) {
-            wc_add_notice(__('אנא אשר את תנאי המנוי.'), 'error');
-        }
+        // Subscription terms validation is now handled by the new terms checkbox system
+        // No validation needed here as it's replaced by the new terms acceptance
     }
 
     /**
