@@ -172,9 +172,21 @@ class Simple_Submissions_Viewer {
                     content += '<strong>Created:</strong> <?php echo esc_js($submission->created_at); ?><br>';
                     content += '<strong>IP Address:</strong> <?php echo esc_js($submission->ip_address); ?><br>';
                     <?php if (!empty($submission->signature_data)): ?>
-                    content += '<strong>Signature:</strong><br><img src="<?php echo esc_js($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature"><br>';
+                    content += '<div class="signature-display-section">';
+                    content += '<strong>Digital Signature:</strong><br>';
+                    content += '<div class="signature-image-container">';
+                    content += '<img src="<?php echo esc_js($submission->signature_data); ?>" class="signature-image" alt="Digital Signature">';
+                    content += '<div class="signature-actions">';
+                    content += '<button onclick="downloadSignature(<?php echo $submission->id; ?>)" class="button button-small">Download</button>';
+                    content += '<button onclick="viewSignatureFullscreen(<?php echo $submission->id; ?>)" class="button button-small">View Full Size</button>';
+                    content += '</div>';
+                    content += '</div>';
+                    content += '</div>';
                     <?php else: ?>
-                    content += '<strong>Signature:</strong> No signature provided<br>';
+                    content += '<div class="signature-display-section no-signature">';
+                    content += '<strong>Digital Signature:</strong><br>';
+                    content += '<span class="no-signature-text">❌ No signature provided</span>';
+                    content += '</div>';
                     <?php endif; ?>
                     
                     document.getElementById('submission-content').innerHTML = content;
@@ -182,7 +194,267 @@ class Simple_Submissions_Viewer {
                 }
             <?php endforeach; ?>
         }
+        
+        // Enhanced signature viewing functions
+        function downloadSignature(submissionId) {
+            <?php foreach ($submissions as $submission): ?>
+                if (submissionId === <?php echo $submission->id; ?>) {
+                    <?php if (!empty($submission->signature_data)): ?>
+                        const link = document.createElement('a');
+                        link.href = '<?php echo esc_js($submission->signature_data); ?>';
+                        link.download = 'signature_<?php echo $submission->id; ?>_<?php echo date('Y-m-d'); ?>.png';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    <?php endif; ?>
+                }
+            <?php endforeach; ?>
+        }
+        
+        function viewSignatureFullscreen(submissionId) {
+            <?php foreach ($submissions as $submission): ?>
+                if (submissionId === <?php echo $submission->id; ?>) {
+                    <?php if (!empty($submission->signature_data)): ?>
+                        openSignatureModal('<?php echo esc_js($submission->signature_data); ?>');
+                    <?php endif; ?>
+                }
+            <?php endforeach; ?>
+        }
+        
+        function openSignatureModal(imageSrc) {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.className = 'signature-modal-overlay';
+            modal.innerHTML = `
+                <div class="signature-modal-content">
+                    <div class="signature-modal-header">
+                        <h3>Digital Signature - Full Size</h3>
+                        <button class="signature-modal-close" onclick="closeSignatureModal()">&times;</button>
+                    </div>
+                    <div class="signature-modal-body">
+                        <img src="${imageSrc}" class="signature-modal-image" alt="Digital Signature">
+                    </div>
+                    <div class="signature-modal-footer">
+                        <button onclick="downloadSignatureFromModal('${imageSrc}')" class="button button-primary">Download PNG</button>
+                        <button onclick="closeSignatureModal()" class="button">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
+            
+            // Close on background click
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeSignatureModal();
+                }
+            });
+            
+            // Close on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeSignatureModal();
+                }
+            });
+        }
+        
+        function closeSignatureModal() {
+            const modal = document.querySelector('.signature-modal-overlay');
+            if (modal) {
+                document.body.removeChild(modal);
+            }
+        }
+        
+        function downloadSignatureFromModal(imageSrc) {
+            const link = document.createElement('a');
+            link.href = imageSrc;
+            link.download = 'signature_' + new Date().toISOString().split('T')[0] + '.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
         </script>
+        
+        <style>
+        /* Enhanced Signature Display Styles */
+        .signature-display-section {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .signature-image-container {
+            margin-top: 10px;
+        }
+        
+        .signature-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #007cba;
+            border-radius: 6px;
+            background: white;
+            padding: 5px;
+        }
+        
+        .signature-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .no-signature {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        
+        .no-signature-text {
+            color: #856404;
+            font-weight: 500;
+        }
+        
+        /* Detailed view styles */
+        .signature-display-wrapper {
+            max-width: 500px;
+        }
+        
+        .signature-preview {
+            margin-bottom: 10px;
+        }
+        
+        .signature-image-detail {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #007cba;
+            border-radius: 6px;
+            background: white;
+            padding: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .signature-image-detail:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 124, 186, 0.3);
+        }
+        
+        .signature-metadata {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .signature-metadata a {
+            color: #007cba;
+            text-decoration: none;
+        }
+        
+        .signature-metadata a:hover {
+            text-decoration: underline;
+        }
+        
+        .no-signature-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+        }
+        
+        /* Modal styles */
+        .signature-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .signature-modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .signature-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .signature-modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .signature-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .signature-modal-close:hover {
+            color: #000;
+        }
+        
+        .signature-modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .signature-modal-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #007cba;
+            border-radius: 6px;
+            background: white;
+            padding: 10px;
+        }
+        
+        .signature-modal-footer {
+            padding: 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .signature-modal-content {
+                max-width: 95vw;
+                max-height: 95vh;
+            }
+            
+            .signature-modal-header,
+            .signature-modal-body,
+            .signature-modal-footer {
+                padding: 15px;
+            }
+            
+            .signature-actions {
+                flex-direction: column;
+            }
+        }
+        </style>
         
         <?php
     }
@@ -374,11 +646,26 @@ class Submissions_Viewer_Fallback {
                             <tr><th>Created:</th><td><?php echo esc_html($submission->created_at); ?></td></tr>
                             <tr><th>Updated:</th><td><?php echo esc_html($submission->updated_at); ?></td></tr>
                             <tr><th>IP Address:</th><td><?php echo esc_html($submission->ip_address ?: 'Not recorded'); ?></td></tr>
-                            <tr><th>Signature:</th><td>
+                            <tr><th>Digital Signature:</th><td>
                                 <?php if (!empty($submission->signature_data)): ?>
-                                    <img src="<?php echo esc_attr($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature">
+                                    <div class="signature-display-wrapper">
+                                        <div class="signature-preview">
+                                            <img src="<?php echo esc_attr($submission->signature_data); ?>" 
+                                                 class="signature-image-detail" 
+                                                 alt="Digital Signature"
+                                                 onclick="openSignatureModal(this.src)">
+                                        </div>
+                                        <div class="signature-metadata">
+                                            <small>Click to view full size | 
+                                            <a href="<?php echo esc_attr($submission->signature_data); ?>" 
+                                               download="signature_<?php echo $submission->id; ?>.png">Download PNG</a></small>
+                                        </div>
+                                    </div>
                                 <?php else: ?>
-                                    No signature provided
+                                    <div class="no-signature-indicator">
+                                        <span class="dashicons dashicons-dismiss" style="color: #dc3545;"></span>
+                                        <span>No signature provided</span>
+                                    </div>
                                 <?php endif; ?>
                             </td></tr>
                         </table>

@@ -737,19 +737,6 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        // Enqueue jQuery if not already loaded
-        wp_enqueue_script('jquery');
-        
-        // Enqueue signature pad library
-        wp_enqueue_script(
-            'signature-pad',
-            'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
-            array('jquery'),
-            '4.0.0',
-            true
-        );
-        
-        // Enqueue quiz public JS
         wp_enqueue_script(
             'quiz-public-js',
             plugins_url('js/quiz-public.js', __FILE__),
@@ -831,9 +818,72 @@ class ACF_Quiz_System {
                 '4.0.0',
                 true
             );
+            wp_enqueue_script(
+                'signature-capture',
+                plugins_url('signature-capture.js', __FILE__),
+                array('signature-pad', 'jquery'),
+                '1.0.0',
+                true
+            );
             
             // Add signature pad initialization
             $signature_js = "
+            // Test signature system function
+            function testSignatureSystem() {
+                console.log('Testing signature system...');
+                
+                // Check if signature canvas exists
+                const canvas = document.getElementById('signature_canvas');
+                if (!canvas) {
+                    alert('❌ Signature canvas not found');
+                    return;
+                }
+                
+                // Check if SignaturePad is loaded
+                if (typeof SignaturePad === 'undefined') {
+                    alert('❌ SignaturePad library not loaded');
+                    return;
+                }
+                
+                // Check if signature_ajax is available
+                if (typeof signature_ajax === 'undefined') {
+                    alert('❌ Signature AJAX not configured');
+                    return;
+                }
+                
+                // Create a test signature
+                const signaturePad = new SignaturePad(canvas);
+                
+                // Draw a simple test signature
+                signaturePad.fromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+                
+                const testData = signaturePad.toDataURL('image/png', 0.8);
+                
+                // Test save signature
+                const formData = new FormData();
+                formData.append('action', 'save_signature');
+                formData.append('nonce', signature_ajax.nonce);
+                formData.append('signature_data', testData);
+                formData.append('submission_id', 999);
+                formData.append('user_email', 'test@example.com');
+                
+                fetch(signature_ajax.ajax_url, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Signature system working! ID: ' + data.data.signature_id);
+                    } else {
+                        alert('❌ Signature save failed: ' + data.data);
+                    }
+                })
+                .catch(error => {
+                    alert('❌ Network error: ' + error);
+                });
+            }
+            
             jQuery(document).ready(function($) {
                 // Ensure final declaration checkbox is unchecked by default - multiple approaches
                 function forceUncheckDeclaration() {
@@ -843,154 +893,130 @@ class ACF_Quiz_System {
                     console.log('Final declaration checkbox forced to unchecked');
                 }
                 
-                // Run immediately and repeatedly
-                forceUncheckDeclaration();
-                setTimeout(forceUncheckDeclaration, 100);
-                setTimeout(forceUncheckDeclaration, 500);
+                // Signature Pad Management - Stable Implementation
+                let signaturePadInstance = null;
+                let isSignaturePadInitialized = false;
                 
-                // Also run when form is interacted with
-                $(document).on('DOMContentLoaded', forceUncheckDeclaration);
-                $(document).on('click', '.form-step', forceUncheckDeclaration);
-                
-                // Initialize signature pad when step 4 is shown
-                $(document).on('formStepChanged', function(e, step) {
-                    if (step === 4) {
-                        initSignaturePad();
-                    }
-                });
-                
-                function initSignaturePad() {
-                    console.log('Initializing signature pad...');
-                    
-                    const canvas = document.getElementById('signature_pad');
-                    if (!canvas) {
-                        console.error('Signature pad canvas not found');
+                function initializeSignaturePad() {
+                    if (isSignaturePadInitialized) {
                         return;
                     }
                     
-                    // Clear any existing instance
-                    if (window.signaturePad) {
-                        window.signaturePad.off();
+                    const canvas = document.getElementById('signature_pad');
+                    const placeholder = document.getElementById('signature_placeholder');
+                    const statusElement = document.getElementById('signature_status');
+                    const clearButton = document.getElementById('clear_signature');
+                    const hiddenInput = document.getElementById('signature_data');
+                    
+                    if (!canvas || !placeholder || !statusElement || !clearButton || !hiddenInput) {
+                        console.warn('Signature elements not found, retrying...');
+                        setTimeout(initializeSignaturePad, 500);
+                        return;
                     }
                     
-                    const container = canvas.parentElement;
-                    
-                    // Set proper canvas dimensions
-                    function setCanvasDimensions() {
-                        if (!container) return;
-                        
-                        const containerRect = container.getBoundingClientRect();
-                        const containerWidth = Math.max(containerRect.width || 400, 400);
+                    // Set canvas dimensions properly
+                    function setupCanvas() {
+                        const container = canvas.parentElement;
+                        const containerWidth = container.offsetWidth || 400;
                         const canvasHeight = 150;
                         
-                        // Set canvas display size
+                        // Set display size
                         canvas.style.width = '100%';
                         canvas.style.height = canvasHeight + 'px';
                         
-                        // Set canvas actual size (for high DPI displays)
+                        // Set actual size for high DPI
                         const ratio = window.devicePixelRatio || 1;
                         canvas.width = containerWidth * ratio;
                         canvas.height = canvasHeight * ratio;
                         
-                        // Scale the drawing context so everything draws at the correct size
+                        // Scale context
                         const ctx = canvas.getContext('2d');
                         ctx.scale(ratio, ratio);
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, containerWidth, canvasHeight);
+                    }
+                    
+                    setupCanvas();
+                    
+                    // Initialize SignaturePad
+                    try {
+                        signaturePadInstance = new SignaturePad(canvas, {
+                            backgroundColor: 'rgba(255, 255, 255, 1)',
+                            penColor: 'rgba(0, 0, 0, 1)',
+                            minWidth: 1.5,
+                            maxWidth: 2.5,
+                            velocityFilterWeight: 0.7,
+                            minDistance: 2
+                        });
                         
-                        console.log('Canvas dimensions set:', containerWidth, 'x', canvasHeight, 'ratio:', ratio);
-                    }
-                    
-                    setCanvasDimensions();
-                    
-                    // Initialize signature pad
-                    const signaturePad = new SignaturePad(canvas, {
-                        backgroundColor: 'rgb(255, 255, 255)',
-                        penColor: 'rgb(0, 0, 0)',
-                        minWidth: 1,
-                        maxWidth: 3,
-                        velocityFilterWeight: 0.7,
-                        minDistance: 3,
-                        throttle: 16 // ~60fps
-                    });
-                    
-                    // Make canvas focusable for keyboard navigation
-                    canvas.setAttribute('tabindex', '0');
-                    canvas.setAttribute('role', 'button');
-                    canvas.setAttribute('aria-label', 'חתימה דיגיטלית');
-                    
-                    // Clear signature button
-                    $('#clear_signature').off('click').on('click', function(e) {
-                        e.preventDefault();
-                        signaturePad.clear();
-                        $('#signature_data').val('');
-                        $('#signature_status').text('אנא חתום במסגרת').css('color', '#666');
-                        console.log('Signature cleared');
-                    });
-                    
-                    // Handle signature events
-                    function handleSignature() {
-                        if (!signaturePad.isEmpty()) {
-                            const dataURL = signaturePad.toDataURL('image/png');
-                            $('#signature_data').val(dataURL);
-                            $('#signature_status').text('חתימה נשמרה').css('color', '#28a745');
-                        } else {
-                            $('#signature_data').val('');
-                            $('#signature_status').text('אנא חתום במסגרת').css('color', '#666');
-                        }
-                    }
-                    
-                    // Save signature data when user signs
-                    canvas.addEventListener('endStroke', handleSignature);
-                    
-                    // Handle window resize with debounce
-                    let resizeTimeout;
-                    function handleResize() {
-                        clearTimeout(resizeTimeout);
-                        resizeTimeout = setTimeout(() => {
-                            const data = signaturePad.toData();
-                            setCanvasDimensions();
-                            signaturePad.clear();
-                            if (data) {
-                                signaturePad.fromData(data);
+                        // Handle signature events
+                        signaturePadInstance.addEventListener('beginStroke', function() {
+                            placeholder.style.display = 'none';
+                        });
+                        
+                        signaturePadInstance.addEventListener('endStroke', function() {
+                            if (!signaturePadInstance.isEmpty()) {
+                                const dataURL = signaturePadInstance.toDataURL('image/png', 0.8);
+                                hiddenInput.value = dataURL;
+                                statusElement.textContent = '✓ חתימה נשמרה';
+                                statusElement.className = 'signature-status signature-valid';
                             }
-                        }, 250);
-                    }
-                    
-                    // Make canvas responsive
-                    const resizeObserver = new ResizeObserver(handleResize);
-                    if (container) {
-                        resizeObserver.observe(container);
-                    }
-                    
-                    // Handle touch devices better
-                    function preventScrolling(e) {
-                        if (e.target === canvas) {
+                        });
+                        
+                        // Clear button functionality
+                        clearButton.addEventListener('click', function(e) {
                             e.preventDefault();
+                            signaturePadInstance.clear();
+                            hiddenInput.value = '';
+                            placeholder.style.display = 'flex';
+                            statusElement.textContent = 'חתימה נדרשת';
+                            statusElement.className = 'signature-status signature-required';
+                        });
+                        
+                        // Touch handling for mobile
+                        function preventScroll(e) {
+                            if (e.target === canvas) {
+                                e.preventDefault();
+                            }
                         }
+                        
+                        canvas.addEventListener('touchstart', preventScroll, { passive: false });
+                        canvas.addEventListener('touchmove', preventScroll, { passive: false });
+                        
+                        // Responsive handling
+                        let resizeTimer;
+                        window.addEventListener('resize', function() {
+                            clearTimeout(resizeTimer);
+                            resizeTimer = setTimeout(function() {
+                                const data = signaturePadInstance.toData();
+                                setupCanvas();
+                                if (data && data.length > 0) {
+                                    signaturePadInstance.fromData(data);
+                                }
+                            }, 250);
+                        });
+                        
+                        isSignaturePadInitialized = true;
+                        console.log('Signature pad initialized successfully');
+                        
+                    } catch (error) {
+                        console.error('Failed to initialize signature pad:', error);
+                        statusElement.textContent = 'שגיאה בטעינת חתימה';
+                        statusElement.className = 'signature-status signature-error';
                     }
-                    
-                    // Disable scrolling when touching the canvas
-                    document.body.addEventListener('touchstart', preventScrolling, { passive: false });
-                    document.body.addEventListener('touchmove', preventScrolling, { passive: false });
-                    
-                    // Cleanup function
-                    function cleanup() {
-                        resizeObserver.disconnect();
-                        document.body.removeEventListener('touchstart', preventScrolling);
-                        document.body.removeEventListener('touchmove', preventScrolling);
-                        canvas.removeEventListener('endStroke', handleSignature);
-                    }
-                    
-                    // Store reference globally for debugging and cleanup
-                    window.signaturePad = signaturePad;
-                    
-                    // Clean up when navigating away
-                    $(window).on('beforeunload', cleanup);
-                    
-                    console.log('SignaturePad initialized successfully');
                 }
                 
-                // Initialize after DOM and scripts are ready
-                setTimeout(initSignaturePad, 100);
+                // Initialize when step 4 is shown
+                $(document).on('formStepChanged', function(e, step) {
+                    if (step === 4 && !isSignaturePadInitialized) {
+                        setTimeout(initializeSignaturePad, 100);
+                    }
+                });
+                
+                // Initialize on page load if already on step 4
+                $(document).ready(function() {
+                    setTimeout(initializeSignaturePad, 200);
+                });
             });";
             
             wp_add_inline_script('signature-pad', $signature_js);
@@ -1376,14 +1402,30 @@ class ACF_Quiz_System {
                             </div>
                             
                             <div class="signature-section">
-                                <h5>חתימה דיגיטלית</h5>
+                                <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
+                                <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
                                 <div class="signature-container">
-                                    <canvas id="signature_pad"></canvas>
-                                    <div class="signature-controls">
-                                        <button type="button" id="clear_signature" class="clear-signature-btn">נקה חתימה</button>
-                                        <span id="signature_status">אנא חתום במסגרת</span>
+                                    <div class="signature-wrapper">
+                                        <canvas id="signature_pad" width="400" height="150"></canvas>
+                                        <div class="signature-placeholder" id="signature_placeholder">
+                                            <span>חתום כאן</span>
+                                        </div>
                                     </div>
-                                    <input type="hidden" id="signature_data" name="signature_data">
+                                    <div class="signature-controls">
+                                        <button type="button" id="clear_signature" class="clear-signature-btn">
+                                            <span>🗑️</span> נקה חתימה
+                                        </button>
+                                        <span id="signature_status" class="signature-status">חתימה נדרשת</span>
+                                    </div>
+                                    <input type="hidden" id="signature_data" name="signature_data" required>
+                                </div>
+                                
+                                <!-- Test Signature Button -->
+                                <div style="margin-top: 10px; padding: 10px; background: #f0f8ff; border: 1px solid #0073aa; border-radius: 4px;">
+                                    <button type="button" onclick="testSignatureSystem()" class="button" style="background: #0073aa; color: white; border: none; padding: 8px 16px; border-radius: 3px; cursor: pointer;">
+                                        🧪 Test Signature System
+                                    </button>
+                                    <span style="font-size: 12px; color: #666; margin-left: 10px;">Click to test if signature saving works</span>
                                 </div>
                             </div>
                         </div>
@@ -1645,13 +1687,19 @@ class ACF_Quiz_System {
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
 
+        // Debug logging for signature data
+        error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
+        error_log('Quiz submission debug - final_declaration: ' . ($final_declaration ? 'YES' : 'NO'));
+        error_log('Quiz submission debug - quiz_data keys: ' . implode(', ', array_keys($quiz_data)));
+
         if (empty($user_name) || empty($user_phone) || !$final_declaration) {
             wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההצהרה הסופית.', 'acf-quiz')));
         }
         
-        // Signature is optional but recommended
+        // Signature validation - require signature for complete submissions
         if (empty($signature_data)) {
-            error_log('Quiz submission: No signature provided, but allowing submission to proceed');
+            error_log('Quiz submission: No signature provided - this should not happen for complete submissions');
+            wp_send_json_error(array('message' => __('חתימה דיגיטלית נדרשת להשלמת השאלון.', 'acf-quiz')));
         }
 
         // Get quiz data
@@ -3033,18 +3081,54 @@ class ACF_Quiz_System {
                             <tr><th>Is Complete:</th><td><?php echo ($submission->is_complete ?? false) ? 'Complete submission' : 'Partial (Step 1 only)'; ?></td></tr>
                         </table>
                         
+                        <h3>Submission Status</h3>
+                        <table class="form-table">
+                            <tr><th>Current Step:</th><td><?php echo esc_html($submission->current_step ?? 'Unknown'); ?>/4</td></tr>
+                            <tr><th>Completed:</th><td><?php echo ($submission->completed ?? false) ? '✅ Complete' : '⏳ Incomplete'; ?></td></tr>
+                            <tr><th>Progress:</th><td>
+                                <?php 
+                                $step = intval($submission->current_step ?? 0);
+                                $steps = ['Not Started', 'Personal Info', 'Quiz Questions', 'Additional Info', 'Complete'];
+                                echo esc_html($steps[$step] ?? 'Unknown Step');
+                                ?>
+                            </td></tr>
+                        </table>
+                        
+                        <h3>Digital Signature</h3>
+                        <table class="form-table">
+                            <tr><th>Signature Status:</th><td>
+                                <?php if (!empty($submission->signature_data)): ?>
+                                    <span style="color: green;">✅ Signature Captured</span>
+                                    <div style="margin-top: 10px;">
+                                        <div class="signature-display" style="border: 2px solid #ddd; padding: 10px; background: #f9f9f9; border-radius: 5px; max-width: 500px;">
+                                            <img src="<?php echo esc_attr($submission->signature_data); ?>" 
+                                                 style="max-width: 100%; height: auto; border: 1px solid #ccc;" 
+                                                 alt="Digital Signature">
+                                            <div style="margin-top: 10px;">
+                                                <button type="button" onclick="downloadSignature(<?php echo $submission->id; ?>)" 
+                                                        class="button button-secondary" style="margin-right: 10px;">
+                                                    📥 Download Signature
+                                                </button>
+                                                <button type="button" onclick="viewSignatureFullscreen(<?php echo $submission->id; ?>)" 
+                                                        class="button button-secondary">
+                                                    🔍 View Full Size
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php elseif (($submission->completed ?? false)): ?>
+                                    <span style="color: orange;">⚠️ No signature provided (completed without signature)</span>
+                                <?php else: ?>
+                                    <span style="color: #666;">❌ Not available (submission incomplete - signature captured in final step)</span>
+                                <?php endif; ?>
+                            </td></tr>
+                        </table>
+                        
                         <h3>Metadata</h3>
                         <table class="form-table">
                             <tr><th>Created:</th><td><?php echo esc_html($submission->created_at ?? 'Not recorded'); ?></td></tr>
                             <tr><th>Updated:</th><td><?php echo esc_html($submission->updated_at ?? 'Not recorded'); ?></td></tr>
                             <tr><th>IP Address:</th><td><?php echo esc_html($submission->ip_address ?? 'Not recorded'); ?></td></tr>
-                            <tr><th>Signature:</th><td>
-                                <?php if (!empty($submission->signature_data)): ?>
-                                    <img src="<?php echo esc_attr($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature">
-                                <?php else: ?>
-                                    No signature provided
-                                <?php endif; ?>
-                            </td></tr>
                         </table>
                         
                         <p><a href="?page=quiz-submissions-viewer" class="button">← Back to List</a></p>
@@ -3052,6 +3136,78 @@ class ACF_Quiz_System {
                 <?php endif; ?>
             <?php endif; ?>
         </div>
+        
+        <!-- Signature Modal -->
+        <div id="signature-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 8px;">
+                <button onclick="closeSignatureModal()" style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                <img id="modal-signature-img" src="" style="max-width: 100%; max-height: 70vh; object-fit: contain;" alt="Signature Full Size">
+                <div style="text-align: center; margin-top: 15px;">
+                    <button onclick="downloadSignatureFromModal()" class="button button-primary">📥 Download</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        let currentSignatureData = '';
+        let currentSubmissionId = '';
+        
+        function downloadSignature(submissionId) {
+            // Get signature data from the image src
+            const imgElement = document.querySelector(`img[alt="Digital Signature"]`);
+            if (imgElement && imgElement.src) {
+                const link = document.createElement('a');
+                link.download = `signature_${submissionId}_${new Date().toISOString().split('T')[0]}.png`;
+                link.href = imgElement.src;
+                link.click();
+            }
+        }
+        
+        function viewSignatureFullscreen(submissionId) {
+            const imgElement = document.querySelector(`img[alt="Digital Signature"]`);
+            if (imgElement && imgElement.src) {
+                currentSignatureData = imgElement.src;
+                currentSubmissionId = submissionId;
+                
+                const modal = document.getElementById('signature-modal');
+                const modalImg = document.getElementById('modal-signature-img');
+                
+                modalImg.src = currentSignatureData;
+                modal.style.display = 'flex';
+                
+                // Close on background click
+                modal.onclick = function(e) {
+                    if (e.target === modal) {
+                        closeSignatureModal();
+                    }
+                };
+                
+                // Close on Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closeSignatureModal();
+                    }
+                });
+            }
+        }
+        
+        function closeSignatureModal() {
+            const modal = document.getElementById('signature-modal');
+            modal.style.display = 'none';
+            currentSignatureData = '';
+            currentSubmissionId = '';
+        }
+        
+        function downloadSignatureFromModal() {
+            if (currentSignatureData && currentSubmissionId) {
+                const link = document.createElement('a');
+                link.download = `signature_${currentSubmissionId}_${new Date().toISOString().split('T')[0]}.png`;
+                link.href = currentSignatureData;
+                link.click();
+            }
+        }
+        </script>
+        
         <?php
     }
 

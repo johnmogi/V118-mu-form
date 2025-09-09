@@ -643,9 +643,11 @@ jQuery(document).ready(function($) {
             } 
             else {
                 // Only on step 4, show submit button and hide next button
+                console.log('Step 4 detected - showing submit button, isValid:', isValid);
                 this.nextButton.hide();
-                this.submitButton.toggle(isValid);
+                this.submitButton.show(); // Force show submit button
                 this.submitButton.prop('disabled', !isValid);
+                console.log('Submit button visibility:', this.submitButton.is(':visible'));
             }
         },
         
