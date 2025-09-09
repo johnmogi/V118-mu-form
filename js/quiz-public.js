@@ -37,17 +37,24 @@ jQuery(document).ready(function($) {
             
             if (this.form.length) {
                 this.bindEvents();
-                this.updateStepDisplay();
                 this.validateCurrentStep();
                 this.setupConditionalElements();
             }
         },
         
         bindEvents: function() {
+            console.log('Binding events...');
+            console.log('Submit button element:', this.submitButton);
+            console.log('Submit button exists:', this.submitButton.length);
+            
             // Navigation buttons
             this.nextButton.on('click', this.handleNextStep.bind(this));
             this.prevButton.on('click', this.handlePrevStep.bind(this));
             this.submitButton.on('click', this.handleSubmit.bind(this));
+            
+            // Additional submit button binding with direct selector
+            $(document).on('click', '#submit-form', this.handleSubmit.bind(this));
+            console.log('Submit button event bound');
             
             // Handle clicks on disabled next button to show validation errors
             this.nextButton.on('click', (e) => {
@@ -108,6 +115,8 @@ jQuery(document).ready(function($) {
         
         handleSubmit: function(e) {
             console.log('=== HANDLE SUBMIT CALLED ===');
+            console.log('Submit event:', e);
+            console.log('Submit button element:', e.target);
             e.preventDefault();
             
             // CRITICAL: Set formSubmitting flag IMMEDIATELY to prevent beforeunload
@@ -157,23 +166,38 @@ jQuery(document).ready(function($) {
             
             // SAVE SIGNATURE BEFORE FORM SUBMISSION
             console.log('=== SAVING SIGNATURE BEFORE SUBMISSION ===');
+            console.log('Current stepData:', this.stepData);
+            console.log('Step 1 data:', this.stepData['step_1']);
+            
             if (window.signaturePad && !window.signaturePad.isEmpty()) {
                 const signatureData = window.signaturePad.toDataURL('image/png');
                 console.log('Signature data captured, length:', signatureData.length);
+                
+                // Get user email from step data
+                const userEmail = this.stepData['step_1']?.user_email || 'form-submission@example.com';
+                console.log('Using email for signature:', userEmail);
                 
                 // Save signature via AJAX
                 const signatureFormData = new FormData();
                 signatureFormData.append('action', 'save_signature');
                 signatureFormData.append('signature_data', signatureData);
-                signatureFormData.append('user_email', this.stepData[1]?.user_email || 'unknown@example.com');
-                signatureFormData.append('nonce', window.acfQuiz.nonce);
+                signatureFormData.append('user_email', userEmail);
+                // Create signature nonce manually since signature_ajax might not be available
+                const signatureNonce = typeof signature_ajax !== 'undefined' ? signature_ajax.nonce : window.acfQuiz.nonce;
+                signatureFormData.append('nonce', signatureNonce);
+                console.log('Using nonce:', signatureNonce);
+                
+                console.log('Sending signature save request...');
                 
                 // Send signature save request
                 fetch(window.acfQuiz.ajaxUrl, {
                     method: 'POST',
                     body: signatureFormData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Raw signature save response:', response);
+                    return response.json();
+                })
                 .then(data => {
                     console.log('Signature save response:', data);
                     if (data.success) {
@@ -187,6 +211,8 @@ jQuery(document).ready(function($) {
                 });
             } else {
                 console.log('⚠️ No signature to save (pad empty or not found)');
+                console.log('Signature pad exists:', !!window.signaturePad);
+                console.log('Signature pad isEmpty:', window.signaturePad ? window.signaturePad.isEmpty() : 'N/A');
             }
             
             // Set loading state
@@ -564,12 +590,6 @@ jQuery(document).ready(function($) {
                 console.log('Showing other subscription checkbox for non-monthly package');
             }
             
-            // Initialize confirmation modal as hidden
-            $('#confirmation-modal').hide().css({
-                'display': 'none',
-                'visibility': 'hidden',
-                'opacity': '0'
-            });
         },
         
         setupNewCheckbox: function() {
@@ -622,6 +642,8 @@ jQuery(document).ready(function($) {
             
             // Handle step-specific logic
             if (stepNumber === 4) {
+                console.log('=== STEP 4 REACHED ===');
+                
                 // Scroll to top
                 $('html, body').animate({
                     scrollTop: $('.acf-quiz-container').offset().top - 50
@@ -632,26 +654,25 @@ jQuery(document).ready(function($) {
                     if (typeof initSignaturePad === 'function') {
                         initSignaturePad();
                     }
-            const stepTitles = {
-                1: { title: 'שאלון התאמה - חלק א׳', subtitle: 'שלב 1 מתוך 4' },
-                2: { title: 'שאלון התאמה - חלק א׳', subtitle: 'שלב 2 מתוך 4' },
-                3: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 3 מתוך 4' },
-                4: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 4 מתוך 4' }
-            };
-            
-            $('#step-title').text(stepTitles[this.currentStep].title);
-            $('#step-subtitle').text(stepTitles[this.currentStep].subtitle);
-            
-            // Initialize signature pad when step 4 is shown
-            if (step === 4) {
-                console.log('Step 4 shown - initializing signature pad');
-                setTimeout(function() {
-                    if (typeof initSignaturePad === 'function') {
-                        initSignaturePad();
-                    } else {
-                        console.error('initSignaturePad function not found');
-                    }
                 }, 100);
+                
+                // Force submit button visibility on step 4
+                setTimeout(() => {
+                    console.log('Forcing submit button visibility on step 4');
+                    const submitBtn = $('#submit-form');
+                    submitBtn.show().css({
+                        'display': 'block !important',
+                        'visibility': 'visible !important'
+                    });
+                    console.log('Submit button after force show:', submitBtn.is(':visible'));
+                    
+                    // Test click handler
+                    console.log('Testing submit button click handler...');
+                    submitBtn.off('click').on('click', function(e) {
+                        console.log('DIRECT SUBMIT BUTTON CLICKED!');
+                        MultiStepQuiz.handleSubmit(e);
+                    });
+                }, 200);
             }
         },
         
@@ -674,13 +695,22 @@ jQuery(document).ready(function($) {
                 // Only on step 4, show submit button and hide next button
                 console.log('Step 4 detected - showing submit button, isValid:', isValid);
                 this.nextButton.hide();
-                this.submitButton.show(); // Force show submit button
-                this.submitButton.prop('disabled', !isValid);
-                console.log('Submit button visibility:', this.submitButton.is(':visible'));
                 
-                // Force submit button to be visible with CSS override
-                this.submitButton.css('display', 'block');
-                this.submitButton.css('visibility', 'visible');
+                // AGGRESSIVE SUBMIT BUTTON VISIBILITY FIX
+                this.submitButton.show();
+                this.submitButton.css({
+                    'display': 'block !important',
+                    'visibility': 'visible !important',
+                    'opacity': '1 !important'
+                });
+                this.submitButton.prop('disabled', !isValid);
+                
+                // Additional DOM manipulation to ensure visibility
+                document.getElementById('submit-form').style.setProperty('display', 'block', 'important');
+                document.getElementById('submit-form').style.setProperty('visibility', 'visible', 'important');
+                
+                console.log('Submit button visibility after fix:', this.submitButton.is(':visible'));
+                console.log('Submit button display style:', this.submitButton.css('display'));
             }
         },
         

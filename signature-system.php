@@ -85,9 +85,12 @@ class Simple_Signature_System {
     public function save_signature() {
         error_log('Save signature AJAX called - POST data: ' . print_r($_POST, true));
         
-        // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'signature_nonce')) {
-            error_log('Signature save failed: Security check failed');
+        // Verify nonce - accept both signature_nonce and acf_quiz_nonce
+        $nonce_valid = wp_verify_nonce($_POST['nonce'], 'signature_nonce') || 
+                      wp_verify_nonce($_POST['nonce'], 'acf_quiz_nonce');
+        
+        if (!$nonce_valid) {
+            error_log('Signature save failed: Security check failed - nonce: ' . $_POST['nonce']);
             wp_send_json_error('Security check failed');
         }
         

@@ -1453,18 +1453,6 @@ class ACF_Quiz_System {
                 </div>
             </form>
             
-            <!-- Confirmation Modal -->
-            <div id="confirmation-modal" class="confirmation-modal">
-                <div class="modal-content">
-                    <h3>האם אתה בטוח?</h3>
-                    <p>יציאה מהטופס תגרום לאיבוד כל המידע שמילאת. האם אתה בטוח שברצונך לעזוב?</p>
-                    <p><small>💡 השתמש בכפתורי "חזרה" ו"המשך" בתחתית הטופס כדי לנווט בין השלבים</small></p>
-                    <div class="modal-buttons">
-                        <button class="modal-btn cancel" id="modal-cancel">ביטול</button>
-                        <button class="modal-btn confirm" id="modal-confirm">כן, צא מהטופס</button>
-                    </div>
-                </div>
-            </div>
             
             <!-- Results container -->
             <div id="quiz-results" class="quiz-results" style="display: none;">
