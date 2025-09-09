@@ -208,7 +208,7 @@ jQuery(document).ready(function($) {
             }
             
             console.log('Calculated total score:', totalScore, '/40');
-            const passed = totalScore >= 21;
+            const passed = totalScore >= 23;
             console.log('Quiz result:', passed ? 'PASSED' : 'FAILED');
             
             // Store final submission before redirect
@@ -251,8 +251,14 @@ jQuery(document).ready(function($) {
                     
                     console.log('Redirecting to:', window.location.href);
                 } else {
-                    console.log('FAILED - Redirecting to test page');
-                    window.location.href = '/test?score=' + totalScore;
+                    console.log('FAILED - Checking score for redirect');
+                    if (totalScore >= 19 && totalScore <= 22) {
+                        console.log('Score 19-22 - Redirecting to test page');
+                        window.location.href = '/test?score=' + totalScore;
+                    } else {
+                        console.log('Score below 19 - Redirecting to followup page');
+                        window.location.href = '/followup?score=' + totalScore;
+                    }
                 }
             }, 1000); // 1 second delay
             

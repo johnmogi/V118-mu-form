@@ -97,6 +97,9 @@ class ACF_Quiz_System {
         // Register shortcodes
         add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
         
+        // Initialize submissions viewer
+        add_action('admin_menu', array($this, 'add_submissions_menu'));
+        
         // WooCommerce integration
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
         add_filter('woocommerce_checkout_get_value', array($this, 'get_checkout_field_value'), 10, 2);
@@ -1340,12 +1343,19 @@ class ACF_Quiz_System {
                             </div>
                             
                             <div class="declaration-checkbox">
-                                <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input" required>
-                                <label for="final_declaration" class="checkbox-label">
-                                    <span class="checkmark"></span>
-                                    אני מאשר כי קראתי והבנתי את כל האמור לעיל
-                                    <span class="required">*</span>
-                                </label>
+                                <div class="checkbox-group-new">
+                                    <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input-new rtl-input" required>
+                                    <label for="final_declaration" class="checkbox-label-new">
+                                        אני מאשר כי קראתי והבנתי את כל האמור לעיל
+                                        <span class="required">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="declaration-text">
+                                <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
+                                <p>אני מבין כי מסירת מידע כוזב או לא מדויק עלולה להביא לביטול הסכם השירות ו/או לכל תוצאה משפטית אחרת.</p>
+                                <p>אני מאשר כי קיבלתי הסברים מפורטים אודות השירותים הניתנים על ידי מנהל השירות, לרבות אודות הסיכונים הכרוכים במסחר עצמאי בכלים פיננסיים.</p>
                             </div>
                             
                             <!-- Conditional subscription checkbox based on package type -->
@@ -1679,10 +1689,10 @@ class ACF_Quiz_System {
         }
 
         // Check scoring rules:
-        // - 21+ points: Pass (proceed to checkout)
+        // - 23+ points: Pass (proceed to checkout)
         // - 19-22 points: Redirect to /test
         // - Below 19: Fail (redirect to followup)
-        $passed = $total_score >= 21;
+        $passed = $total_score >= 23;
         $test_redirect = ($total_score >= 19 && $total_score <= 22);
         $score_percentage = round(($total_score / $max_possible_score) * 100);
 
@@ -2094,9 +2104,9 @@ class ACF_Quiz_System {
     }
 
     /**
-     * Render submissions admin page
+     * Render submissions admin page (legacy - removed to avoid duplicate method)
      */
-    public function render_submissions_page() {
+    public function render_submissions_admin_page_legacy() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
         
@@ -2864,6 +2874,39 @@ class ACF_Quiz_System {
             )
         ), $checkout->get_value('id_photo_upload'));
         
+        // Add mobile-friendly file upload styling
+        ?>
+        <style>
+        #id_photo_upload_field input[type="file"] {
+            width: 100% !important;
+            padding: 10px !important;
+            border: 2px dashed #ddd !important;
+            border-radius: 5px !important;
+            background: #f9f9f9 !important;
+            cursor: pointer !important;
+            font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+        
+        @media (max-width: 768px) {
+            #id_photo_upload_field input[type="file"] {
+                font-size: 16px !important; /* Critical for mobile */
+                -webkit-appearance: none !important;
+                appearance: none !important;
+            }
+            
+            #id_photo_upload_field input[type="file"]::-webkit-file-upload-button {
+                background: #007cba !important;
+                color: white !important;
+                border: none !important;
+                padding: 8px 12px !important;
+                border-radius: 3px !important;
+                margin-right: 10px !important;
+                font-size: 14px !important;
+            }
+        }
+        </style>
+        <?php
+        
         // Determine subscription type based on URL parameter
         $is_3_month_plan = (isset($_GET['monthly']) || isset($_SESSION['package_type']) && $_SESSION['package_type'] === 'monthly');
         
@@ -2884,6 +2927,134 @@ class ACF_Quiz_System {
         echo '</div>';
     }
     
+    /**
+     * Add submissions viewer menu
+     */
+    public function add_submissions_menu() {
+        add_menu_page(
+            'Quiz Submissions',
+            'Quiz Submissions', 
+            'manage_options',
+            'quiz-submissions-viewer',
+            array($this, 'render_submissions_page'),
+            'dashicons-list-view',
+            25
+        );
+    }
+
+    /**
+     * Render submissions viewer page (main implementation)
+     */
+    public function render_submissions_page() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'quiz_submissions';
+        
+        // Handle delete action
+        if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']) && current_user_can('manage_options')) {
+            $id = intval($_GET['id']);
+            $wpdb->delete($table_name, array('id' => $id), array('%d'));
+            echo '<div class="notice notice-success"><p>Submission deleted successfully.</p></div>';
+        }
+        
+        // Get all submissions
+        $submissions = $wpdb->get_results("SELECT * FROM {$table_name} ORDER BY created_at DESC");
+        
+        ?>
+        <div class="wrap">
+            <h1>Quiz Submissions Viewer</h1>
+            <p>View and manage quiz submissions and leads data.</p>
+            
+            <?php if (empty($submissions)): ?>
+                <div class="notice notice-info">
+                    <p>No submissions found. Submissions will appear here when users complete the quiz form.</p>
+                </div>
+            <?php else: ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Score</th>
+                            <th>Passed</th>
+                            <th>Complete</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($submissions as $submission): ?>
+                            <tr>
+                                <td><?php echo esc_html($submission->id); ?></td>
+                                <td><?php echo esc_html(($submission->first_name ?? '') . ' ' . ($submission->last_name ?? '')); ?></td>
+                                <td><?php echo esc_html($submission->email ?? ''); ?></td>
+                                <td><?php echo esc_html($submission->phone ?? ''); ?></td>
+                                <td><?php echo esc_html($submission->total_score ?? 'N/A'); ?></td>
+                                <td><?php echo ($submission->passed ?? false) ? '✅ Yes' : '❌ No'; ?></td>
+                                <td><?php echo ($submission->is_complete ?? false) ? '✅ Complete' : '⏳ Partial'; ?></td>
+                                <td><?php echo esc_html($submission->created_at ?? ''); ?></td>
+                                <td>
+                                    <a href="?page=quiz-submissions-viewer&action=view&id=<?php echo $submission->id; ?>" class="button button-small">View</a>
+                                    <?php if (current_user_can('manage_options')): ?>
+                                        <a href="?page=quiz-submissions-viewer&action=delete&id=<?php echo $submission->id; ?>" class="button button-small" onclick="return confirm('Are you sure?')">Delete</a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+            
+            <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
+                <?php
+                $id = intval($_GET['id']);
+                $submission = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table_name} WHERE id = %d", $id));
+                ?>
+                
+                <?php if ($submission): ?>
+                    <div style="margin-top: 20px; padding: 20px; background: #fff; border: 1px solid #ccd0d4;">
+                        <h2>Submission Details - ID: <?php echo esc_html($submission->id); ?></h2>
+                        
+                        <h3>Personal Information</h3>
+                        <table class="form-table">
+                            <tr><th>First Name:</th><td><?php echo esc_html($submission->first_name ?? 'Not provided'); ?></td></tr>
+                            <tr><th>Last Name:</th><td><?php echo esc_html($submission->last_name ?? 'Not provided'); ?></td></tr>
+                            <tr><th>Email:</th><td><?php echo esc_html($submission->email ?? 'Not provided'); ?></td></tr>
+                            <tr><th>Phone:</th><td><?php echo esc_html($submission->phone ?? 'Not provided'); ?></td></tr>
+                            <tr><th>ID Number:</th><td><?php echo esc_html($submission->id_number ?? 'Not provided'); ?></td></tr>
+                            <tr><th>Gender:</th><td><?php echo esc_html($submission->gender ?? 'Not provided'); ?></td></tr>
+                        </table>
+                        
+                        <h3>Quiz Results</h3>
+                        <table class="form-table">
+                            <tr><th>Total Score:</th><td><?php echo esc_html($submission->total_score ?? 'N/A'); ?>/40</td></tr>
+                            <tr><th>Passed:</th><td><?php echo ($submission->passed ?? false) ? 'Yes (23+ points)' : 'No (below 23 points)'; ?></td></tr>
+                            <tr><th>Is Complete:</th><td><?php echo ($submission->is_complete ?? false) ? 'Complete submission' : 'Partial (Step 1 only)'; ?></td></tr>
+                        </table>
+                        
+                        <h3>Metadata</h3>
+                        <table class="form-table">
+                            <tr><th>Created:</th><td><?php echo esc_html($submission->created_at ?? 'Not recorded'); ?></td></tr>
+                            <tr><th>Updated:</th><td><?php echo esc_html($submission->updated_at ?? 'Not recorded'); ?></td></tr>
+                            <tr><th>IP Address:</th><td><?php echo esc_html($submission->ip_address ?? 'Not recorded'); ?></td></tr>
+                            <tr><th>Signature:</th><td>
+                                <?php if (!empty($submission->signature_data)): ?>
+                                    <img src="<?php echo esc_attr($submission->signature_data); ?>" style="border: 1px solid #ccc; max-width: 400px; height: auto;" alt="Digital Signature">
+                                <?php else: ?>
+                                    No signature provided
+                                <?php endif; ?>
+                            </td></tr>
+                        </table>
+                        
+                        <p><a href="?page=quiz-submissions-viewer" class="button">← Back to List</a></p>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
     /**
      * Remove WooCommerce checkout additional fields and shipping section
      */
@@ -2938,46 +3109,6 @@ class ACF_Quiz_System {
         
         return $fields;
         
-        // Add JavaScript for file upload handling
-        ?>
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            // Handle file upload
-            $('#id_photo_upload').on('change', function() {
-                var file = this.files[0];
-                var maxSize = 5 * 1024 * 1024; // 5MB
-                var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
-                
-                if (file) {
-                    if (file.size > maxSize) {
-                        alert('קובץ גדול מדי. גודל מקסימלי: 5MB');
-                        $(this).val('');
-                        return false;
-                    }
-                    
-                    if (!allowedTypes.includes(file.type)) {
-                        alert('סוג קובץ לא נתמך. אנא העלה תמונה או PDF');
-                        $(this).val('');
-                        return false;
-                    }
-                }
-            });
-        });
-        </script>
-        <style>
-        #custom_checkout_fields {
-            margin: 20px 0;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background: #f9f9f9;
-        }
-        #custom_checkout_fields h3 {
-            margin-top: 0;
-            color: #192954;
-        }
-        </style>
-        <?php
     }
 
     /**
