@@ -295,11 +295,97 @@ class Simple_Signature_System {
                     <script>
                     function downloadSignature(signatureId) {
                         const img = document.querySelector('img[alt="Digital Signature"]');
-                        if (img && img.src) {
-                            const link = document.createElement('a');
-                            link.download = `signature_${signatureId}_${new Date().toISOString().split('T')[0]}.png`;
-                            link.href = img.src;
-                            link.click();
+                        
+                        if (img && img.src && img.src.startsWith('data:image/png;base64,')) {
+                            const filename = `signature_${signatureId}_${new Date().toISOString().split('T')[0]}.png`;
+                            
+                            console.log('Original image src length:', img.src.length);
+                            console.log('Base64 preview:', img.src.substring(0, 100));
+                            
+                            // Method 1: Canvas approach (more reliable for complex images)
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            const tempImg = new Image();
+                            tempImg.crossOrigin = 'anonymous';
+                            
+                            tempImg.onload = function() {
+                                console.log('Image loaded, dimensions:', tempImg.width, 'x', tempImg.height);
+                                
+                                canvas.width = tempImg.width || 400;
+                                canvas.height = tempImg.height || 200;
+                                
+                                // Clear canvas with white background
+                                ctx.fillStyle = 'white';
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                
+                                // Draw the signature
+                                ctx.drawImage(tempImg, 0, 0);
+                                
+                                // Convert to blob
+                                canvas.toBlob(function(blob) {
+                                    console.log('Blob created, size:', blob.size, 'bytes');
+                                    
+                                    if (blob.size > 0) {
+                                        const url = URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.download = filename;
+                                        link.href = url;
+                                        link.style.display = 'none';
+                                        
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        
+                                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                        console.log('✅ Canvas method: Signature downloaded as:', filename);
+                                    } else {
+                                        console.error('❌ Blob is empty');
+                                        alert('Error: Generated image file is empty');
+                                    }
+                                }, 'image/png', 1.0);
+                            };
+                            
+                            tempImg.onerror = function() {
+                                console.error('❌ Failed to load image for canvas conversion');
+                                
+                                // Fallback: Direct base64 conversion
+                                try {
+                                    const base64Data = img.src.split(',')[1];
+                                    console.log('Fallback: Base64 data length:', base64Data.length);
+                                    
+                                    const byteCharacters = atob(base64Data);
+                                    const byteArray = new Uint8Array(byteCharacters.length);
+                                    
+                                    for (let i = 0; i < byteCharacters.length; i++) {
+                                        byteArray[i] = byteCharacters.charCodeAt(i);
+                                    }
+                                    
+                                    const blob = new Blob([byteArray], { type: 'image/png' });
+                                    console.log('Fallback blob size:', blob.size);
+                                    
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.download = filename;
+                                    link.href = url;
+                                    link.style.display = 'none';
+                                    
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                    console.log('✅ Fallback method: Signature downloaded as:', filename);
+                                } catch (e) {
+                                    console.error('❌ Fallback conversion failed:', e);
+                                    alert('Error: Could not convert signature for download');
+                                }
+                            };
+                            
+                            tempImg.src = img.src;
+                            
+                        } else {
+                            alert('No signature image found to download');
                         }
                     }
                     </script>

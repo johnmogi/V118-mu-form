@@ -155,6 +155,40 @@ jQuery(document).ready(function($) {
             // Save the final step data
             this.saveCurrentStepData();
             
+            // SAVE SIGNATURE BEFORE FORM SUBMISSION
+            console.log('=== SAVING SIGNATURE BEFORE SUBMISSION ===');
+            if (window.signaturePad && !window.signaturePad.isEmpty()) {
+                const signatureData = window.signaturePad.toDataURL('image/png');
+                console.log('Signature data captured, length:', signatureData.length);
+                
+                // Save signature via AJAX
+                const signatureFormData = new FormData();
+                signatureFormData.append('action', 'save_signature');
+                signatureFormData.append('signature_data', signatureData);
+                signatureFormData.append('user_email', this.stepData[1]?.user_email || 'unknown@example.com');
+                signatureFormData.append('nonce', window.acfQuiz.nonce);
+                
+                // Send signature save request
+                fetch(window.acfQuiz.ajaxUrl, {
+                    method: 'POST',
+                    body: signatureFormData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Signature save response:', data);
+                    if (data.success) {
+                        console.log('✅ Signature saved successfully with ID:', data.data.signature_id);
+                    } else {
+                        console.error('❌ Signature save failed:', data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Signature save error:', error);
+                });
+            } else {
+                console.log('⚠️ No signature to save (pad empty or not found)');
+            }
+            
             // Set loading state
             this.isSubmitting = true;
             this.setLoadingState(true);
@@ -598,42 +632,37 @@ jQuery(document).ready(function($) {
                     if (typeof initSignaturePad === 'function') {
                         initSignaturePad();
                     }
-                }, 200);
-            }
-            
-            // Update UI and validate
-            this.updateStepDisplay();
-            this.validateCurrentStep(false); // Don't show errors on initial load
-            
-            // Trigger custom event for step change
-            $(document).trigger('formStepChanged', [stepNumber]);
-        },
-        
-        updateStepDisplay: function() {
             const stepTitles = {
-                1: { title: 'שאלון התאמה', subtitle: 'שלב 1 מתוך 4' },
-                2: { title: 'פרטים אישיים', subtitle: 'שלב 2 מתוך 4' },
+                1: { title: 'שאלון התאמה - חלק א׳', subtitle: 'שלב 1 מתוך 4' },
+                2: { title: 'שאלון התאמה - חלק א׳', subtitle: 'שלב 2 מתוך 4' },
                 3: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 3 מתוך 4' },
                 4: { title: 'שאלון התאמה - חלק ב׳', subtitle: 'שלב 4 מתוך 4' }
             };
             
             $('#step-title').text(stepTitles[this.currentStep].title);
             $('#step-subtitle').text(stepTitles[this.currentStep].subtitle);
+            
+            // Initialize signature pad when step 4 is shown
+            if (step === 4) {
+                console.log('Step 4 shown - initializing signature pad');
+                setTimeout(function() {
+                    if (typeof initSignaturePad === 'function') {
+                        initSignaturePad();
+                    } else {
+                        console.error('initSignaturePad function not found');
+                    }
+                }, 100);
+            }
         },
         
         updateNavigationButtons: function(isValid) {
             // Show/hide prev button - only show from step 2 onwards
-            // Initialize signature pad when step 4 is shown
-        $(document).on('formStepChanged', function(e, step) {
-            if (step === 4) {
-                // Small delay to ensure the step is fully visible
-                setTimeout(initSignaturePad, 100);
-            } else if (window.signaturePad) {
-                // Clean up signature pad when leaving step 4
-                window.signaturePad.off();
-                window.signaturePad = null;
+            if (this.currentStep > 1) {
+                this.prevButton.show();
+            } else {
+                this.prevButton.hide();
             }
-        });    
+            
             // Handle next/submit buttons visibility
             if (this.currentStep < this.totalSteps) {
                 // On steps 1-3, show next button if valid
@@ -648,6 +677,10 @@ jQuery(document).ready(function($) {
                 this.submitButton.show(); // Force show submit button
                 this.submitButton.prop('disabled', !isValid);
                 console.log('Submit button visibility:', this.submitButton.is(':visible'));
+                
+                // Force submit button to be visible with CSS override
+                this.submitButton.css('display', 'block');
+                this.submitButton.css('visibility', 'visible');
             }
         },
         
