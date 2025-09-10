@@ -23,7 +23,7 @@ jQuery(document).ready(function($) {
             console.log('Initializing MultiStepQuiz...');
             
             // Cache DOM elements
-            this.form = $('#acf-calculator-form');
+            this.form = $('#acf-quiz-form');
             this.nextButton = $('#next-step');
             this.prevButton = $('#prev-step');
             this.submitButton = $('#submit-form');
@@ -336,9 +336,12 @@ jQuery(document).ready(function($) {
             $(document).trigger('formStepChanged', [stepNumber]);
             
             // Scroll to top of form smoothly
-            $('html, body').animate({
-                scrollTop: $('#acf-calculator-form').offset().top - 100
-            }, 300);
+            const formElement = $('#acf-quiz-form');
+            if (formElement.length) {
+                $('html, body').animate({
+                    scrollTop: formElement.offset().top - 100
+                }, 300);
+            }
         },
         
         updateStepDisplay: function() {
