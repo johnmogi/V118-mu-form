@@ -401,11 +401,15 @@ jQuery(document).ready(function($) {
             
             // Only validate and show errors if showErrors is true
             if (showErrors) {
-                // Validate ID number
+                // Validate ID number (8-9 digits)
                 if (!idNumber) {
                     isValid = false;
                     $idNumberField.addClass('error touched');
                     errorMessage = 'אנא מלא את מספר תעודת הזהות';
+                } else if (!/^\d{8,9}$/.test(idNumber)) {
+                    isValid = false;
+                    $idNumberField.addClass('error touched');
+                    errorMessage = 'מספר תעודת זהות חייב להכיל 8-9 ספרות בלבד';
                 } else {
                     $idNumberField.removeClass('error touched');
                 }
@@ -692,8 +696,8 @@ jQuery(document).ready(function($) {
                 this.nextButton.prop('disabled', !isValid);
             } 
             else {
-                // Only on step 4, show submit button and hide next button
-                console.log('Step 4 detected - showing submit button, isValid:', isValid);
+                // Step 4: Hide next button completely, only show submit
+                console.log('Step 4 detected - hiding next button completely, isValid:', isValid);
                 this.nextButton.hide();
                 
                 // AGGRESSIVE SUBMIT BUTTON VISIBILITY FIX
