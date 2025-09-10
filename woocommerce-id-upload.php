@@ -1,12 +1,15 @@
 <?php
 /**
- * WooCommerce ID Photo Upload
- * Adds ID photo upload field to checkout form
+ * WooCommerce ID Photo Upload - DISABLED
+ * ID upload functionality moved to step 4 of the quiz form
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// DISABLED: ID upload moved to step 4
+return;
 
 class WooCommerce_ID_Upload {
     
