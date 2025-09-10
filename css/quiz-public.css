@@ -90,7 +90,7 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .step-indicator .step.completed::after {
-    content: '✓';
+    content: '';
     position: absolute;
     font-size: 14px;
 }
@@ -581,13 +581,6 @@ html[dir="rtl"] .question-block {
 html[dir="rtl"] .answers-container {
     margin-right: 0;
     margin-left: 0;
-}
-
-/* Add back margin for desktop */
-@media (min-width: 768px) {
-    html[dir="rtl"] .answers-container {
-        margin-right: 45px;
-    }
 }
 
 .answer-option {

@@ -1384,10 +1384,45 @@ class ACF_Quiz_System {
                 // Initialize on page load if already on step 4
                 $(document).ready(function() {
                     setTimeout(initializeSignaturePad, 200);
+                    
+                    // Force navigation buttons visibility and initialize quiz
+                    setTimeout(function() {
+                        $('.form-navigation').show().css({
+                            'display': 'flex !important',
+                            'visibility': 'visible !important',
+                            'opacity': '1 !important'
+                        });
+                        
+                        // Show next button on step 1
+                        $('#next-step').show().css('display', 'inline-block');
+                        
+                        // Initialize the quiz system if it exists
+                        if (typeof MultiStepQuiz !== 'undefined') {
+                            MultiStepQuiz.init();
+                        }
+                        
+                        // Force show navigation buttons with direct DOM manipulation
+                        const navContainer = document.querySelector('.form-navigation');
+                        const nextBtn = document.getElementById('next-step');
+                        const prevBtn = document.getElementById('prev-step');
+                        
+                        if (navContainer) {
+                            navContainer.style.setProperty('display', 'flex', 'important');
+                            navContainer.style.setProperty('visibility', 'visible', 'important');
+                            navContainer.style.setProperty('opacity', '1', 'important');
+                        }
+                        
+                        if (nextBtn) {
+                            nextBtn.style.setProperty('display', 'inline-block', 'important');
+                            nextBtn.style.setProperty('visibility', 'visible', 'important');
+                        }
+                        
+                        console.log('Navigation buttons forced visible and quiz initialized');
+                    }, 100);
                 });
             });";
             
-            wp_add_inline_script('signature-pad', $signature_js);
+            wp_add_inline_script('jquery', $signature_js);
         }
     }
 
@@ -1682,39 +1717,87 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 4: Agreement Contract with ID Upload -->
+                <!-- Step 4: Last 5 Questions + Agreement Contract with ID Upload -->
                 <div class="form-step" data-step="4">
                     <div class="step-intro">
+                        <h3>שאלון התאמה - חלק ב׳</h3>
+                        <p>השלמת השאלות האחרונות והסכם התקשרות</p>
+                    </div>
+                    
+                    <div class="questions-container">
+                        <?php 
+                        $question_counter = 6; // Start numbering from 6
+                        for ($i = 5; $i < 10; $i++) : ?>
+                            <?php if (isset($questions[$i]) && !empty($questions[$i]['question_text'])) : ?>
+                                <div class="question-block" data-question="<?php echo $i; ?>">
+                                    <div class="question-header">
+                                        <span class="question-number"><?php echo $question_counter; ?>.</span>
+                                        <h3 class="question-text"><?php echo esc_html($questions[$i]['question_text']); ?></h3>
+                                    </div>
+                                    
+                                    <div class="answers-container">
+                                        <?php if (!empty($questions[$i]['answers'])) : ?>
+                                            <?php foreach ($questions[$i]['answers'] as $a_index => $answer) : ?>
+                                                <div class="answer-option">
+                                                    <input type="radio" 
+                                                           name="question_<?php echo $i; ?>" 
+                                                           id="q<?php echo $i; ?>_a<?php echo $a_index; ?>"
+                                                           value="<?php echo $answer['points']; ?>"
+                                                           class="answer-input"
+                                                           required>
+                                                    <label for="q<?php echo $i; ?>_a<?php echo $a_index; ?>" class="answer-label">
+                                                        <span class="answer-marker"></span>
+                                                        <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
+                                                    </label>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <?php $question_counter++; ?>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+
+                    <div class="agreement-header">
                         <h3>הסכם התקשרות לשירות "מכפיל רווח"</h3>
-                        <p>שלב 4 מתוך 4 – קריאת ההסכם ואישורו לפני מעבר לתשלום</p>
+                        <p>קריאת ההסכם ואישורו לפני מעבר לתשלום</p>
                     </div>
 
                     <div class="lead-box">
                         <p class="lead">
                             לפני ההצטרפות לשירות, נדרש לעיין ולהסכים לתנאי ההתקשרות. ההסכם נועד להבטיח שקיפות מלאה, להגדיר זכויות וחובות, ולהגן עליך כלקוח. לאחר קריאה ואישור תוכל להמשיך לשלב התשלום.
-                        </p>
-                    </div>
 
                     <div class="agreement-section">
                         <div class="agreement-box" id="agreementBox" tabindex="0" aria-label="תוכן ההסכם – גלילה נדרשת לסוף">
-                            <h3>תקציר ותנאים כלליים</h3>
-                            <p>מסמך זה מסדיר את תנאי השימוש בשירות "מכפיל רווח" לרבות היקף השירותים, מדיניות תמחור, תקופות, חידוש ושינוי תעריפים, ביטול מנוי, סודיות, פרטיות, זכויות יוצרים, והגבלת אחריות. יש לקרוא בעיון את כל הסעיפים.</p>
-                            <p><strong>אין באמור בהודעות השירות משום ייעוץ השקעות אישי</strong>; המידע הכלול מיועד למטרות אינפורמטיביות בלבד ואינו מהווה תחליף לשיקול דעת עצמאי.</p>
-                            <p>הנך מצהיר/ה כי ידוע לך שהשימוש בתכנים, באותות מסחר ובהערכות שוק הוא באחריותך הבלעדית, וכי החברה לא תהיה אחראית לנזקים ישירים או עקיפים שייגרמו כתוצאה משימוש בהם.</p>
-                            <p>החברה רשאית לעדכן את מתכונת השירות ואת תנאיו מעת לעת, בכפוף למסירת הודעה סבירה ובכפוף לדין החל. שינויים בתעריפים יחולו ממועד החידוש הבא, אלא אם נקבע אחרת במפורש.</p>
-                            <p>ההרשמה אישית ואינה ניתנת להעברה. אין לשתף תכני מנוי, לרבות הפצה בקבוצות צד־שלישי, בלי אישור מראש ובכתב.</p>
-                            <p>ביטול מנוי יתבצע בהתאם לחוק הגנת הצרכן ולהוראות ההסכם, ויכלול את מנגנון הזיכוי/המשך השירות עד סוף התקופה ששולמה.</p>
-                            <p>שמירת פרטיות: החברה תפעל בהתאם למדיניות הפרטיות המפורסמת באתר, ובכלל זה שימוש באמצעי אבטחה סבירים והעמדת מנגנוני בקרת גישה.</p>
-                            <p>החברה רשאית לשלוח עדכונים, התראות ותקשורת שוטפת באמצעים דיגיטליים כחלק מהשירות.</p>
-                            <p>סמכות שיפוט ושינוי תנאים, כוח עליון, ותנאים נוספים כמפורט בנוסח המלא של ההסכם.</p>
-                            <p>להלן נוסח מפורט (דמה) לצורך תצוגה ובדיקת גלילה. הטקסט משוכפל למילוי גובה התיבה:</p>
-                            <p>… סעיף 1 … סעיף 2 … סעיף 3 … סעיף 4 … סעיף 5 … סעיף 6 … סעיף 7 … סעיף 8 … סעיף 9 … סעיף 10 … סעיף 11 … סעיף 12 … סעיף 13 … סעיף 14 … סעיף 15 …</p>
-                            <p>… סעיף 16 … סעיף 17 … סעיף 18 … סעיף 19 … סעיף 20 … סעיף 21 … סעיף 22 … סעיף 23 … סעיף 24 … סעיף 25 … סעיף 26 … סעיף 27 … סעיף 28 … סעיף 29 … סעיף 30 …</p>
-                            <p>סיום ההסכם: עליך לקרוא את ההסכם במלואו. לאחר גלילה לתחתית תתאפשר בחירת תיבת האישור להמשך התהליך.</p>
+                            <?php 
+                            $final_declaration_content = get_field('final_declaration_text', 'option');
+                            if (!empty($final_declaration_content)) {
+                                echo wpautop($final_declaration_content);
+                            } else {
+                                // Default content if ACF field is empty
+                                ?>
+                                <h3>תקציר ותנאים כלליים</h3>
+                                <p>מסמך זה מסדיר את תנאי השימוש בשירות "מכפיל רווח" לרבות היקף השירותים, מדיניות תמחור, תקופות, חידוש ושינוי תעריפים, ביטול מנוי, סודיות, פרטיות, זכויות יוצרים, והגבלת אחריות. יש לקרוא בעיון את כל הסעיפים.</p>
+                                <p>אין באמור בהודעות השירות משום ייעוץ השקעות אישי; המידע הכלול מיועד למטרות אינפורמטיביות בלבד ואינו מהווה תחליף לשיקול דעת עצמאי.</p>
+                                <p>הנך מצהיר/ה כי ידוע לך שהשימוש בתכנים, באותות מסחר ובהערכות שוק הוא באחריותך הבלעדית, וכי החברה לא תהיה אחראית לנזקים ישירים או עקיפים שייגרמו כתוצאה משימוש בהם.</p>
+                                <p>החברה רשאית לעדכן את מתכונת השירות ואת תנאיו מעת לעת, בכפוף למסירת הודעה סבירה ובכפוף לדין החל. שינויים בתעריפים יחולו ממועד החידוש הבא, אלא אם נקבע אחרת במפורש.</p>
+                                <p>ההרשמה אישית ואינה ניתנת להעברה. אין לשתף תכני מנוי, לרבות הפצה בקבוצות צד־שלישי, בלי אישור מראש ובכתב.</p>
+                                <p>ביטול מנוי יתבצע בהתאם לחוק הגנת הצרכן ולהוראות ההסכם, ויכלול את מנגנון הזיכוי/המשך השירות עד סוף התקופה ששולמה.</p>
+                                <p>שמירת פרטיות: החברה תפעל בהתאם למדיניות הפרטיות המפורסמת באתר, ובכלל זה שימוש באמצעי אבטחה סבירים והעמדת מנגנוני בקרת גישה.</p>
+                                <p>החברה רשאית לשלוח עדכונים, התראות ותקשורת שוטפת באמצעים דיגיטליים כחלק מהשירות.</p>
+                                <p>סמכות שיפוט ושינוי תנאים, כוח עליון, ותנאים נוספים כמפורט בנוסח המלא של ההסכם.</p>
+                                <p>להלן נוסח מפורט (דמה) לצורך תצוגה ובדיקת גלילה. הטקסט משוכפל למילוי גובה התיבה:</p>
+                                <p>… סעיף 1 … סעיף 2 … סעיף 3 … סעיף 4 … סעיף 5 … סעיף 6 … סעיף 7 … סעיף 8 … סעיף 9 … סעיף 10 … סעיף 11 … סעיף 12 … סעיף 13 … סעיף 14 … סעיף 15 …</p>
+                                <p>… סעיף 16 … סעיף 17 … סעיף 18 … סעיף 19 … סעיף 20 … סעיף 21 … סעיף 22 … סעיף 23 … סעיף 24 … סעיף 25 … סעיף 26 … סעיף 27 … סעיף 28 … סעיף 29 … סעיף 30 …</p>
+                                <p>סיום ההסכם: עליך לקרוא את ההסכם במלואו. לאחר גלילה לתחתית תתאפשר בחירת תיבת האישור להמשך התהליך.</p>
+                                <?php
+                            }
+                            ?>
                         </div>
 
                         <label class="ack locked" id="ackLabel">
-                            <input type="checkbox" id="agreeCbx" name="agreement_accepted" disabled />
+                            <input type="checkbox" id="agreeCbx" name="final_declaration" disabled />
                             <span>
                                 אני מאשר/ת שקראתי והבנתי את ההסכם במלואו, ואני מסכים/ה לתנאיו.
                                 <span class="state" id="stateTag">יש לגלול עד סוף ההסכם כדי לאפשר אישור</span>
@@ -1735,11 +1818,17 @@ class ACF_Quiz_System {
                     <!-- חתימה דיגיטלית -->
                     <div class="signer">
                         <h3>חתימה דיגיטלית</h3>
-                        <canvas id="sigpad" class="sigpad" width="800" height="220" aria-label="אזור חתימה – גרור אצבע/עכבר לחתימה"></canvas>
+                        <div class="signature-container">
+                            <canvas id="signature_pad" class="signature-canvas" width="800" height="220" aria-label="אזור חתימה – גרור אצבע/עכבר לחתימה"></canvas>
+                            <div id="signature_placeholder" class="signature-placeholder" style="display: flex;">
+                                <span>חתמו כאן</span>
+                            </div>
+                        </div>
                         <div class="sig-actions">
                             <div class="left">אנא חתמו בתוך המסגרת. ניתן למחוק ולחתום שוב.</div>
                             <div class="right">
-                                <button id="clearSig" type="button">נקה חתימה</button>
+                                <button id="clear_signature" type="button">נקה חתימה</button>
+                                <span id="signature_status" class="signature-status">חתימה נדרשת</span>
                             </div>
                         </div>
                         <input type="hidden" id="signature_data" name="signature_data" required>

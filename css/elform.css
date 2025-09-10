@@ -227,6 +227,8 @@
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: relative !important;
+    z-index: 10 !important;
     justify-content: flex-end;
     margin-top: 20px;
     gap: 10px;
