@@ -98,6 +98,10 @@ class ACF_Quiz_System {
         add_action('wp_ajax_upload_id_photo', array($this, 'handle_id_upload'));
         add_action('wp_ajax_nopriv_upload_id_photo', array($this, 'handle_id_upload'));
         
+        // Add to cart and checkout handler
+        add_action('wp_ajax_add_to_cart_and_checkout', array($this, 'handle_add_to_cart_and_checkout'));
+        add_action('wp_ajax_nopriv_add_to_cart_and_checkout', array($this, 'handle_add_to_cart_and_checkout'));
+        
         // Register shortcodes
         add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
         
@@ -313,6 +317,69 @@ class ACF_Quiz_System {
                     'min' => 0,
                     'max' => '',
                     'step' => 1,
+                    'wrapper' => array(
+                        'width' => '34',
+                    ),
+                ),
+                // WooCommerce Product Selection Tab
+                array(
+                    'key' => 'field_woocommerce_tab',
+                    'label' => 'WooCommerce Products',
+                    'name' => '',
+                    'type' => 'tab',
+                    'instructions' => '',
+                    'required' => 0,
+                    'conditional_logic' => 0,
+                    'placement' => 'top',
+                    'endpoint' => 0,
+                ),
+                array(
+                    'key' => 'field_trial_product',
+                    'label' => 'Trial Package Product',
+                    'name' => 'trial_product',
+                    'type' => 'post_object',
+                    'instructions' => 'Select the WooCommerce product for the trial package',
+                    'required' => 0,
+                    'post_type' => array('product'),
+                    'taxonomy' => array(),
+                    'allow_null' => 1,
+                    'multiple' => 0,
+                    'return_format' => 'id',
+                    'ui' => 1,
+                    'wrapper' => array(
+                        'width' => '33',
+                    ),
+                ),
+                array(
+                    'key' => 'field_monthly_product',
+                    'label' => 'Monthly Package Product',
+                    'name' => 'monthly_product',
+                    'type' => 'post_object',
+                    'instructions' => 'Select the WooCommerce product for the monthly package',
+                    'required' => 0,
+                    'post_type' => array('product'),
+                    'taxonomy' => array(),
+                    'allow_null' => 1,
+                    'multiple' => 0,
+                    'return_format' => 'id',
+                    'ui' => 1,
+                    'wrapper' => array(
+                        'width' => '33',
+                    ),
+                ),
+                array(
+                    'key' => 'field_yearly_product',
+                    'label' => 'Yearly Package Product',
+                    'name' => 'yearly_product',
+                    'type' => 'post_object',
+                    'instructions' => 'Select the WooCommerce product for the yearly package',
+                    'required' => 0,
+                    'post_type' => array('product'),
+                    'taxonomy' => array(),
+                    'allow_null' => 1,
+                    'multiple' => 0,
+                    'return_format' => 'id',
+                    'ui' => 1,
                     'wrapper' => array(
                         'width' => '34',
                     ),
@@ -1068,7 +1135,7 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3: All 10 Investment Questions + Declaration -->
+                <!-- Step 3: First 5 Investment Questions -->
                 <div class="form-step" data-step="3">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
@@ -1076,7 +1143,47 @@ class ACF_Quiz_System {
                     </div>
                     
                     <div class="questions-container">
-                        <?php for ($i = 0; $i < 10; $i++) : ?>
+                        <?php for ($i = 0; $i < 5; $i++) : ?>
+                            <?php if (isset($questions[$i])) : ?>
+                                <div class="question-block" data-question="<?php echo $i; ?>">
+                                    <div class="question-header">
+                                        <span class="question-number"><?php echo ($i + 1); ?>.</span>
+                                        <h3 class="question-text"><?php echo esc_html($questions[$i]['question_text']); ?></h3>
+                                    </div>
+                                    
+                                    <div class="answers-container">
+                                        <?php if (!empty($questions[$i]['answers'])) : ?>
+                                            <?php foreach ($questions[$i]['answers'] as $a_index => $answer) : ?>
+                                                <div class="answer-option">
+                                                    <input type="radio" 
+                                                           name="question_<?php echo $i; ?>" 
+                                                           id="q<?php echo $i; ?>_a<?php echo $a_index; ?>"
+                                                           value="<?php echo $answer['points']; ?>"
+                                                           class="answer-input"
+                                                           required>
+                                                    <label for="q<?php echo $i; ?>_a<?php echo $a_index; ?>" class="answer-label">
+                                                        <span class="answer-marker"></span>
+                                                        <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
+                                                    </label>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- Step 3 (Part 2): Last 5 Questions + Declaration -->
+                <div class="form-step" data-step="3" data-substep="2">
+                    <div class="step-intro">
+                        <h3>שאלון התאמה - חלק ב׳</h3>
+                        <p>השלמת השאלות והצהרה סופית</p>
+                    </div>
+                    
+                    <div class="questions-container">
+                        <?php for ($i = 5; $i < 10; $i++) : ?>
                             <?php if (isset($questions[$i])) : ?>
                                 <div class="question-block" data-question="<?php echo $i; ?>">
                                     <div class="question-header">
@@ -1135,75 +1242,124 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 4: ID Upload and Signature -->
+                <!-- Step 4: Contract Agreement -->
                 <div class="form-step" data-step="4">
                     <div class="step-intro">
-                        <h3>אישור זהות וחתימה</h3>
-                        <p>להשלמת התהליך נדרש לאמת את זהותך ולחתום על ההסכם</p>
+                        <h3>הסכם לקוח לשירות ייעוץ למסחר עצמאי</h3>
+                        <p>אנא קראו בעיון את תנאי ההסכם לפני המעבר לתשלום</p>
                     </div>
                     
-                    <!-- ID Upload Section -->
-                    <div class="id-upload-section">
-                        <h5>העלאת תעודת זהות <span class="required">*</span></h5>
-                        <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
-                        <div class="id-upload-container">
-                            <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
-                            <div class="upload-progress" style="display: none;">
-                                <div class="progress-bar">
-                                    <div class="progress-fill"></div>
+                    <div class="contract-content">
+                        <div class="contract-text">
+                            <h4>תנאים כלליים</h4>
+                            <p>הסכם זה מסדיר את מתן שירותי ייעוץ למסחר עצמאי על ידי ליאור וידר ("מנהל השירות") ללקוח ("הלקוח").</p>
+                            
+                            <h4>הגדרות</h4>
+                            <ul>
+                                <li><strong>שירותי ייעוץ למסחר עצמאי:</strong> מתן מידע, ניתוחים, המלצות וכלים לסחר עצמאי בשווקים פיננסיים</li>
+                                <li><strong>הלקוח:</strong> מי שמקבל את השירותים על פי הסכם זה</li>
+                                <li><strong>מנהל השירות:</strong> ליאור וידר, מספר רישיון 308203896</li>
+                            </ul>
+                            
+                            <h4>אופי השירות</h4>
+                            <p>השירות כולל:</p>
+                            <ul>
+                                <li>איתותים למסחר בזמן אמת</li>
+                                <li>ניתוחים טכניים ופונדמנטליים</li>
+                                <li>המלצות השקעה כלליות</li>
+                                <li>חומרי הדרכה ולמידה</li>
+                            </ul>
+                            
+                            <h4>הצהרות הלקוח</h4>
+                            <p>הלקוח מצהיר ומתחייב כי:</p>
+                            <ul>
+                                <li>כל המידע שמסר במסגרת השאלון נכון ומדויק</li>
+                                <li>הוא מבין את הסיכונים הכרוכים במסחר בשווקים פיננסיים</li>
+                                <li>הוא פועל על אחריותו הבלעדית</li>
+                                <li>השירות אינו מהווה ייעוץ השקעות אישי</li>
+                            </ul>
+                            
+                            <h4>אחריות ושיפוי</h4>
+                            <p>מנהל השירות לא יהיה אחראי לכל נזק שייגרם ללקוח כתוצאה מהשימוש בשירות. הלקוח משחרר את מנהל השירות מכל אחריות ומתחייב לשפותו בגין כל תביעה שתוגש נגדו.</p>
+                            
+                            <h4>ביטול השירות</h4>
+                            <p>כל צד רשאי לבטל את ההסכם בהודעה מוקדמת של 30 יום. במקרה של הפרת ההסכם, ניתן לבטלו באופן מיידי.</p>
+                            
+                            <h4>סמכות שיפוט</h4>
+                            <p>כל מחלוקת תידון בבתי המשפט המוסמכים בישראל בלבד.</p>
+                        </div>
+                        
+                        <div class="contract-agreement">
+                            <div class="checkbox-group-new">
+                                <input type="checkbox" id="contract_agreement" name="contract_agreement" class="checkbox-input-new rtl-input" required>
+                                <label for="contract_agreement" class="checkbox-label-new">
+                                    אני מאשר כי קראתי, הבנתי ואני מסכים לכל תנאי ההסכם
+                                    <span class="required">*</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ID Upload and Signature Section -->
+                    <div class="id-signature-section">
+                        <h4>אימות זהות וחתימה דיגיטלית</h4>
+                        <p>להשלמת ההסכם נדרש לאמת את זהותך ולחתום דיגיטלית</p>
+                        
+                        <!-- ID Upload Section -->
+                        <div class="id-upload-section">
+                            <h5>העלאת תעודת זהות <span class="required">*</span></h5>
+                            <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
+                            <div class="id-upload-container">
+                                <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
+                                <div class="upload-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text">מעלה קובץ...</span>
                                 </div>
-                                <span class="progress-text">מעלה קובץ...</span>
-                            </div>
-                            <div class="upload-success" style="display: none;">
-                                <span class="success-icon">✓</span>
-                                <span class="success-text">הקובץ הועלה בהצלחה</span>
-                            </div>
-                            <div class="upload-error" style="display: none;">
-                                <span class="error-icon">✗</span>
-                                <span class="error-text"></span>
-                            </div>
-                            <div class="file-preview" id="file_preview" style="display: none;">
-                                <div class="preview-item">
-                                    <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <div class="file-info">
-                                        <span id="file_name"></span>
-                                        <span id="file_size"></span>
+                                <div class="upload-success" style="display: none;">
+                                    <span class="success-icon">✓</span>
+                                    <span class="success-text">הקובץ הועלה בהצלחה</span>
+                                </div>
+                                <div class="upload-error" style="display: none;">
+                                    <span class="error-icon">✗</span>
+                                    <span class="error-text"></span>
+                                </div>
+                                <div class="file-preview" id="file_preview" style="display: none;">
+                                    <div class="preview-item">
+                                        <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <div class="file-info">
+                                            <span id="file_name"></span>
+                                            <span id="file_size"></span>
+                                        </div>
                                     </div>
                                 </div>
+                                <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
                             </div>
-                            <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
                         </div>
-                    </div>
-                    
-                    <!-- Digital Signature Section -->
-                    <div class="signature-section">
-                        <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
-                        <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
-                        <div class="signature-container">
-                            <div class="signature-wrapper">
-                                <canvas id="signature_pad" width="400" height="150"></canvas>
-                                <div class="signature-placeholder" id="signature_placeholder">
-                                    <span>חתום כאן</span>
+                        
+                        <!-- Digital Signature Section -->
+                        <div class="signature-section">
+                            <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
+                            <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
+                            <div class="signature-container">
+                                <div class="signature-wrapper">
+                                    <canvas id="signature_pad" width="400" height="150"></canvas>
+                                    <div class="signature-placeholder" id="signature_placeholder">
+                                        חתום כאן
+                                    </div>
+                                </div>
+                                <div class="signature-controls">
+                                    <button type="button" id="clear_signature" class="btn-clear">נקה חתימה</button>
                                 </div>
                             </div>
-                            <div class="signature-controls">
-                                <button type="button" id="clear_signature" class="clear-signature-btn">
-                                    <span>🗑️</span> נקה חתימה
-                                </button>
-                                <span id="signature_status" class="signature-status">חתימה נדרשת</span>
-                            </div>
-                            <input type="hidden" id="signature_data" name="signature_data" required>
+                            <input type="hidden" id="signature_data" name="signature_data" value="">
                         </div>
                     </div>
                     
-                    <!-- Final Action Button -->
-                    <div class="final-action">
-                        <div class="action-notice">
-                            <p><strong>לאחר לחיצה על הכפתור למטה תועבר לתשלום</strong></p>
-                            <p>ודא שכל הפרטים נכונים לפני המשך התהליך</p>
-                        </div>
+                    <div class="checkout-section">
                         <button type="button" id="proceed-to-checkout" class="checkout-btn">
-                            אישור ומעבר לתשלום
+                            המשך לתשלום
                         </button>
                     </div>
                 </div>
@@ -1360,13 +1516,90 @@ class ACF_Quiz_System {
         .required {
             color: #f44336;
         }
+        
+        /* Checkout Button Styling */
+        .final-action {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+        }
+        
+        .checkout-btn {
+            background-color: #FFD700 !important;
+            color: #333 !important;
+            border: none !important;
+            padding: 20px 40px !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+            min-width: 300px !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+        
+        .checkout-btn:hover {
+            background-color: #FFC107 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+        }
+        
+        /* Fix step indicator display */
+        .step-indicator .step {
+            display: inline-block;
+        }
+        
+        /* Contract content styling */
+        .contract-content {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        
+        .contract-text h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .contract-text p {
+            line-height: 1.6;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+        
+        .contract-text ul {
+            margin: 10px 0;
+            padding-right: 20px;
+        }
+        
+        .contract-text li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .contract-agreement {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 2px solid #e74c3c;
+            border-radius: 8px;
+        }
         </style>
         
         <script>
         // Pass data to JavaScript
         window.acfQuiz = {
-            ajaxUrl: '<?php echo admin_url('admin-ajax.php'); ?>',
-            nonce: '<?php echo wp_create_nonce('acf_quiz_nonce'); ?>',
+            ajaxUrl: '<?php echo admin_url("admin-ajax.php"); ?>',
+            nonce: '<?php echo wp_create_nonce("acf_quiz_nonce"); ?>',
             strings: {
                 submit: 'שלח שאלון',
                 submitting: 'שולח...',
@@ -1512,14 +1745,14 @@ class ACF_Quiz_System {
                 const formData = new FormData();
                 formData.append('id_photo', file);
                 formData.append('action', 'upload_id_photo');
-                formData.append('nonce', '<?php echo wp_create_nonce('id_upload_nonce'); ?>');
+                formData.append('nonce', '<?php echo wp_create_nonce("id_upload_nonce"); ?>');
                 
                 // Show progress
                 $('.upload-progress').show();
                 $('.upload-success, .upload-error').hide();
                 
                 $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    url: '<?php echo admin_url("admin-ajax.php"); ?>',
                     type: 'POST',
                     data: formData,
                     processData: false,
@@ -1614,6 +1847,52 @@ class ACF_Quiz_System {
                 window.formSubmitting = true;
             });
             
+            // Handle checkout button click
+            $('#proceed-to-checkout').on('click', function() {
+                console.log('Checkout button clicked');
+                formSubmitting = true;
+                window.formSubmitting = true;
+                
+                // Get the selected package from URL parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const packageType = urlParams.get('monthly') !== null ? 'monthly' : 
+                                  urlParams.get('yearly') !== null ? 'yearly' : 'trial';
+                
+                // Add product to cart and redirect to checkout
+                addToCartAndCheckout(packageType);
+            });
+            
+            function addToCartAndCheckout(packageType) {
+                // Show loading state
+                $('#proceed-to-checkout').prop('disabled', true).text('מעבד...');
+                
+                // Collect form data
+                const formData = new FormData($('#acf-quiz-form')[0]);
+                formData.append('action', 'add_to_cart_and_checkout');
+                formData.append('package_type', packageType);
+                formData.append('nonce', window.acfQuiz.nonce);
+                
+                $.ajax({
+                    url: window.acfQuiz.ajaxUrl,
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success && response.data.checkout_url) {
+                            // Redirect to checkout
+                            window.location.href = response.data.checkout_url;
+                        } else {
+                            alert(response.data.message || 'שגיאה בהוספת המוצר לעגלה');
+                            $('#proceed-to-checkout').prop('disabled', false).text('אישור ומעבר לתשלום');
+                        }
+                    },
+                    error: function() {
+                        alert('שגיאה בהוספת המוצר לעגלה');
+                        $('#proceed-to-checkout').prop('disabled', false).text('אישור ומעבר לתשלום');
+                    }
+                });
+            }
             
             // Handle browser back/forward buttons
             window.addEventListener('popstate', function(e) {
@@ -1737,6 +2016,68 @@ class ACF_Quiz_System {
         }
         
         return array('valid' => true, 'message' => 'הקובץ תקין');
+    }
+
+    /**
+     * Handle add to cart and checkout functionality
+     */
+    public function handle_add_to_cart_and_checkout() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'acf_quiz_nonce')) {
+            wp_send_json_error(array('message' => 'Security check failed'));
+        }
+
+        // Check if WooCommerce is active
+        if (!class_exists('WooCommerce')) {
+            wp_send_json_error(array('message' => 'WooCommerce is not active'));
+        }
+
+        $package_type = sanitize_text_field($_POST['package_type'] ?? 'trial');
+        
+        // Get the product ID from ACF settings based on package type
+        $product_id = null;
+        switch ($package_type) {
+            case 'trial':
+                $product_id = get_field('trial_product', 'option');
+                break;
+            case 'monthly':
+                $product_id = get_field('monthly_product', 'option');
+                break;
+            case 'yearly':
+                $product_id = get_field('yearly_product', 'option');
+                break;
+        }
+
+        if (!$product_id) {
+            wp_send_json_error(array('message' => 'Product not configured for this package type'));
+        }
+
+        // Clear cart first
+        WC()->cart->empty_cart();
+
+        // Add product to cart
+        $cart_item_key = WC()->cart->add_to_cart($product_id, 1);
+        
+        if (!$cart_item_key) {
+            wp_send_json_error(array('message' => 'Failed to add product to cart'));
+        }
+
+        // Store form data in session for checkout
+        $form_data = array();
+        foreach ($_POST as $key => $value) {
+            if ($key !== 'action' && $key !== 'nonce' && $key !== 'package_type') {
+                $form_data[$key] = sanitize_text_field($value);
+            }
+        }
+        
+        WC()->session->set('quiz_form_data', $form_data);
+        WC()->session->set('quiz_package_type', $package_type);
+
+        // Return checkout URL
+        wp_send_json_success(array(
+            'message' => 'Product added to cart successfully',
+            'checkout_url' => wc_get_checkout_url()
+        ));
     }
 
     /**
