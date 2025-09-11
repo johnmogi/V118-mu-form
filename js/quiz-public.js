@@ -298,16 +298,19 @@ jQuery(document).ready(function($) {
                     // Direct checkout redirect based on package type
                     console.log('Redirecting directly to checkout for package type:', packageType);
                     
+                    // Direct redirect to checkout with package info
+                    let checkoutUrl;
+                    
                     if (packageType === 'yearly') {
-                        // For yearly package, redirect to checkout with yearly product ID
-                        window.location.href = '/checkout/?add-to-cart=1999&yearly=1&quiz_passed=1&score=' + totalScore;
+                        checkoutUrl = '/checkout/?package=yearly&quiz_passed=1&score=' + totalScore;
                     } else if (packageType === 'monthly') {
-                        // For monthly package, redirect to checkout with monthly product ID  
-                        window.location.href = '/checkout/?add-to-cart=199&monthly=1&quiz_passed=1&score=' + totalScore;
+                        checkoutUrl = '/checkout/?package=monthly&quiz_passed=1&score=' + totalScore;
                     } else {
-                        // For trial package, redirect to checkout with trial product ID
-                        window.location.href = '/checkout/?add-to-cart=99&trial=1&quiz_passed=1&score=' + totalScore;
+                        checkoutUrl = '/checkout/?package=trial&quiz_passed=1&score=' + totalScore;
                     }
+                    
+                    console.log('Redirecting to checkout:', checkoutUrl);
+                    window.location.href = checkoutUrl;
                     
                     console.log('Redirecting to:', window.location.href);
                 } else {
@@ -492,9 +495,9 @@ jQuery(document).ready(function($) {
                 $idField.removeClass('error touched');
                 $genderField.removeClass('error touched');
                 
-                // Check ID number with enhanced validation
+                // Check ID number with strict validation (exactly 8-9 digits)
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{8,12}$/; // 8-12 digits or dashes
+                const idNumberRegex = /^\d{8,9}$/; // Exactly 8-9 digits only
                 
                 if (!idValue || !idNumberRegex.test(idValue)) {
                     isValid = false;
@@ -507,7 +510,7 @@ jQuery(document).ready(function($) {
                         if (!idValue) {
                             this.showError('אנא הזן מספר זהות');
                         } else if (!idNumberRegex.test(idValue)) {
-                            this.showError('מספר זהות חייב להכיל בין 8-12 ספרות או מקפים בלבד');
+                            this.showError('מספר זהות חייב להכיל בדיוק 8-9 ספרות בלבד');
                         }
                     }
                 } else {
@@ -545,7 +548,7 @@ jQuery(document).ready(function($) {
                 const $idField = $('#id_number');
                 const $genderField = $('#gender');
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{8,12}$/;
+                const idNumberRegex = /^\d{8,9}$/; // Exactly 8-9 digits only
                 const hasValidId = idValue && idNumberRegex.test(idValue);
                 const hasGender = $genderField.val() && $genderField.val().trim() !== '';
                 

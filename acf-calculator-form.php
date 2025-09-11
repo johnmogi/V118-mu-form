@@ -94,6 +94,10 @@ class ACF_Quiz_System {
         add_action('wp_ajax_simple_lead_capture', array($this, 'simple_lead_capture'));
         add_action('wp_ajax_nopriv_simple_lead_capture', array($this, 'simple_lead_capture'));
         
+        // ID file upload handler for step 4
+        add_action('wp_ajax_upload_id_photo', array($this, 'handle_id_upload'));
+        add_action('wp_ajax_nopriv_upload_id_photo', array($this, 'handle_id_upload'));
+        
         // Register shortcodes
         add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
         
@@ -1403,6 +1407,39 @@ class ACF_Quiz_System {
                                 </label>
                             </div>
                             
+                            <!-- ID Upload Section -->
+                            <div class="id-upload-section">
+                                <h5>העלאת תעודת זהות <span class="required">*</span></h5>
+                                <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
+                                <div class="id-upload-container">
+                                    <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
+                                    <div class="upload-progress" style="display: none;">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill"></div>
+                                        </div>
+                                        <span class="progress-text">מעלה קובץ...</span>
+                                    </div>
+                                    <div class="upload-success" style="display: none;">
+                                        <span class="success-icon">✓</span>
+                                        <span class="success-text">הקובץ הועלה בהצלחה</span>
+                                    </div>
+                                    <div class="upload-error" style="display: none;">
+                                        <span class="error-icon">✗</span>
+                                        <span class="error-text"></span>
+                                    </div>
+                                    <div class="file-preview" id="file_preview" style="display: none;">
+                                        <div class="preview-item">
+                                            <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <div class="file-info">
+                                                <span id="file_name"></span>
+                                                <span id="file_size"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
+                                </div>
+                            </div>
+                            
                             <div class="signature-section">
                                 <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
                                 <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
@@ -1460,6 +1497,126 @@ class ACF_Quiz_System {
                 </div>
             </div>
         </div>
+        
+        ?>
+        <style>
+        .id-upload-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .id-upload-section h5 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .upload-instructions {
+            margin: 0 0 15px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .id-upload-container {
+            position: relative;
+        }
+        
+        #id_photo_upload {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        #id_photo_upload:hover {
+            border-color: #007cba;
+            background: #f0f8ff;
+        }
+        
+        .upload-progress, .upload-success, .upload-error {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .upload-progress {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            color: #1976d2;
+        }
+        
+        .upload-success {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #2e7d32;
+        }
+        
+        .upload-error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #2196f3;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .file-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        
+        .preview-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .file-info span {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .success-icon, .error-icon {
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .required {
+            color: #f44336;
+        }
+        </style>
         
         <script>
         // Pass data to JavaScript
@@ -1550,6 +1707,120 @@ class ACF_Quiz_System {
             
             $('#birth_day, #birth_month, #birth_year').on('change', updateBirthDate);
             
+            // ID Upload functionality
+            $('#id_photo_upload').on('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+                
+                // Validate file
+                const validation = validateIdFile(file);
+                if (!validation.valid) {
+                    showUploadError(validation.message);
+                    return;
+                }
+                
+                // Show preview
+                showFilePreview(file);
+                
+                // Upload file
+                uploadIdFile(file);
+            });
+            
+            function validateIdFile(file) {
+                // Check file size (5MB max)
+                const maxSize = 5 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    return { valid: false, message: 'הקובץ גדול מדי (מקסימום 5MB)' };
+                }
+                
+                // Check file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+                if (!allowedTypes.includes(file.type)) {
+                    return { valid: false, message: 'סוג קובץ לא נתמך (רק JPG, PNG או PDF)' };
+                }
+                
+                return { valid: true };
+            }
+            
+            function showFilePreview(file) {
+                const preview = $('#file_preview');
+                const fileName = $('#file_name');
+                const fileSize = $('#file_size');
+                const previewImage = $('#preview_image');
+                
+                fileName.text(file.name);
+                fileSize.text(formatFileSize(file.size));
+                
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImage.attr('src', e.target.result).show();
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    previewImage.hide();
+                }
+                
+                preview.show();
+            }
+            
+            function uploadIdFile(file) {
+                const formData = new FormData();
+                formData.append('id_photo', file);
+                formData.append('action', 'upload_id_photo');
+                formData.append('nonce', '<?php echo wp_create_nonce('id_upload_nonce'); ?>');
+                
+                // Show progress
+                $('.upload-progress').show();
+                $('.upload-success, .upload-error').hide();
+                
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    xhr: function() {
+                        const xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', function(evt) {
+                            if (evt.lengthComputable) {
+                                const percentComplete = (evt.loaded / evt.total) * 100;
+                                $('.progress-fill').css('width', percentComplete + '%');
+                            }
+                        }, false);
+                        return xhr;
+                    },
+                    success: function(response) {
+                        $('.upload-progress').hide();
+                        if (response.success) {
+                            $('#uploaded_id_photo').val(response.data.filename);
+                            $('.upload-success').show();
+                        } else {
+                            showUploadError(response.data || 'שגיאה בהעלאת הקובץ');
+                        }
+                    },
+                    error: function() {
+                        $('.upload-progress').hide();
+                        showUploadError('שגיאה בהעלאת הקובץ');
+                    }
+                });
+            }
+            
+            function showUploadError(message) {
+                $('.upload-progress, .upload-success').hide();
+                $('.upload-error .error-text').text(message);
+                $('.upload-error').show();
+                $('#uploaded_id_photo').val('');
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
             // Browser back button protection
             window.addEventListener('beforeunload', function(e) {
                 console.log('beforeunload triggered - formStarted:', formStarted, 'formSubmitting:', formSubmitting, 'window.formSubmitting:', window.formSubmitting);
@@ -1637,6 +1908,91 @@ class ACF_Quiz_System {
         
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Handle ID photo upload for step 4
+     */
+    public function handle_id_upload() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'id_upload_nonce')) {
+            wp_send_json_error('Security check failed');
+        }
+        
+        // Check if file was uploaded
+        if (empty($_FILES['id_photo'])) {
+            wp_send_json_error('לא נבחר קובץ');
+        }
+        
+        $file = $_FILES['id_photo'];
+        
+        // Validate file
+        $validation = $this->validate_uploaded_file($file);
+        if (!$validation['valid']) {
+            wp_send_json_error($validation['message']);
+        }
+        
+        // Generate unique filename
+        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $unique_filename = 'id_' . uniqid() . '_' . time() . '.' . $file_extension;
+        
+        // Upload directory
+        $upload_dir = wp_upload_dir();
+        $id_photos_dir = $upload_dir['basedir'] . '/id-photos';
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($id_photos_dir)) {
+            wp_mkdir_p($id_photos_dir);
+            // Create .htaccess to protect directory
+            $htaccess_content = "Options -Indexes\ndeny from all\n";
+            file_put_contents($id_photos_dir . '/.htaccess', $htaccess_content);
+        }
+        
+        $file_path = $id_photos_dir . '/' . $unique_filename;
+        
+        // Move uploaded file
+        if (move_uploaded_file($file['tmp_name'], $file_path)) {
+            wp_send_json_success(array(
+                'message' => 'הקובץ הועלה בהצלחה',
+                'filename' => $unique_filename
+            ));
+        } else {
+            wp_send_json_error('שגיאה בהעלאת הקובץ');
+        }
+    }
+    
+    /**
+     * Validate uploaded file
+     */
+    private function validate_uploaded_file($file) {
+        // Check for upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return array('valid' => false, 'message' => 'שגיאה בהעלאת הקובץ');
+        }
+        
+        // Check file size (5MB max)
+        $max_size = 5 * 1024 * 1024; // 5MB in bytes
+        if ($file['size'] > $max_size) {
+            return array('valid' => false, 'message' => 'הקובץ גדול מדי (מקסימום 5MB)');
+        }
+        
+        // Check file type
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'application/pdf');
+        $file_type = mime_content_type($file['tmp_name']);
+        
+        if (!in_array($file_type, $allowed_types)) {
+            return array('valid' => false, 'message' => 'סוג קובץ לא נתמך (רק JPG, PNG או PDF)');
+        }
+        
+        // Additional security check for images
+        if (strpos($file_type, 'image/') === 0) {
+            $image_info = getimagesize($file['tmp_name']);
+            if ($image_info === false) {
+                return array('valid' => false, 'message' => 'הקובץ אינו תמונה תקינה');
+            }
+        }
+        
+        return array('valid' => true, 'message' => 'הקובץ תקין');
     }
 
     /**
