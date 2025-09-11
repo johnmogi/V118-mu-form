@@ -56,6 +56,12 @@
     background:#192954 !important; border-color:#192954 !important; color:#fff !important;
   }
   
+  /* Remove checkmark icons from completed steps */
+  .acf-quiz-container .step-indicator .step.completed::after,
+  .step-indicator .step.completed::after {
+    display: none !important;
+  }
+  
   /* ===== Intro / Legal boxes ===== */
   .acf-quiz-container .form-step .step-intro{
     background:var(--bg-soft);

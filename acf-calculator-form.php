@@ -834,20 +834,9 @@ class ACF_Quiz_System {
             $css_path = $this->plugin_path . 'css/quiz-public.css';
             $css_version = file_exists($css_path) ? filemtime($css_path) : '1.0.0';
             
-            // Enqueue main CSS
-            wp_enqueue_style(
-                'acf-quiz-public',
-                $this->plugin_url . 'css/quiz-public.css',
-                array(),
-                $css_version
-            );
-            
-            // Remove elform.css - styles moved to quiz-public.css
-            // wp_enqueue_style(
-            //     'acf-quiz-elform',
-            //     $this->plugin_url . 'css/elform.css',
-            //     array('acf-quiz-public'),
-            //     '1.0.1'
+            // Enqueue styles and scripts
+            wp_enqueue_style('quiz-public', $this->plugin_url . 'css/quiz-public.css', array(), '1.0.0');
+            wp_enqueue_style('elform', $this->plugin_url . 'css/elform.css', array(), '1.0.0');
             // );
 
             // Add jQuery to handle button visibility
@@ -899,6 +888,10 @@ class ACF_Quiz_System {
     public function add_quiz_form($atts) {
         // Enqueue public assets when shortcode is used
         $this->enqueue_public_assets();
+        
+        // Enqueue additional scripts for form functionality
+        wp_enqueue_script('jquery-validate', 'https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js', array('jquery'), '1.19.3', true);
+        wp_enqueue_script('signature-pad', 'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js', array(), '4.0.0', true);
         
         // Return the quiz form HTML
         return $this->render_quiz_form($atts);
@@ -1135,8 +1128,8 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3: First 5 Investment Questions -->
-                <div class="form-step" data-step="3">
+                <!-- Step 3a: First 5 Investment Questions -->
+                <div class="form-step" data-step="3" data-substep="a">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>אנא השיבו על השאלות הבאות בהתאם לידע ולניסיון שלכם</p>
@@ -1175,8 +1168,8 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3 (Part 2): Last 5 Questions + Declaration -->
-                <div class="form-step" data-step="3" data-substep="2">
+                <!-- Step 3b: Last 5 Questions + Declaration -->
+                <div class="form-step" data-step="3" data-substep="b">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>השלמת השאלות והצהרה סופית</p>
@@ -1298,70 +1291,69 @@ class ACF_Quiz_System {
                                 </label>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- ID Upload and Signature Section -->
-                    <div class="id-signature-section">
-                        <h4>אימות זהות וחתימה דיגיטלית</h4>
-                        <p>להשלמת ההסכם נדרש לאמת את זהותך ולחתום דיגיטלית</p>
                         
-                        <!-- ID Upload Section -->
-                        <div class="id-upload-section">
-                            <h5>העלאת תעודת זהות <span class="required">*</span></h5>
-                            <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
-                            <div class="id-upload-container">
-                                <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
-                                <div class="upload-progress" style="display: none;">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill"></div>
+                        <!-- ID Upload and Signature Section -->
+                        <div class="id-signature-section">
+                            <h4>אימות זהות וחתימה דיגיטלית</h4>
+                            <p>להשלמת ההסכם נדרש לאמת את זהותך ולחתום דיגיטלית</p>
+                            
+                            <!-- ID Upload Section -->
+                            <div class="id-upload-section">
+                                <h5>העלאת תעודת זהות <span class="required">*</span></h5>
+                                <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
+                                <div class="id-upload-container">
+                                    <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
+                                    <div class="upload-progress" style="display: none;">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill"></div>
+                                        </div>
+                                        <span class="progress-text">מעלה קובץ...</span>
                                     </div>
-                                    <span class="progress-text">מעלה קובץ...</span>
-                                </div>
-                                <div class="upload-success" style="display: none;">
-                                    <span class="success-icon">✓</span>
-                                    <span class="success-text">הקובץ הועלה בהצלחה</span>
-                                </div>
-                                <div class="upload-error" style="display: none;">
-                                    <span class="error-icon">✗</span>
-                                    <span class="error-text"></span>
-                                </div>
-                                <div class="file-preview" id="file_preview" style="display: none;">
-                                    <div class="preview-item">
-                                        <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
-                                        <div class="file-info">
-                                            <span id="file_name"></span>
-                                            <span id="file_size"></span>
+                                    <div class="upload-success" style="display: none;">
+                                        <span class="success-icon">✓</span>
+                                        <span class="success-text">הקובץ הועלה בהצלחה</span>
+                                    </div>
+                                    <div class="upload-error" style="display: none;">
+                                        <span class="error-icon">✗</span>
+                                        <span class="error-text"></span>
+                                    </div>
+                                    <div class="file-preview" id="file_preview" style="display: none;">
+                                        <div class="preview-item">
+                                            <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <div class="file-info">
+                                                <span id="file_name"></span>
+                                                <span id="file_size"></span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
                                 </div>
-                                <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
+                            </div>
+                            
+                            <!-- Digital Signature Section -->
+                            <div class="signature-section">
+                                <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
+                                <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
+                                <div class="signature-container">
+                                    <div class="signature-wrapper">
+                                        <canvas id="signature_pad" width="400" height="150"></canvas>
+                                        <div class="signature-placeholder" id="signature_placeholder">
+                                            חתום כאן
+                                        </div>
+                                    </div>
+                                    <div class="signature-controls">
+                                        <button type="button" id="clear_signature" class="btn-clear">נקה חתימה</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="signature_data" name="signature_data" value="" required>
                             </div>
                         </div>
                         
-                        <!-- Digital Signature Section -->
-                        <div class="signature-section">
-                            <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
-                            <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
-                            <div class="signature-container">
-                                <div class="signature-wrapper">
-                                    <canvas id="signature_pad" width="400" height="150"></canvas>
-                                    <div class="signature-placeholder" id="signature_placeholder">
-                                        חתום כאן
-                                    </div>
-                                </div>
-                                <div class="signature-controls">
-                                    <button type="button" id="clear_signature" class="btn-clear">נקה חתימה</button>
-                                </div>
-                            </div>
-                            <input type="hidden" id="signature_data" name="signature_data" value="">
+                        <div class="checkout-section">
+                            <button type="button" id="proceed-to-checkout" class="checkout-btn">
+                                המשך לתשלום
+                            </button>
                         </div>
-                    </div>
-                    
-                    <div class="checkout-section">
-                        <button type="button" id="proceed-to-checkout" class="checkout-btn">
-                            המשך לתשלום
-                        </button>
-                    </div>
                 </div>
 
                 <div class="form-navigation">
@@ -1593,6 +1585,68 @@ class ACF_Quiz_System {
             border: 2px solid #e74c3c;
             border-radius: 8px;
         }
+        
+        /* Navigation buttons styling */
+        .form-navigation {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            margin-top: 30px !important;
+            padding: 20px 0 !important;
+            border-top: 1px solid #ddd !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .nav-btn {
+            display: inline-block !important;
+            padding: 12px 24px !important;
+            background: #007cba !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 5px !important;
+            cursor: pointer !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            text-decoration: none !important;
+            transition: background-color 0.3s ease !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .nav-btn:hover {
+            background: #005a87 !important;
+        }
+        
+        .nav-btn.prev-btn {
+            background: #6c757d !important;
+        }
+        
+        .nav-btn.prev-btn:hover {
+            background: #545b62 !important;
+        }
+        
+        .nav-btn.submit-btn {
+            background: #28a745 !important;
+        }
+        
+        .nav-btn.submit-btn:hover {
+            background: #1e7e34 !important;
+        }
+        
+        /* Force visibility for navigation elements - Higher specificity */
+        .form-navigation #prev-step, 
+        .form-navigation #next-step, 
+        .form-navigation #submit-form {
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: inline-block !important;
+        }
+        
+        /* Override any inline display:none styles */
+        .form-navigation button[style*="display: none"] {
+            display: inline-block !important;
+        }
         </style>
         
         <script>
@@ -1603,18 +1657,16 @@ class ACF_Quiz_System {
             strings: {
                 submit: 'שלח שאלון',
                 submitting: 'שולח...',
+                success: 'השאלון נשלח בהצלחה!',
                 error: 'אירעה שגיאה. אנא נסה שוב.',
-                pleaseAnswerAll: 'אנא ענה על כל השאלות',
-                next: 'המשך',
-                prev: 'חזרה',
-                step1Title: 'שאלון התאמה',
-                step2Title: 'שאלון התאמה',
-                step3Title: 'שאלון התאמה',
-                step4Title: 'שאלון התאמה',
-                step1Subtitle: 'שלב 1 מתוך 4',
-                step2Subtitle: 'שלב 2 מתוך 4',
-                step3Subtitle: 'שלב 3 מתוך 4',
-                step4Subtitle: 'שלב 4 מתוך 4'
+                required: 'שדה חובה',
+                selectPackage: 'אנא בחר חבילה',
+                fillRequired: 'אנא מלא את כל השדות הנדרשים',
+                validEmail: 'אנא הזן כתובת אימייל תקינה',
+                validPhone: 'אנא הזן מספר טלפון תקין',
+                confirmAge: 'אנא אשר שאתה מעל גיל 18',
+                confirmTerms: 'אנא אשר את תנאי השימוש',
+                confirmDeclaration: 'אנא אשר את ההצהרה הסופית'
             }
         };
         
@@ -1926,6 +1978,198 @@ class ACF_Quiz_System {
                     }
                 });
             }
+
+            // Initialize signature pad
+            const canvas = document.getElementById('signature_pad');
+            const signatureData = document.getElementById('signature_data');
+            const clearBtn = document.getElementById('clear_signature');
+            const placeholder = document.getElementById('signature_placeholder');
+            
+            if (canvas && typeof SignaturePad !== 'undefined') {
+                const signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+                
+                signaturePad.addEventListener('beginStroke', function() {
+                    if (placeholder) placeholder.style.display = 'none';
+                });
+                
+                signaturePad.addEventListener('endStroke', function() {
+                    signatureData.value = signaturePad.toDataURL();
+                });
+                
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function() {
+                        signaturePad.clear();
+                        signatureData.value = '';
+                        if (placeholder) placeholder.style.display = 'block';
+                    });
+                }
+            }
+        });
+
+        // Step Controller Script - Fixed
+        jQuery(document).ready(function($) {
+          console.log('Step controller initializing...');
+          
+          const form = document.getElementById('acf-quiz-form');
+          if (!form) {
+            console.error('Form not found');
+            return;
+          }
+          
+          const steps = {
+            step1: form.querySelector('.form-step[data-step="1"]'),
+            step2: form.querySelector('.form-step[data-step="2"]'),
+            step3a: form.querySelector('.form-step[data-step="3"][data-substep="a"]'),
+            step3b: form.querySelector('.form-step[data-step="3"][data-substep="b"]'),
+            step4: form.querySelector('.form-step[data-step="4"]'),
+          };
+          
+          console.log('Steps found:', steps);
+          
+          const stepperBubbles = form.querySelectorAll('.step-indicator .step');
+          const subtitleEl = form.querySelector('.step-subtitle');
+          const prevBtn = form.querySelector('#prev-step');
+          const nextBtn = form.querySelector('#next-step');
+          const submitBtn = form.querySelector('#submit-form');
+          
+          console.log('Navigation buttons:', { prevBtn, nextBtn, submitBtn });
+          
+          const state = { key: 'step1' };
+          
+          function visibleStepNumber(stepKey) {
+            if (stepKey === 'step1') return 1;
+            if (stepKey === 'step2') return 2;
+            if (stepKey === 'step3a' || stepKey === 'step3b') return 3;
+            if (stepKey === 'step4') return 4;
+            return 1;
+          }
+          
+          function updateUI() {
+            console.log('Updating UI for step:', state.key);
+            
+            // Hide all steps first
+            Object.keys(steps).forEach(key => {
+              if (steps[key]) {
+                steps[key].classList.remove('active');
+                steps[key].style.display = 'none';
+              }
+            });
+            
+            // Show current step
+            if (steps[state.key]) {
+              steps[state.key].classList.add('active');
+              steps[state.key].style.display = 'block';
+            }
+            
+            // Update step indicators
+            const v = visibleStepNumber(state.key);
+            stepperBubbles.forEach(b => {
+              const n = Number(b.getAttribute('data-step'));
+              b.classList.toggle('active', n === v);
+              b.classList.toggle('completed', n < v);
+            });
+            
+            // Update subtitle
+            if (subtitleEl) subtitleEl.textContent = `שלב ${v} מתוך 4`;
+            
+            // Update navigation buttons with important flag
+            if (prevBtn) {
+              const prevDisplay = state.key === 'step1' ? 'none' : 'inline-block';
+              prevBtn.style.setProperty('display', prevDisplay, 'important');
+              console.log('Previous button display:', prevDisplay);
+            }
+            
+            if (nextBtn) {
+              const nextDisplay = state.key === 'step4' ? 'none' : 'inline-block';
+              nextBtn.style.setProperty('display', nextDisplay, 'important');
+              console.log('Next button display:', nextDisplay);
+            }
+            
+            if (submitBtn) {
+              const submitDisplay = state.key === 'step4' ? 'inline-block' : 'none';
+              submitBtn.style.setProperty('display', submitDisplay, 'important');
+              console.log('Submit button display:', submitDisplay);
+            }
+          }
+          
+          function validateCurrentStep() {
+            const currentStep = steps[state.key];
+            if (!currentStep) return true;
+            
+            const inputs = currentStep.querySelectorAll('input[required], select[required], textarea[required]');
+            let valid = true;
+            
+            inputs.forEach(input => {
+              if (!input.checkValidity()) {
+                valid = false;
+                input.classList.add('error');
+              } else {
+                input.classList.remove('error');
+              }
+            });
+            
+            return valid;
+          }
+          
+          function navigate(direction) {
+            console.log('Navigating:', direction, 'from step:', state.key);
+            
+            if (direction === 'next') {
+              if (!validateCurrentStep()) return;
+              
+              if (state.key === 'step1') state.key = 'step2';
+              else if (state.key === 'step2') state.key = 'step3a';
+              else if (state.key === 'step3a') state.key = 'step3b';
+              else if (state.key === 'step3b') state.key = 'step4';
+            } else if (direction === 'prev') {
+              if (state.key === 'step2') state.key = 'step1';
+              else if (state.key === 'step3a') state.key = 'step2';
+              else if (state.key === 'step3b') state.key = 'step3a';
+              else if (state.key === 'step4') state.key = 'step3b';
+            }
+            
+            console.log('New step:', state.key);
+            updateUI();
+          }
+          
+          if (nextBtn) {
+            nextBtn.addEventListener('click', function(e) {
+              e.preventDefault();
+              console.log('Next button clicked');
+              navigate('next');
+            });
+          }
+          
+          if (prevBtn) {
+            prevBtn.addEventListener('click', function(e) {
+              e.preventDefault();
+              console.log('Previous button clicked');
+              navigate('prev');
+            });
+          }
+          
+          // Force initial button visibility
+          if (prevBtn) {
+            prevBtn.style.setProperty('display', 'none', 'important');
+            console.log('Previous button forced to display: none');
+          }
+          
+          if (nextBtn) {
+            nextBtn.style.setProperty('display', 'inline-block', 'important');
+            console.log('Next button forced to display: inline-block');
+          }
+          
+          if (submitBtn) {
+            submitBtn.style.setProperty('display', 'none', 'important');
+            console.log('Submit button forced to display: none');
+          }
+          
+          // Initial UI update
+          updateUI();
+          console.log('Step controller initialized successfully');
         });
         </script>
         

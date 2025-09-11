@@ -89,11 +89,7 @@ html[dir="rtl"] .acf-quiz-container {
     color: white;
 }
 
-.step-indicator .step.completed::after {
-    content: '✓';
-    position: absolute;
-    font-size: 14px;
-}
+/* Removed checkmark icon from completed steps */
 
 .step-title h2 {
     margin: 0 0 5px 0;
