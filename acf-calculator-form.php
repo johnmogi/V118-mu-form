@@ -813,200 +813,7 @@ class ACF_Quiz_System {
                 true
             );
             
-            // Add signature pad initialization
-            $signature_js = "
-            // Test signature system function
-            function testSignatureSystem() {
-                console.log('Testing signature system...');
-                
-                // Check if signature canvas exists
-                const canvas = document.getElementById('signature_canvas');
-                if (!canvas) {
-                    alert('❌ Signature canvas not found');
-                    return;
-                }
-                
-                // Check if SignaturePad is loaded
-                if (typeof SignaturePad === 'undefined') {
-                    alert('❌ SignaturePad library not loaded');
-                    return;
-                }
-                
-                // Check if signature_ajax is available
-                if (typeof signature_ajax === 'undefined') {
-                    alert('❌ Signature AJAX not configured');
-                    return;
-                }
-                
-                // Create a test signature
-                const signaturePad = new SignaturePad(canvas);
-                
-                // Draw a simple test signature
-                signaturePad.fromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
-                
-                const testData = signaturePad.toDataURL('image/png', 0.8);
-                
-                // Test save signature
-                const formData = new FormData();
-                formData.append('action', 'save_signature');
-                formData.append('nonce', signature_ajax.nonce);
-                formData.append('signature_data', testData);
-                formData.append('submission_id', 999);
-                formData.append('user_email', 'test@example.com');
-                
-                fetch(signature_ajax.ajax_url, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('✅ Signature system working! ID: ' + data.data.signature_id);
-                    } else {
-                        alert('❌ Signature save failed: ' + data.data);
-                    }
-                })
-                .catch(error => {
-                    alert('❌ Network error: ' + error);
-                });
-            }
-            
-            jQuery(document).ready(function($) {
-                // Ensure final declaration checkbox is unchecked by default - multiple approaches
-                function forceUncheckDeclaration() {
-                    $('#final_declaration').prop('checked', false);
-                    $('#final_declaration').removeAttr('checked');
-                    $('#final_declaration')[0].checked = false;
-                    console.log('Final declaration checkbox forced to unchecked');
-                }
-                
-                // Signature Pad Management - Stable Implementation
-                let signaturePadInstance = null;
-                let isSignaturePadInitialized = false;
-                
-                function initializeSignaturePad() {
-                    if (isSignaturePadInitialized) {
-                        return;
-                    }
-                    
-                    const canvas = document.getElementById('signature_pad');
-                    const placeholder = document.getElementById('signature_placeholder');
-                    const statusElement = document.getElementById('signature_status');
-                    const clearButton = document.getElementById('clear_signature');
-                    const hiddenInput = document.getElementById('signature_data');
-                    
-                    if (!canvas || !placeholder || !statusElement || !clearButton || !hiddenInput) {
-                        console.warn('Signature elements not found, retrying...');
-                        setTimeout(initializeSignaturePad, 500);
-                        return;
-                    }
-                    
-                    // Set canvas dimensions properly
-                    function setupCanvas() {
-                        const container = canvas.parentElement;
-                        const containerWidth = container.offsetWidth || 400;
-                        const canvasHeight = 150;
-                        
-                        // Set display size
-                        canvas.style.width = '100%';
-                        canvas.style.height = canvasHeight + 'px';
-                        
-                        // Set actual size for high DPI
-                        const ratio = window.devicePixelRatio || 1;
-                        canvas.width = containerWidth * ratio;
-                        canvas.height = canvasHeight * ratio;
-                        
-                        // Scale context
-                        const ctx = canvas.getContext('2d');
-                        ctx.scale(ratio, ratio);
-                        ctx.fillStyle = 'white';
-                        ctx.fillRect(0, 0, containerWidth, canvasHeight);
-                    }
-                    
-                    setupCanvas();
-                    
-                    // Initialize SignaturePad
-                    try {
-                        signaturePadInstance = new SignaturePad(canvas, {
-                            backgroundColor: 'rgba(255, 255, 255, 1)',
-                            penColor: 'rgba(0, 0, 0, 1)',
-                            minWidth: 1.5,
-                            maxWidth: 2.5,
-                            velocityFilterWeight: 0.7,
-                            minDistance: 2
-                        });
-                        
-                        // Handle signature events
-                        signaturePadInstance.addEventListener('beginStroke', function() {
-                            placeholder.style.display = 'none';
-                        });
-                        
-                        signaturePadInstance.addEventListener('endStroke', function() {
-                            if (!signaturePadInstance.isEmpty()) {
-                                const dataURL = signaturePadInstance.toDataURL('image/png', 0.8);
-                                hiddenInput.value = dataURL;
-                                statusElement.textContent = '✓ חתימה נשמרה';
-                                statusElement.className = 'signature-status signature-valid';
-                            }
-                        });
-                        
-                        // Clear button functionality
-                        clearButton.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            signaturePadInstance.clear();
-                            hiddenInput.value = '';
-                            placeholder.style.display = 'flex';
-                            statusElement.textContent = 'חתימה נדרשת';
-                            statusElement.className = 'signature-status signature-required';
-                        });
-                        
-                        // Touch handling for mobile
-                        function preventScroll(e) {
-                            if (e.target === canvas) {
-                                e.preventDefault();
-                            }
-                        }
-                        
-                        canvas.addEventListener('touchstart', preventScroll, { passive: false });
-                        canvas.addEventListener('touchmove', preventScroll, { passive: false });
-                        
-                        // Responsive handling
-                        let resizeTimer;
-                        window.addEventListener('resize', function() {
-                            clearTimeout(resizeTimer);
-                            resizeTimer = setTimeout(function() {
-                                const data = signaturePadInstance.toData();
-                                setupCanvas();
-                                if (data && data.length > 0) {
-                                    signaturePadInstance.fromData(data);
-                                }
-                            }, 250);
-                        });
-                        
-                        isSignaturePadInitialized = true;
-                        console.log('Signature pad initialized successfully');
-                        
-                    } catch (error) {
-                        console.error('Failed to initialize signature pad:', error);
-                        statusElement.textContent = 'שגיאה בטעינת חתימה';
-                        statusElement.className = 'signature-status signature-error';
-                    }
-                }
-                
-                // Initialize when step 4 is shown
-                $(document).on('formStepChanged', function(e, step) {
-                    if (step === 4 && !isSignaturePadInitialized) {
-                        setTimeout(initializeSignaturePad, 100);
-                    }
-                });
-                
-                // Initialize on page load if already on step 4
-                $(document).ready(function() {
-                    setTimeout(initializeSignaturePad, 200);
-                });
-            });";
-            
-            wp_add_inline_script('signature-pad-init', $signature_js);
+            // All JavaScript functionality moved to external files
         }
     }
 
@@ -1261,7 +1068,7 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3: First 5 Investment Questions -->
+                <!-- Step 3: All 10 Investment Questions + Declaration -->
                 <div class="form-step" data-step="3">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
@@ -1269,47 +1076,7 @@ class ACF_Quiz_System {
                     </div>
                     
                     <div class="questions-container">
-                        <?php for ($i = 0; $i < 5; $i++) : ?>
-                            <?php if (isset($questions[$i])) : ?>
-                                <div class="question-block" data-question="<?php echo $i; ?>">
-                                    <div class="question-header">
-                                        <span class="question-number"><?php echo ($i + 1); ?>.</span>
-                                        <h3 class="question-text"><?php echo esc_html($questions[$i]['question_text']); ?></h3>
-                                    </div>
-                                    
-                                    <div class="answers-container">
-                                        <?php if (!empty($questions[$i]['answers'])) : ?>
-                                            <?php foreach ($questions[$i]['answers'] as $a_index => $answer) : ?>
-                                                <div class="answer-option">
-                                                    <input type="radio" 
-                                                           name="question_<?php echo $i; ?>" 
-                                                           id="q<?php echo $i; ?>_a<?php echo $a_index; ?>"
-                                                           value="<?php echo $answer['points']; ?>"
-                                                           class="answer-input"
-                                                           required>
-                                                    <label for="q<?php echo $i; ?>_a<?php echo $a_index; ?>" class="answer-label">
-                                                        <span class="answer-marker"></span>
-                                                        <span class="answer-text"><?php echo esc_html($answer['answer_text']); ?></span>
-                                                    </label>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        <?php endfor; ?>
-                    </div>
-                </div>
-
-                <!-- Step 4: Last 5 Questions + Declaration -->
-                <div class="form-step" data-step="4">
-                    <div class="step-intro">
-                        <h3>שאלון התאמה - חלק ב׳</h3>
-                        <p>השלמת השאלות האחרונות והצהרה</p>
-                    </div>
-                    
-                    <div class="questions-container">
-                        <?php for ($i = 5; $i < 10; $i++) : ?>
+                        <?php for ($i = 0; $i < 10; $i++) : ?>
                             <?php if (isset($questions[$i])) : ?>
                                 <div class="question-block" data-question="<?php echo $i; ?>">
                                     <div class="question-header">
@@ -1352,7 +1119,7 @@ class ACF_Quiz_System {
                                     <li>שייתכן שלא אקבל הודעה מסוימת בזמן אמת או כלל, לאור העובדה שהשירות ניתן באמצעים טכנולוגיים בלבד כגון וואטסאפ, וייתכנו תקלות, עיכובים או כשל בהעברת הודעות.</li>
                                     <li>אני מבין שאין אפשרות לשוחח עם מנהל השירות על כל המלצה או איתות באופן מותאם ואישי.</li>
                                 </ul>
-                                <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר ע‍ם מתן השירות והפסקתו כאמור.</p>
+                                <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר עם מתן השירות והפסקתו כאמור.</p>
                             </div>
                             
                             <div class="declaration-checkbox">
@@ -1364,84 +1131,80 @@ class ACF_Quiz_System {
                                     </label>
                                 </div>
                             </div>
-                            
-                            <div class="declaration-text">
-                                <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
-                                <p>אני מבין כי מסירת מידע כוזב או לא מדויק עלולה להביא לביטול הסכם השירות ו/או לכל תוצאה משפטית אחרת.</p>
-                                <p>אני מאשר כי קיבלתי הסברים מפורטים אודות השירותים הניתנים על ידי מנהל השירות, לרבות אודות הסיכונים הכרוכים במסחר עצמאי בכלים פיננסיים.</p>
-                            </div>
-                            
-                            <!-- Conditional subscription checkbox based on package type -->
-                            <div class="subscription-checkbox trial-packages" style="display: none;">
-                                <input type="checkbox" id="subscription_terms_3month" name="subscription_terms_3month" class="checkbox-input-new" required>
-                                <label for="subscription_terms_3month" class="checkbox-label-new">
-                                    אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי לאחר תקופת ההטבה (3 חודשים במחיר מוזל), יתחדש המנוי אוטומטית מדי חודש במחיר המלא.
-                                    <span class="required">*</span>
-                                </label>
-                            </div>
-                            
-                            <div class="subscription-checkbox other-packages" style="display: none;">
-                                <input type="checkbox" id="subscription_terms_other" name="subscription_terms_other" class="checkbox-input-new" required>
-                                <label for="subscription_terms_other" class="checkbox-label-new">
-                                    אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
-                                    <span class="required">*</span>
-                                </label>
-                            </div>
-                            
-                            <!-- ID Upload Section -->
-                            <div class="id-upload-section">
-                                <h5>העלאת תעודת זהות <span class="required">*</span></h5>
-                                <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
-                                <div class="id-upload-container">
-                                    <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
-                                    <div class="upload-progress" style="display: none;">
-                                        <div class="progress-bar">
-                                            <div class="progress-fill"></div>
-                                        </div>
-                                        <span class="progress-text">מעלה קובץ...</span>
-                                    </div>
-                                    <div class="upload-success" style="display: none;">
-                                        <span class="success-icon">✓</span>
-                                        <span class="success-text">הקובץ הועלה בהצלחה</span>
-                                    </div>
-                                    <div class="upload-error" style="display: none;">
-                                        <span class="error-icon">✗</span>
-                                        <span class="error-text"></span>
-                                    </div>
-                                    <div class="file-preview" id="file_preview" style="display: none;">
-                                        <div class="preview-item">
-                                            <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
-                                            <div class="file-info">
-                                                <span id="file_name"></span>
-                                                <span id="file_size"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
-                                </div>
-                            </div>
-                            
-                            <div class="signature-section">
-                                <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
-                                <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
-                                <div class="signature-container">
-                                    <div class="signature-wrapper">
-                                        <canvas id="signature_pad" width="400" height="150"></canvas>
-                                        <div class="signature-placeholder" id="signature_placeholder">
-                                            <span>חתום כאן</span>
-                                        </div>
-                                    </div>
-                                    <div class="signature-controls">
-                                        <button type="button" id="clear_signature" class="clear-signature-btn">
-                                            <span>🗑️</span> נקה חתימה
-                                        </button>
-                                        <span id="signature_status" class="signature-status">חתימה נדרשת</span>
-                                    </div>
-                                    <input type="hidden" id="signature_data" name="signature_data" required>
-                                </div>
-                                
-                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: ID Upload and Signature -->
+                <div class="form-step" data-step="4">
+                    <div class="step-intro">
+                        <h3>אישור זהות וחתימה</h3>
+                        <p>להשלמת התהליך נדרש לאמת את זהותך ולחתום על ההסכם</p>
+                    </div>
+                    
+                    <!-- ID Upload Section -->
+                    <div class="id-upload-section">
+                        <h5>העלאת תעודת זהות <span class="required">*</span></h5>
+                        <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות (JPG, PNG או PDF, עד 5MB)</p>
+                        <div class="id-upload-container">
+                            <input type="file" id="id_photo_upload" name="id_photo_upload" accept="image/*,.pdf" required>
+                            <div class="upload-progress" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <span class="progress-text">מעלה קובץ...</span>
+                            </div>
+                            <div class="upload-success" style="display: none;">
+                                <span class="success-icon">✓</span>
+                                <span class="success-text">הקובץ הועלה בהצלחה</span>
+                            </div>
+                            <div class="upload-error" style="display: none;">
+                                <span class="error-icon">✗</span>
+                                <span class="error-text"></span>
+                            </div>
+                            <div class="file-preview" id="file_preview" style="display: none;">
+                                <div class="preview-item">
+                                    <img id="preview_image" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <div class="file-info">
+                                        <span id="file_name"></span>
+                                        <span id="file_size"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="uploaded_id_photo" name="uploaded_id_photo" value="">
+                        </div>
+                    </div>
+                    
+                    <!-- Digital Signature Section -->
+                    <div class="signature-section">
+                        <h5>חתימה דיגיטלית <span class="signature-required">*</span></h5>
+                        <p class="signature-instructions">אנא חתום במסגרת למטה באמצעות העכבר או המגע</p>
+                        <div class="signature-container">
+                            <div class="signature-wrapper">
+                                <canvas id="signature_pad" width="400" height="150"></canvas>
+                                <div class="signature-placeholder" id="signature_placeholder">
+                                    <span>חתום כאן</span>
+                                </div>
+                            </div>
+                            <div class="signature-controls">
+                                <button type="button" id="clear_signature" class="clear-signature-btn">
+                                    <span>🗑️</span> נקה חתימה
+                                </button>
+                                <span id="signature_status" class="signature-status">חתימה נדרשת</span>
+                            </div>
+                            <input type="hidden" id="signature_data" name="signature_data" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Final Action Button -->
+                    <div class="final-action">
+                        <div class="action-notice">
+                            <p><strong>לאחר לחיצה על הכפתור למטה תועבר לתשלום</strong></p>
+                            <p>ודא שכל הפרטים נכונים לפני המשך התהליך</p>
+                        </div>
+                        <button type="button" id="proceed-to-checkout" class="checkout-btn">
+                            אישור ומעבר לתשלום
+                        </button>
                     </div>
                 </div>
 

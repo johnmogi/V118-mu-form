@@ -39,9 +39,6 @@
   .acf-quiz-container .step-indicator{
     position:relative; display:flex; gap:14px; align-items:center;
   }
-  .acf-quiz-container .step-indicator::before{
-    content:""; position:absolute; inset:auto 0 50% 0; height:2px; background:var(--line); transform:translateY(-50%);
-  }
   .acf-quiz-container .step-indicator .step,
   .step-indicator .step {
     position:relative; z-index:1;
