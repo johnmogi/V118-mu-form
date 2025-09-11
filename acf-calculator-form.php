@@ -802,7 +802,200 @@ class ACF_Quiz_System {
             
             // Add Step 4 CSS styles
             wp_add_inline_style('acf-quiz-public', '
-                /* Step 4 Agreement Layout Styles */
+                /* Step 5 Styles */
+.form-step[data-step="5"] {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 30px 20px;
+}
+
+.final-approval-container {
+    background: #fff;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.agreement-container {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+.agreement-text {
+    margin-bottom: 20px;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.checkbox-field {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 15px;
+}
+
+.checkbox-field input[type="checkbox"] {
+    margin-left: 10px;
+    margin-top: 4px;
+}
+
+.checkbox-field label {
+    cursor: pointer;
+}
+
+/* File Upload Styles */
+.file-upload-wrapper {
+    margin: 20px 0;
+}
+
+.file-upload-preview {
+    margin-top: 15px;
+    min-height: 50px;
+    border: 2px dashed #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+}
+
+.file-upload-preview p {
+    margin: 0;
+    color: #666;
+}
+
+.file-previews {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.file-preview {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.file-icon {
+    margin-left: 10px;
+    color: #6c757d;
+    font-size: 20px;
+    min-width: 30px;
+    text-align: center;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+
+.file-size {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+.remove-file {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    margin-right: 5px;
+}
+
+.remove-file:hover {
+    color: #bd2130;
+}
+
+.file-note {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 8px;
+}
+
+/* Signature Pad Styles */
+.signature-pad-container {
+    margin: 20px 0;
+}
+
+.signature-pad {
+    width: 100%;
+    height: 200px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    touch-action: none;
+}
+
+.signature-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.signature-status {
+    font-size: 0.9em;
+    color: #dc3545;
+}
+
+.signature-status.valid {
+    color: #28a745;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+/* Error States */
+.error {
+    border-color: #dc3545 !important;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.85em;
+    margin-top: 5px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .form-step[data-step="5"] {
+        padding: 20px 10px;
+    }
+    
+    .final-approval-container {
+        padding: 20px 15px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-actions .button {
+        width: 100%;
+    }
+}
+
+/* Step 4 Agreement Layout Styles */
                 .form-step[data-step="4"] {
                     max-width: 860px;
                     margin: 0 auto;
@@ -1064,6 +1257,7 @@ class ACF_Quiz_System {
                         ctx.beginPath();
                         ctx.moveTo(p.x, p.y);
                         e.preventDefault();
+                        checkStep4Ready();
                     }
                     
                     function move(e) {
@@ -1148,45 +1342,19 @@ class ACF_Quiz_System {
                     
                     initStep4SignaturePad();
                     checkStep4Ready();
-                }
-                
-                // Simple function to check if we're on step 4
-                function checkStep4() {
-                    var isStep4 = $('.step[data-step=\"4\"]').hasClass('active');
                     
-                    if (isStep4) {
-                        $('.submit-btn, #submit-form').show();
-                        $('.next-btn').hide();
-                        setTimeout(initStep4, 100); // Initialize step 4 functionality
-                    } else {
-                        $('.submit-btn, #submit-form').hide();
-                        $('.next-btn').show();
-                    }
-                }
-                
-                // Run on page load
-                checkStep4();
-                
-                // Run when buttons are clicked
-                $(document).on('click', '.next-btn, .prev-btn', function() {
-                    setTimeout(checkStep4, 100);
-                });
-                
-                // Run periodically to catch any changes
-                setInterval(checkStep4, 1000);
-            });";
-            
-            wp_add_inline_script('jquery', $custom_js);
-            
-            // Enqueue signature pad library
-            wp_enqueue_script(
-                'signature-pad',
-                'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
-                array('jquery'),
-                '4.0.0',
-                true
-            );
-            wp_enqueue_script(
+                    // Navigation is now handled by the main navigation function
+                    // This prevents duplicate event handlers and conflicts
+                    
+                    // Enqueue SignaturePad library
+                    wp_enqueue_script(
+                        'signature-pad',
+                        'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
+                        array('jquery'),
+                        '4.0.0',
+                        true
+                    );
+                    wp_enqueue_script(
                 'signature-capture',
                 plugins_url('signature-capture.js', __FILE__),
                 array('signature-pad', 'jquery'),
@@ -1194,72 +1362,138 @@ class ACF_Quiz_System {
                 true
             );
             
-            // Add signature pad initialization
-            $signature_js = "
-            // Test signature system function
-            function testSignatureSystem() {
-                console.log('Testing signature system...');
-                
-                // Check if signature canvas exists
-                const canvas = document.getElementById('signature_canvas');
-                if (!canvas) {
-                    alert('❌ Signature canvas not found');
-                    return;
-                }
-                
-                // Check if SignaturePad is loaded
-                if (typeof SignaturePad === 'undefined') {
-                    alert('❌ SignaturePad library not loaded');
-                    return;
-                }
-                
-                // Check if signature_ajax is available
-                if (typeof signature_ajax === 'undefined') {
-                    alert('❌ Signature AJAX not configured');
-                    return;
-                }
-                
-                // Create a test signature
-                const signaturePad = new SignaturePad(canvas);
-                
-                // Draw a simple test signature
-                signaturePad.fromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
-                
-                const testData = signaturePad.toDataURL('image/png', 0.8);
-                
-                // Test save signature
-                const formData = new FormData();
-                formData.append('action', 'save_signature');
-                formData.append('nonce', signature_ajax.nonce);
-                formData.append('signature_data', testData);
-                formData.append('submission_id', 999);
-                formData.append('user_email', 'test@example.com');
-                
-                fetch(signature_ajax.ajax_url, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('✅ Signature system working! ID: ' + data.data.signature_id);
-                    } else {
-                        alert('❌ Signature save failed: ' + data.data);
-                    }
-                })
-                .catch(error => {
-                    alert('❌ Network error: ' + error);
-                });
-            }
+            // Enqueue the signature pad initialization script
+            wp_enqueue_script(
+                'signature-pad-init',
+                plugins_url('signature-pad-init.js', __FILE__),
+                array('jquery', 'signature-pad'),
+                '1.0.0',
+                true
+            );
             
-            jQuery(document).ready(function($) {
-                // Ensure final declaration checkbox is unchecked by default - multiple approaches
-                function forceUncheckDeclaration() {
-                    $('#final_declaration').prop('checked', false);
-                    $('#final_declaration').removeAttr('checked');
-                    $('#final_declaration')[0].checked = false;
-                    console.log('Final declaration checkbox forced to unchecked');
+            // Enqueue form navigation script
+            wp_enqueue_script(
+                'form-navigation',
+                plugins_url('form-navigation.js', __FILE__),
+                array('jquery'),
+                '1.0.0',
+                true
+            );
+            
+            // Localize the script with AJAX URL
+            wp_localize_script('signature-pad-init', 'signature_ajax', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('signature_nonce')
+            ));
+            
+            $signature_js = '// Signature pad initialization has been moved to signature-pad-init.js';
+            
+            wp_add_inline_script('signature-pad-init', $signature_js);
+        }
+        ?>
+        <script>
+        jQuery(document).ready(function($) {
+            // Form Navigation
+            function updateStepNavigation() {
+                const currentStep = $('.form-step.active').data('step');
+                const totalSteps = 5; // Total number of steps
+                
+                // Update progress indicator
+                $('.step-indicator .step').removeClass('active');
+                $('.step-indicator .step').filter('[data-step=' + currentStep + ']').addClass('active');
+                
+                // Update step title and subtitle
+                const stepTitles = {
+                    1: 'שאלון התאמה',
+                    2: 'פרטים אישיים',
+                    3: 'שאלון התאמה - חלק א',
+                    4: 'שאלון התאמה - חלק ב',
+                    5: 'אישור והגשה'
+                };
+                
+                const stepSubtitles = {
+                    1: 'שלב 1 מתוך 5',
+                    2: 'שלב 2 מתוך 5',
+                    3: 'שלב 3 מתוך 5',
+                    4: 'שלב 4 מתוך 5',
+                    5: 'שלב 5 מתוך 5 - סיום'
+                };
+                
+                $('#step-title').text(stepTitles[currentStep]);
+                $('#step-subtitle').text(stepSubtitles[currentStep]);
+                    
+                    // Update navigation buttons
+                    if (currentStep === 1) {
+                        $('.prev-btn').hide();
+                    } else {
+                        $('.prev-btn').show();
+                    }
+                    
+                    if (currentStep === totalSteps) {
+                        $('.next-btn').hide();
+                        $('.submit-btn').show();
+                    } else {
+                        $('.next-btn').show();
+                        $('.submit-btn').hide();
+                    }
+                    
+                    // Trigger step changed event
+                    $(document).trigger('formStepChanged', [currentStep]);
                 }
+                
+                // Handle next button click
+                $(document).on('click', '.next-btn', function(e) {
+                    e.preventDefault();
+                    
+                    const $currentStep = $('.form-step.active');
+                    const currentStep = $currentStep.data('step');
+                    let isValid = true;
+                    
+                    // Validate current step
+                    if (currentStep === 4) {
+                        // Validate step 4 (agreement, ID upload, signature)
+                        if (!$('#final_declaration').is(':checked')) {
+                            isValid = false;
+                            $('#final_declaration').addClass('error');
+                        }
+                        
+                        if (!$('#signature_data').val()) {
+                            isValid = false;
+                            $('.signature-pad-container').addClass('error');
+                        }
+                    } else {
+                        // Validate required fields in current step
+                        $currentStep.find('[required]').each(function() {
+                            if (!$(this).val()) {
+                                isValid = false;
+                                $(this).addClass('error');
+                            }
+                        });
+                    }
+                    
+                    if (!isValid) {
+                        // Scroll to first error
+                        $('html, body').animate({
+                            scrollTop: $currentStep.find('.error').first().offset().top - 100
+                        }, 300);
+                        return false;
+                    }
+                    
+                    // Move to next step
+                    $currentStep.removeClass('active');
+                    $currentStep.next('.form-step').addClass('active');
+                    updateStepNavigation();
+                });
+                
+                // Handle previous button click
+                $(document).on('click', '.prev-btn', function(e) {
+                    e.preventDefault();
+                    
+                    const $currentStep = $('.form-step.active');
+                    $currentStep.removeClass('active');
+                    $currentStep.prev('.form-step').addClass('active');
+                    updateStepNavigation();
+                });
                 
                 // Signature Pad Management - Stable Implementation
                 let signaturePadInstance = null;
@@ -1393,13 +1627,16 @@ class ACF_Quiz_System {
                             'opacity': '1 !important'
                         });
                         
-                        // Show next button on step 1
-                        $('#next-step').show().css('display', 'inline-block');
+                        // Navigation is now handled by the main navigation function
+                        // This prevents duplicate event handlers and conflicts
                         
                         // Initialize the quiz system if it exists
                         if (typeof MultiStepQuiz !== 'undefined') {
                             MultiStepQuiz.init();
                         }
+                        
+                        // Initialize step 5 functionality
+                        initializeStep5();
                         
                         // Force show navigation buttons with direct DOM manipulation
                         const navContainer = document.querySelector('.form-navigation');
@@ -1494,16 +1731,18 @@ class ACF_Quiz_System {
                     <div class="step" data-step="2">2</div>
                     <div class="step" data-step="3">3</div>
                     <div class="step" data-step="4">4</div>
+                    <div class="step" data-step="5">5</div>
                 </div>
                 <div class="step-title">
                     <h2 id="step-title">שאלון התאמה</h2>
-                    <p id="step-subtitle">שלב 1 מתוך 4</p>
+                    <p id="step-subtitle">שלב 1 מתוך 5</p>
                 </div>
             </div>
 
             <form id="acf-quiz-form" class="quiz-form multi-step" dir="rtl">
                 <?php wp_nonce_field('quiz_step_nonce', 'quiz_nonce'); ?>
             
+{{ ... }}
             <!-- Package Parameters -->
             <input type="hidden" name="package_param" value="<?php echo esc_attr($package); ?>">
             <input type="hidden" name="package_price_param" value="<?php echo esc_attr($price); ?>">
@@ -1840,6 +2079,57 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
+                <!-- Step 5: Final Approval -->
+                <div class="form-step" data-step="5">
+                    <div class="step-intro">
+                        <h3>אישור סופי</h3>
+                        <p>אנא אשר את הפרטים וחתום לאישור סופי</p>
+                    </div>
+
+                    <div class="final-approval-container">
+                        <!-- Agreement Checkbox -->
+                        <div class="form-field agreement-container">
+                            <div class="agreement-text">
+                                <p>אני מאשר/ת כי קראתי והבנתי את כל תנאי ההסכם, ואני מסכים/כה לתנאיו במלואם. אני מודע/ת לכך שחתימתי מהווה אישור מחייב לכל דבר ועניין.</p>
+                            </div>
+                            <div class="checkbox-field">
+                                <input type="checkbox" id="final_agreement" name="final_agreement" required>
+                                <label for="final_agreement">אני מאשר/ת את כל האמור לעיל</label>
+                            </div>
+                        </div>
+
+                        <!-- ID Upload -->
+                        <div class="form-field">
+                            <label for="id_upload">העלאת תעודה מזהה (אופציונלי)</label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="id_upload" name="id_upload[]" multiple accept="image/*,.pdf" data-max-size="10">
+                                <div class="file-upload-preview" id="file-upload-preview">
+                                    <p>לא נבחרו קבצים</p>
+                                </div>
+                                <p class="file-note">ניתן להעלות עד 5 קבצים בפורמטים: JPG, PNG, PDF. גודל מקסימלי: 10MB לקובץ.</p>
+                            </div>
+                        </div>
+
+                        <!-- Digital Signature -->
+                        <div class="form-field">
+                            <label>חתימה דיגיטלית</label>
+                            <div class="signature-pad-container">
+                                <canvas id="signature-pad" class="signature-pad" width="600" height="200"></canvas>
+                                <div class="signature-actions">
+                                    <button type="button" id="clear-signature" class="button">נקה חתימה</button>
+                                    <span id="signature-status">נדרשת חתימה</span>
+                                </div>
+                                <input type="hidden" name="signature_data" id="signature-data">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="button prev-btn">חזור</button>
+                            <button type="submit" class="button primary submit-btn" disabled>אשר וסיים</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-navigation">
                     <button type="button" id="prev-step" class="nav-btn prev-btn" style="display: none;">
                         <span class="elementor-button-content-wrapper">
@@ -1890,10 +2180,12 @@ class ACF_Quiz_System {
                 step2Title: 'שאלון התאמה',
                 step3Title: 'שאלון התאמה',
                 step4Title: 'שאלון התאמה',
-                step1Subtitle: 'שלב 1 מתוך 4',
-                step2Subtitle: 'שלב 2 מתוך 4',
-                step3Subtitle: 'שלב 3 מתוך 4',
-                step4Subtitle: 'שלב 4 מתוך 4'
+                step5Title: 'אישור והגשה',
+                step1Subtitle: 'שלב 1 מתוך 5',
+                step2Subtitle: 'שלב 2 מתוך 5',
+                step3Subtitle: 'שלב 3 מתוך 5',
+                step4Subtitle: 'שלב 4 מתוך 5',
+                step5Subtitle: 'שלב 5 מתוך 5'
             }
         };
         
@@ -2006,11 +2298,161 @@ class ACF_Quiz_System {
             });
             
             // Also track submit button clicks directly
-            $('#submit-form').on('click', function() {
+            $('#submit-form, .submit-btn').on('click', function() {
                 console.log('Submit button clicked - setting formSubmitting = true');
                 formSubmitting = true;
                 window.formSubmitting = true;
+                
+                // Validate step 5 before submission
+                if ($(this).closest('.form-step[data-step="5"]').length) {
+                    if (!validateStep5()) {
+                        formSubmitting = false;
+                        window.formSubmitting = false;
+                        return false;
+                    }
+                }
             });
+            
+            // Initialize step 5 functionality
+            function initializeStep5() {
+                // Initialize signature pad
+                const canvas = document.getElementById('signature-pad');
+                const clearButton = document.getElementById('clear-signature');
+                const submitButton = document.querySelector('.form-step[data-step="5"] .submit-btn');
+                const signatureStatus = document.getElementById('signature-status');
+                
+                if (!canvas) return;
+                
+                // Set canvas dimensions
+                function resizeCanvas() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext('2d').scale(ratio, ratio);
+                }
+                
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+                
+                const signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255, 255, 255)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+                
+                // Store signature data in hidden input
+                function saveSignature() {
+                    if (signaturePad.isEmpty()) {
+                        $('#signature-data').val('');
+                        signatureStatus.textContent = 'נדרשת חתימה';
+                        signatureStatus.className = 'signature-status';
+                        return false;
+                    } else {
+                        $('#signature-data').val(signaturePad.toDataURL());
+                        signatureStatus.textContent = 'חתימה תקינה';
+                        signatureStatus.className = 'signature-status valid';
+                        validateStep5();
+                        return true;
+                    }
+                }
+                
+                // Clear signature
+                clearButton.addEventListener('click', function() {
+                    signaturePad.clear();
+                    saveSignature();
+                });
+                
+                // Save signature on end of drawing
+                canvas.addEventListener('mouseup', saveSignature);
+                canvas.addEventListener('touchend', saveSignature);
+                
+                // Validate step 5
+                function validateStep5() {
+                    const isAgreed = $('#final_agreement').is(':checked');
+                    const hasSignature = !signaturePad.isEmpty();
+                    const isValid = isAgreed && hasSignature;
+                    
+                    // Update UI
+                    if (isAgreed) {
+                        $('#final_agreement').removeClass('error');
+                    } else {
+                        $('#final_agreement').addClass('error');
+                    }
+                    
+                    if (!hasSignature) {
+                        $('.signature-pad-container').addClass('error');
+                    } else {
+                        $('.signature-pad-container').removeClass('error');
+                    }
+                    
+                    // Enable/disable submit button
+                    if (submitButton) {
+                        submitButton.disabled = !isValid;
+                    }
+                    
+                    return isValid;
+                }
+                
+                // Handle agreement checkbox change
+                $('#final_agreement').on('change', validateStep5);
+                
+                // File upload preview
+                const fileInput = document.getElementById('id_upload');
+                const filePreview = document.getElementById('file-upload-preview');
+                
+                if (fileInput && filePreview) {
+                    fileInput.addEventListener('change', function() {
+                        const files = Array.from(this.files);
+                        
+                        if (files.length === 0) {
+                            filePreview.innerHTML = '<p>לא נבחרו קבצים</p>';
+                            return;
+                        }
+                        
+                        let previewHTML = '<div class="file-previews">';
+                        
+                        files.forEach((file, index) => {
+                            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                            const fileType = file.type.split('/')[0];
+                            
+                            previewHTML += `
+                                <div class="file-preview">
+                                    <div class="file-icon">
+                                        <i class="${fileType === 'image' ? 'fas fa-image' : 'fas fa-file-pdf'}"></i>
+                                    </div>
+                                    <div class="file-info">
+                                        <div class="file-name">${file.name}</div>
+                                        <div class="file-size">${fileSize} MB</div>
+                                    </div>
+                                    <button type="button" class="remove-file" data-index="${index}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            `;
+                        });
+                        
+                        previewHTML += '</div>';
+                        filePreview.innerHTML = previewHTML;
+                        
+                        // Handle file removal
+                        filePreview.querySelectorAll('.remove-file').forEach(button => {
+                            button.addEventListener('click', function() {
+                                const index = parseInt(this.getAttribute('data-index'));
+                                const newFiles = Array.from(fileInput.files);
+                                newFiles.splice(index, 1);
+                                
+                                // Create new FileList (using DataTransfer as a workaround)
+                                const dataTransfer = new DataTransfer();
+                                newFiles.forEach(file => dataTransfer.items.add(file));
+                                fileInput.files = dataTransfer.files;
+                                
+                                // Trigger change event to update preview
+                                const event = new Event('change');
+                                fileInput.dispatchEvent(event);
+                            });
+                        });
+                    });
+                }
+            }
             
             
             // Handle browser back/forward buttons
