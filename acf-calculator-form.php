@@ -108,6 +108,10 @@ class ACF_Quiz_System {
         // Initialize submissions viewer
         add_action('admin_menu', array($this, 'add_submissions_menu'));
         
+        // Create database table on activation
+        register_activation_hook(__FILE__, array($this, 'create_submissions_table'));
+        add_action('init', array($this, 'create_submissions_table')); // Also run on init for updates
+        
         // WooCommerce integration
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
         add_filter('woocommerce_checkout_get_value', array($this, 'get_checkout_field_value'), 10, 2);
@@ -205,6 +209,7 @@ class ACF_Quiz_System {
             ip_address varchar(45) DEFAULT '',
             user_agent text DEFAULT '',
             signature_data longtext DEFAULT '',
+            uploaded_id_photo varchar(255) DEFAULT '',
             
             PRIMARY KEY (id),
             KEY passed (passed),
@@ -220,6 +225,12 @@ class ACF_Quiz_System {
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'signature_data'");
         if (empty($column_exists)) {
             $wpdb->query("ALTER TABLE $table_name ADD COLUMN signature_data longtext DEFAULT ''");
+        }
+        
+        // Add uploaded_id_photo column if it doesn't exist (for existing installations)
+        $id_photo_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'uploaded_id_photo'");
+        if (empty($id_photo_column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN uploaded_id_photo varchar(255) DEFAULT ''");
         }
     }
 
@@ -1135,8 +1146,8 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3: First 5 Investment Questions -->
-                <div class="form-step" data-step="3">
+                <!-- Step 3a: First 5 Investment Questions -->
+                <div class="form-step" data-step="3" data-substep="a">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>אנא השיבו על השאלות הבאות בהתאם לידע ולניסיון שלכם</p>
@@ -1175,8 +1186,8 @@ class ACF_Quiz_System {
                     </div>
                 </div>
 
-                <!-- Step 3 (Part 2): Last 5 Questions + Declaration -->
-                <div class="form-step" data-step="3" data-substep="2">
+                <!-- Step 3b: Last 5 Questions + Declaration -->
+                <div class="form-step" data-step="3" data-substep="b">
                     <div class="step-intro">
                         <h3>שאלון התאמה - חלק ב׳</h3>
                         <p>השלמת השאלות והצהרה סופית</p>
@@ -1798,6 +1809,178 @@ class ACF_Quiz_System {
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
             
+            // Step Controller Script - Fixed Implementation
+            console.log('Step controller initializing...');
+            
+            const form = document.getElementById('acf-quiz-form');
+            if (!form) {
+                console.error('Form not found');
+                return;
+            }
+            
+            const steps = {
+                step1: form.querySelector('.form-step[data-step="1"]'),
+                step2: form.querySelector('.form-step[data-step="2"]'),
+                step3a: form.querySelector('.form-step[data-step="3"][data-substep="a"]'),
+                step3b: form.querySelector('.form-step[data-step="3"][data-substep="b"]'),
+                step4: form.querySelector('.form-step[data-step="4"]'),
+            };
+            
+            console.log('Steps found:', steps);
+            
+            const stepperBubbles = form.querySelectorAll('.step-indicator .step');
+            const subtitleEl = form.querySelector('#step-subtitle');
+            const prevBtn = form.querySelector('#prev-step');
+            const nextBtn = form.querySelector('#next-step');
+            const submitBtn = form.querySelector('#submit-form');
+            
+            console.log('Navigation buttons:', { prevBtn, nextBtn, submitBtn });
+            
+            let currentStep = 'step1';
+            
+            function visibleStepNumber(stepKey) {
+                if (stepKey === 'step1') return 1;
+                if (stepKey === 'step2') return 2;
+                if (stepKey === 'step3a' || stepKey === 'step3b') return 3;
+                if (stepKey === 'step4') return 4;
+                return 1;
+            }
+            
+            function updateUI() {
+                console.log('Updating UI for step:', currentStep);
+                
+                // Hide all steps first and remove active class
+                Object.keys(steps).forEach(key => {
+                    if (steps[key]) {
+                        steps[key].classList.remove('active');
+                        steps[key].style.display = 'none';
+                    }
+                });
+                
+                // Show current step only
+                if (steps[currentStep]) {
+                    steps[currentStep].classList.add('active');
+                    steps[currentStep].style.display = 'block';
+                    console.log('Showing step:', currentStep);
+                }
+                
+                // Update step indicators - remove completed class to remove checkmarks
+                const v = visibleStepNumber(currentStep);
+                stepperBubbles.forEach(b => {
+                    const n = Number(b.getAttribute('data-step'));
+                    b.classList.toggle('active', n === v);
+                    // Remove completed class to remove checkmarks
+                    b.classList.remove('completed');
+                });
+                
+                // Update subtitle
+                if (subtitleEl) subtitleEl.textContent = `שלב ${v} מתוך 4`;
+                
+                // Update navigation buttons
+                if (prevBtn) {
+                    prevBtn.style.display = currentStep === 'step1' ? 'none' : 'inline-block';
+                }
+                
+                if (nextBtn) {
+                    nextBtn.style.display = currentStep === 'step4' ? 'none' : 'inline-block';
+                }
+                
+                if (submitBtn) {
+                    submitBtn.style.display = currentStep === 'step4' ? 'inline-block' : 'none';
+                }
+                
+                console.log('UI updated - current step:', currentStep, 'visible step number:', v);
+            }
+            
+            function validateCurrentStep() {
+                const currentStepEl = steps[currentStep];
+                if (!currentStepEl) return true;
+                
+                const inputs = currentStepEl.querySelectorAll('input[required], select[required], textarea[required]');
+                let valid = true;
+                
+                inputs.forEach(input => {
+                    if (input.type === 'radio') {
+                        const name = input.name;
+                        const radioGroup = currentStepEl.querySelectorAll(`input[name="${name}"]`);
+                        const checked = Array.from(radioGroup).some(r => r.checked);
+                        if (!checked) {
+                            valid = false;
+                            radioGroup.forEach(r => r.classList.add('error'));
+                        } else {
+                            radioGroup.forEach(r => r.classList.remove('error'));
+                        }
+                    } else if (!input.checkValidity()) {
+                        valid = false;
+                        input.classList.add('error');
+                    } else {
+                        input.classList.remove('error');
+                    }
+                });
+                
+                if (!valid) {
+                    console.log('Validation failed for step:', currentStep);
+                }
+                
+                return valid;
+            }
+            
+            function navigate(direction) {
+                console.log('Navigating:', direction, 'from step:', currentStep);
+                
+                if (direction === 'next') {
+                    if (!validateCurrentStep()) {
+                        console.log('Validation failed, not proceeding');
+                        return;
+                    }
+                    
+                    if (currentStep === 'step1') currentStep = 'step2';
+                    else if (currentStep === 'step2') currentStep = 'step3a';
+                    else if (currentStep === 'step3a') currentStep = 'step3b';
+                    else if (currentStep === 'step3b') currentStep = 'step4';
+                } else if (direction === 'prev') {
+                    if (currentStep === 'step2') currentStep = 'step1';
+                    else if (currentStep === 'step3a') currentStep = 'step2';
+                    else if (currentStep === 'step3b') currentStep = 'step3a';
+                    else if (currentStep === 'step4') currentStep = 'step3b';
+                }
+                
+                console.log('New step:', currentStep);
+                updateUI();
+            }
+            
+            // Event listeners
+            if (nextBtn) {
+                nextBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Next button clicked');
+                    navigate('next');
+                });
+            }
+            
+            if (prevBtn) {
+                prevBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Previous button clicked');
+                    navigate('prev');
+                });
+            }
+            
+            // Initial setup
+            updateUI();
+            console.log('Step controller initialized successfully');
+            
+            // Debug functions
+            window.checkVisibleSteps = function() {
+                const visibleSteps = document.querySelectorAll('.form-step[style*="block"], .form-step:not([style*="none"])');
+                console.log('Visible steps count:', visibleSteps.length);
+                return visibleSteps.length;
+            };
+            
+            window.getCurrentStep = function() {
+                return currentStep;
+            };
+            
             // Browser back button protection
             window.addEventListener('beforeunload', function(e) {
                 console.log('beforeunload triggered - formStarted:', formStarted, 'formSubmitting:', formSubmitting, 'window.formSubmitting:', window.formSubmitting);
@@ -2110,6 +2293,7 @@ class ACF_Quiz_System {
         $profession = sanitize_text_field($quiz_data['profession'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
+        $uploaded_id_photo = sanitize_text_field($quiz_data['uploaded_id_photo'] ?? '');
 
         // Debug logging for signature data
         error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
@@ -2207,7 +2391,9 @@ class ACF_Quiz_System {
                     'completed' => 1,
                     'submission_time' => current_time('mysql'),
                     'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    'signature_data' => $signature_data,
+                    'uploaded_id_photo' => $uploaded_id_photo
                 ),
                 array('id' => $existing_id),
                 null,
@@ -2239,7 +2425,8 @@ class ACF_Quiz_System {
                 'submission_time' => current_time('mysql'),
                 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
                 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-                'signature_data' => $signature_data
+                'signature_data' => $signature_data,
+                'uploaded_id_photo' => $uploaded_id_photo
             ));
             $submission_id = $wpdb->insert_id;
         }

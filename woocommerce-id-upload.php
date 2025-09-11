@@ -11,14 +11,8 @@ if (!defined('ABSPATH')) {
 class WooCommerce_ID_Upload {
     
     public function __construct() {
-        // Add upload field to checkout
-        add_action('woocommerce_after_checkout_billing_form', array($this, 'add_id_upload_field'));
-        
-        // Validate upload on checkout
-        add_action('woocommerce_checkout_process', array($this, 'validate_id_upload'));
-        
-        // Save upload data
-        add_action('woocommerce_checkout_update_order_meta', array($this, 'save_id_upload_data'));
+        // ID upload functionality is now handled in the quiz form step 4
+        // Keeping only admin and AJAX handlers for existing orders
         
         // Display in admin order details
         add_action('woocommerce_admin_order_data_after_billing_address', array($this, 'display_id_upload_in_admin'));
@@ -26,9 +20,6 @@ class WooCommerce_ID_Upload {
         // Handle AJAX file upload
         add_action('wp_ajax_upload_id_photo', array($this, 'handle_id_upload'));
         add_action('wp_ajax_nopriv_upload_id_photo', array($this, 'handle_id_upload'));
-        
-        // Enqueue scripts
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_upload_scripts'));
         
         // Create uploads directory
         add_action('init', array($this, 'create_uploads_directory'));

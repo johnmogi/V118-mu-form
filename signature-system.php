@@ -193,7 +193,7 @@ class Simple_Signature_System {
      */
     public function render_signature_admin_page() {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'signatures';
+        $table_name = $wpdb->prefix . 'quiz_submissions';
         
         // Handle delete action
         if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']) && current_user_can('manage_options')) {
