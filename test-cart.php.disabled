@@ -1,0 +1,120 @@
+<?php
+/**
+ * Test script for WooCommerce cart integration
+ * 
+ * This script can be accessed directly to test the cart functionality
+ * Example: https://your-site.com/wp-content/mu-plugins/test-cart.php
+ */
+
+// Ensure WordPress is loaded
+if (!defined('ABSPATH')) {
+    // If accessed directly, load WordPress
+    $path = $_SERVER['DOCUMENT_ROOT'];
+    
+    // Find the wp-load.php file
+    while (!file_exists($path . '/wp-load.php') && $path !== '/') {
+        $path = dirname($path);
+    }
+    
+    if (!file_exists($path . '/wp-load.php')) {
+        die('Could not find WordPress.');
+    }
+    
+    define('SHORTINIT', true);
+    require_once($path . '/wp-load.php');
+}
+
+// Only allow admins to run this script
+if (!current_user_can('manage_options')) {
+    wp_die('You do not have sufficient permissions to access this page.');
+}
+
+// Initialize WooCommerce session if needed
+if (class_exists('WooCommerce') && !WC()->session) {
+    WC()->initialize_session();
+}
+
+// Test cart functionality
+function test_cart_functionality() {
+    if (!class_exists('WooCommerce')) {
+        return 'WooCommerce is not active.';
+    }
+    
+    $output = '<h2>WooCommerce Cart Test</h2>';
+    
+    // Test product creation
+    $output .= '<h3>1. Checking if quiz products exist:</h3>';
+    $product_ids = array(
+        'trial' => get_option('quiz_trial_product_id'),
+        'monthly' => get_option('quiz_monthly_product_id'),
+        'yearly' => get_option('quiz_yearly_product_id')
+    );
+    
+    foreach ($product_ids as $type => $id) {
+        $product = $id ? wc_get_product($id) : null;
+        $status = $product ? '✅ Exists (ID: ' . $id . ')' : '❌ Missing';
+        $output .= "<p>" . ucfirst($type) . " product: $status</p>";
+    }
+    
+    // Test adding to cart
+    $output .= '<h3>2. Testing cart functionality:</h3>';
+    
+    // Clear cart first
+    WC()->cart->empty_cart();
+    
+    // Add test product
+    $test_product_id = reset($product_ids);
+    if ($test_product_id) {
+        $added = WC()->cart->add_to_cart($test_product_id, 1, 0, array(), array(
+            'custom_price' => 99,
+            'package_type' => 'trial',
+            'quiz_validated' => true
+        ));
+        
+        if ($added) {
+            $output .= '<p>✅ Successfully added test product to cart.</p>';
+            $output .= '<p>Cart contents: ' . WC()->cart->get_cart_contents_count() . ' items</p>';
+            
+            // Test cart item data
+            foreach (WC()->cart->get_cart() as $cart_item) {
+                $output .= '<h4>Cart Item:</h4>';
+                $output .= '<pre>' . print_r($cart_item, true) . '</pre>';
+            }
+            
+            // Test checkout URL
+            $checkout_url = wc_get_checkout_url();
+            $output .= '<p><a href="' . $checkout_url . '" target="_blank">Proceed to Checkout</a></p>';
+        } else {
+            $output .= '<p>❌ Failed to add test product to cart.</p>';
+        }
+    } else {
+        $output .= '<p>❌ No test product available to add to cart.</p>';
+    }
+    
+    return $output;
+}
+
+// Run tests and display results
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WooCommerce Cart Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        pre { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; overflow: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        a { color: #0073aa; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>WooCommerce Cart Integration Test</h1>
+    <p>This page tests the WooCommerce cart integration for the quiz system.</p>
+    
+    <?php echo test_cart_functionality(); ?>
+    
+    <p><a href="<?php echo admin_url('admin.php?page=wc-status&tab=tools'); ?>">WooCommerce Status & Tools</a></p>
+</body>
+</html>
