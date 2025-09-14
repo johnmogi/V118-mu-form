@@ -1695,6 +1695,8 @@ class ACF_Quiz_System {
             
             $('#birth_day, #birth_month, #birth_year').on('change', updateBirthDate);
             
+            // Signature pad functionality moved back to external file
+            
             // ID Upload functionality
             $('#id_photo_upload').on('change', function() {
                 const file = this.files[0];

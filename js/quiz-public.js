@@ -528,10 +528,15 @@ jQuery(document).ready(function($) {
                 
                 // Remove error classes from other fields
                 currentStepElement.find('input:not(#id_number), select:not(#gender)').removeClass('error touched');
-            } else if (this.currentStep === 3 || this.currentStep === 4) {
+            } else if (this.currentStep === 3) {
+                // Allow proceeding from step 3 regardless of answers - remove validation block
+                isValid = true;
+                // Force button to be enabled for step 3
+                this.nextButton.prop('disabled', false);
+            } else if (this.currentStep === 4) {
                 // Special validation for radio button groups in quiz steps
-                const questionStart = this.currentStep === 3 ? 0 : 5;
-                const questionEnd = this.currentStep === 3 ? 5 : 10;
+                const questionStart = 5;
+                const questionEnd = 10;
                 
                 for (let i = questionStart; i < questionEnd; i++) {
                     const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;

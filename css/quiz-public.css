@@ -89,11 +89,11 @@ html[dir="rtl"] .acf-quiz-container {
     color: white;
 }
 
-.step-indicator .step.completed::after {
+/* .step-indicator .step.completed::after {
     content: '✓';
     position: absolute;
     font-size: 14px;
-}
+} */
 
 .step-title h2 {
     margin: 0 0 5px 0;
@@ -583,13 +583,6 @@ html[dir="rtl"] .answers-container {
     margin-left: 0;
 }
 
-/* Add back margin for desktop */
-@media (min-width: 768px) {
-    html[dir="rtl"] .answers-container {
-        margin-right: 45px;
-    }
-}
-
 .answer-option {
     margin-bottom: 12px;
     position: relative;
@@ -742,8 +735,10 @@ html[dir="rtl"] .answer-marker {
     display: block;
     width: 100% !important;
     height: 150px !important;
-    touch-action: none;
-    -ms-touch-action: none;
+    min-width: 400px !important;
+    min-height: 150px !important;
+    border: none;
+    background: transparent;
     cursor: crosshair;
 }
 
@@ -1257,9 +1252,9 @@ body.monthly-trial .monthly-declaration {
     
     .question-text {
         flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        overflow: visible;
+        line-height: 1.4;
     }
     
     .answer-text {
