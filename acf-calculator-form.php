@@ -96,6 +96,7 @@ class ACF_Quiz_System {
         
         // Register shortcodes
         add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
+        add_shortcode('quiz_form', array($this, 'add_quiz_form'));
         
         // Initialize submissions viewer
         add_action('admin_menu', array($this, 'add_submissions_menu'));
