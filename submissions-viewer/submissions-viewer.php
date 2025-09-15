@@ -104,6 +104,7 @@ class Simple_Submissions_Viewer {
                         <th>Name</th>
                         <th>Email</th>
                         <th>Phone</th>
+                        <th>ID Photo</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th>Actions</th>
@@ -112,7 +113,7 @@ class Simple_Submissions_Viewer {
                 <tbody>
                     <?php if (empty($submissions)): ?>
                         <tr>
-                            <td colspan="7">No submissions found.</td>
+                            <td colspan="8">No submissions found.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($submissions as $submission): ?>
@@ -121,6 +122,13 @@ class Simple_Submissions_Viewer {
                                 <td><?php echo esc_html($submission->name); ?></td>
                                 <td><?php echo esc_html($submission->email); ?></td>
                                 <td><?php echo esc_html($submission->phone); ?></td>
+                                <td>
+                                    <?php if (!empty($submission->id_photo_filename)): ?>
+                                        <span style="color: green;">✓ Uploaded</span>
+                                    <?php else: ?>
+                                        <span style="color: red;">✗ Missing</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($submission->is_complete): ?>
                                         <span style="color: green;">Complete</span>
@@ -167,6 +175,11 @@ class Simple_Submissions_Viewer {
                     <?php endif; ?>
                     <?php if ($submission->birth_date): ?>
                     content += '<strong>Birth Date:</strong> <?php echo esc_js($submission->birth_date); ?><br>';
+                    <?php endif; ?>
+                    <?php if (!empty($submission->id_photo_filename)): ?>
+                    content += '<strong>ID Photo:</strong> <a href="/wp-content/uploads/quiz-id-photos/<?php echo esc_js($submission->id_photo_filename); ?>" target="_blank">View Photo</a><br>';
+                    <?php else: ?>
+                    content += '<strong>ID Photo:</strong> <span style="color: red;">Not uploaded</span><br>';
                     <?php endif; ?>
                     content += '<strong>Status:</strong> <?php echo $submission->is_complete ? 'Complete' : 'Step 1 Only'; ?><br>';
                     content += '<strong>Created:</strong> <?php echo esc_js($submission->created_at); ?><br>';

@@ -351,9 +351,9 @@ jQuery(document).ready(function($) {
                     console.log('Redirecting to:', window.location.href);
                 } else {
                     console.log('FAILED - Checking score for redirect');
-                    if (totalScore >= 19 && totalScore <= 22) {
-                        console.log('Score 19-22 - Redirecting to test page');
-                        window.location.href = '/test?score=' + totalScore;
+                    if (totalScore >= 19 && totalScore <= 21) {
+                        console.log('Score 19-21 - Redirecting to quiz-result page');
+                        window.location.href = '/quiz-result/?score=' + totalScore;
                     } else {
                         console.log('Score below 19 - Redirecting to followup page');
                         window.location.href = '/followup?score=' + totalScore;
@@ -519,11 +519,13 @@ jQuery(document).ready(function($) {
                     }
                 }
             } else if (this.currentStep === 2) {
-                // Only validate ID number in step 2 (gender field removed)
+                // Validate ID number, birthdate, and address in step 2
                 const $idField = $('#id_number');
+                const $birthdateField = $('#birth_date');
+                const $addressField = $('#user_address');
                 
                 // Reset error classes
-                $idField.removeClass('error touched');
+                currentStepElement.find('input, select').removeClass('error touched');
                 
                 // Check ID number with enhanced validation
                 const idValue = $idField.val().trim();
@@ -531,10 +533,6 @@ jQuery(document).ready(function($) {
                 
                 if (!idValue || !idNumberRegex.test(idValue)) {
                     isValid = false;
-                    // Only show visual error styling when there's input that doesn't match the pattern
-                    if (idValue.length > 0 && !idNumberRegex.test(idValue)) {
-                        $idField.addClass('error touched');
-                    }
                     if (showErrors) {
                         $idField.addClass('error touched');
                         if (!idValue) {
@@ -543,13 +541,27 @@ jQuery(document).ready(function($) {
                             this.showError('מספר זהות חייב להכיל בין 8-9 ספרות או מקפים');
                         }
                     }
-                } else {
-                    // Remove error styling when valid
-                    $idField.removeClass('error touched');
                 }
                 
-                // Remove error classes from other fields
-                currentStepElement.find('input:not(#id_number), select').removeClass('error touched');
+                // Check birthdate
+                const birthdateValue = $birthdateField.val().trim();
+                if (!birthdateValue) {
+                    isValid = false;
+                    if (showErrors) {
+                        $birthdateField.addClass('error touched');
+                        this.showError('אנא הזן תאריך לידה');
+                    }
+                }
+                
+                // Check address
+                const addressValue = $addressField.val().trim();
+                if (!addressValue) {
+                    isValid = false;
+                    if (showErrors) {
+                        $addressField.addClass('error touched');
+                        this.showError('אנא הזן כתובת');
+                    }
+                }
             } else if (this.currentStep === 3 || this.currentStep === 4) {
                 // Special validation for radio button groups in quiz steps
                 const questionStart = this.currentStep === 3 ? 0 : 5;
@@ -566,14 +578,22 @@ jQuery(document).ready(function($) {
             
             // Handle button state based on step
             if (this.currentStep === 2) {
-                // On step 2, enable button only when ID is valid (gender field removed)
+                // On step 2, enable button only when ID, birthdate, and address are all valid
                 const $idField = $('#id_number');
-                const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{8,9}$/;
-                const hasValidId = idValue && idNumberRegex.test(idValue);
+                const $birthdateField = $('#birth_date');
+                const $addressField = $('#user_address');
                 
-                this.nextButton.prop('disabled', !hasValidId);
-            } else {
+                const idValue = $idField.val().trim();
+                const birthdateValue = $birthdateField.val().trim();
+                const addressValue = $addressField.val().trim();
+                const idNumberRegex = /^[\d-]{8,9}$/;
+                
+                if (idValue && idNumberRegex.test(idValue) && birthdateValue && addressValue) {
+                    this.enableNextButton();
+                } else {
+                    this.disableNextButton();
+                }
+            } else {  
                 this.nextButton.prop('disabled', !isValid);
             }
             
