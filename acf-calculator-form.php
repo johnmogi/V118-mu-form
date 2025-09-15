@@ -848,6 +848,8 @@ class ACF_Quiz_System {
                     border: 1px solid #dee2e6;
                     border-radius: 8px;
                     border-left: 4px solid #007cba;
+                    width: 100%;
+                    grid-column: 1 / -1;
                 }
                 
                 .regulatory-disclaimer h4 {

@@ -488,7 +488,7 @@ jQuery(document).ready(function($) {
                 
                 // Check ID number with enhanced validation
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{12}$/; // 12 digits or dashes only
+                const idNumberRegex = /^[\d-]{8,9}$/; // 8-9 digits or dashes for Israeli ID
                 
                 if (!idValue || !idNumberRegex.test(idValue)) {
                     isValid = false;
@@ -501,7 +501,7 @@ jQuery(document).ready(function($) {
                         if (!idValue) {
                             this.showError('אנא הזן מספר זהות');
                         } else if (!idNumberRegex.test(idValue)) {
-                            this.showError('מספר זהות חייב להכיל בדיוק 12 ספרות או מקפים');
+                            this.showError('מספר זהות חייב להכיל בין 8-9 ספרות או מקפים');
                         }
                     }
                 } else {
@@ -530,7 +530,7 @@ jQuery(document).ready(function($) {
                 // On step 2, enable button only when ID is valid (gender field removed)
                 const $idField = $('#id_number');
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{12}$/;
+                const idNumberRegex = /^[\d-]{8,9}$/;
                 const hasValidId = idValue && idNumberRegex.test(idValue);
                 
                 this.nextButton.prop('disabled', !hasValidId);
