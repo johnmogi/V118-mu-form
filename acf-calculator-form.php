@@ -834,6 +834,12 @@ class ACF_Quiz_System {
                     background: #f9f9f9;
                 }
                 
+                /* Full Width Field Group */
+                .field-group.full-width {
+                    width: 100%;
+                    grid-column: 1 / -1;
+                }
+                
                 /* Regulatory Disclaimer Styling */
                 .regulatory-disclaimer {
                     margin: 20px 0;
@@ -1468,7 +1474,7 @@ class ACF_Quiz_System {
                             </div>
                         </div>
                         
-                        <div class="field-group">
+                        <div class="field-group full-width">
                             <label for="address" class="field-label">כתובת</label>
                             <input type="text" id="address" name="address" class="field-input">
                         </div>
