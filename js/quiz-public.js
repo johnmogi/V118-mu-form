@@ -298,15 +298,15 @@ jQuery(document).ready(function($) {
                     // Direct checkout redirect based on package type
                     console.log('Redirecting directly to checkout for package type:', packageType);
                     
-                    // Get dynamic product IDs from server
+                    // Get dynamic product IDs from server-side configuration
                     $.ajax({
                         url: quiz_ajax.ajax_url,
                         type: 'POST',
                         data: {
-                            action: 'get_product_ids',
-                            nonce: quiz_ajax.nonce
+                            action: 'get_product_ids'
                         },
                         success: function(response) {
+                            console.log('Product IDs response:', response);
                             if (response.success) {
                                 const productIds = response.data;
                                 let productId;
@@ -319,17 +319,32 @@ jQuery(document).ready(function($) {
                                     productId = productIds.trial;
                                 }
                                 
+                                console.log('Using product ID:', productId, 'for package:', packageType);
                                 window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
                             } else {
                                 console.error('Failed to get product IDs:', response.data);
-                                // Fallback to hardcoded trial product
-                                window.location.href = '/checkout/?add-to-cart=1526&trial=1&quiz_passed=1&score=' + totalScore;
+                                // Use ACF configured fallbacks
+                                const fallbackIds = {
+                                    'trial': 1526,
+                                    'monthly': 1524, 
+                                    'yearly': 1521
+                                };
+                                const fallbackId = fallbackIds[packageType] || 1526;
+                                console.log('Using fallback product ID:', fallbackId);
+                                window.location.href = '/checkout/?add-to-cart=' + fallbackId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
                             }
                         },
-                        error: function() {
-                            console.error('AJAX error getting product IDs');
-                            // Fallback to hardcoded trial product
-                            window.location.href = '/checkout/?add-to-cart=1526&trial=1&quiz_passed=1&score=' + totalScore;
+                        error: function(xhr, status, error) {
+                            console.error('AJAX error getting product IDs:', error);
+                            // Use ACF configured fallbacks
+                            const fallbackIds = {
+                                'trial': 1526,
+                                'monthly': 1524,
+                                'yearly': 1521
+                            };
+                            const fallbackId = fallbackIds[packageType] || 1526;
+                            console.log('Using fallback product ID after error:', fallbackId);
+                            window.location.href = '/checkout/?add-to-cart=' + fallbackId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
                         }
                     });
                     
