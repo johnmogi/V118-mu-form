@@ -818,13 +818,133 @@ class ACF_Quiz_System {
                 $css_version
             );
             
-            // Remove elform.css - styles moved to quiz-public.css
-            // wp_enqueue_style(
-            //     'acf-quiz-elform',
-            //     $this->plugin_url . 'css/elform.css',
-            //     array('acf-quiz-public'),
-            //     '1.0.1'
-            // );
+            // Add inline CSS for file upload styling
+            wp_add_inline_style('acf-quiz-public', "
+                /* File Upload Styling */
+                .id-photo-section {
+                    margin: 20px 0;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    background: #f9f9f9;
+                }
+                
+                .id-photo-section h5 {
+                    margin: 0 0 10px 0;
+                    color: #333;
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+                
+                .upload-instructions {
+                    margin: 0 0 15px 0;
+                    color: #666;
+                    font-size: 14px;
+                }
+                
+                .file-upload-container {
+                    position: relative;
+                    border: 2px dashed #ccc;
+                    border-radius: 8px;
+                    padding: 20px;
+                    text-align: center;
+                    background: #fff;
+                    transition: all 0.3s ease;
+                }
+                
+                .file-upload-container.drag-over {
+                    border-color: #007cba;
+                    background: #f0f8ff;
+                }
+                
+                .file-input {
+                    position: absolute;
+                    opacity: 0;
+                    width: 100%;
+                    height: 100%;
+                    cursor: pointer;
+                }
+                
+                .file-upload-label {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                    color: #666;
+                }
+                
+                .upload-icon {
+                    font-size: 32px;
+                }
+                
+                .upload-text {
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #333;
+                }
+                
+                .file-info {
+                    font-size: 12px;
+                    color: #999;
+                }
+                
+                .file-preview {
+                    margin-top: 15px;
+                    padding: 15px;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    background: #f5f5f5;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                
+                .file-preview img {
+                    border-radius: 4px;
+                    border: 1px solid #ccc;
+                }
+                
+                .remove-file-btn {
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    width: 24px;
+                    height: 24px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    margin-left: auto;
+                }
+                
+                .remove-file-btn:hover {
+                    background: #c82333;
+                }
+                
+                @media (max-width: 768px) {
+                    .file-upload-container {
+                        padding: 15px;
+                    }
+                    
+                    .upload-icon {
+                        font-size: 24px;
+                    }
+                    
+                    .upload-text {
+                        font-size: 14px;
+                    }
+                    
+                    .file-preview {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                    
+                    .file-preview img {
+                        max-width: 150px;
+                        max-height: 100px;
+                    }
+                }
+            ");
 
             // Add jQuery to handle button visibility
             wp_enqueue_script('jquery');
@@ -875,65 +995,82 @@ class ACF_Quiz_System {
                 true
             );
             
-            // Add signature pad initialization
+            // Add signature pad initialization and file upload handling
             $signature_js = "
-            // Test signature system function
-            function testSignatureSystem() {
-                console.log('Testing signature system...');
-                
-                // Check if signature canvas exists
-                const canvas = document.getElementById('signature_canvas');
-                if (!canvas) {
-                    alert('❌ Signature canvas not found');
-                    return;
-                }
-                
-                // Check if SignaturePad is loaded
-                if (typeof SignaturePad === 'undefined') {
-                    alert('❌ SignaturePad library not loaded');
-                    return;
-                }
-                
-                // Check if signature_ajax is available
-                if (typeof signature_ajax === 'undefined') {
-                    alert('❌ Signature AJAX not configured');
-                    return;
-                }
-                
-                // Create a test signature
-                const signaturePad = new SignaturePad(canvas);
-                
-                // Draw a simple test signature
-                signaturePad.fromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
-                
-                const testData = signaturePad.toDataURL('image/png', 0.8);
-                
-                // Test save signature
-                const formData = new FormData();
-                formData.append('action', 'save_signature');
-                formData.append('nonce', signature_ajax.nonce);
-                formData.append('signature_data', testData);
-                formData.append('submission_id', 999);
-                formData.append('user_email', 'test@example.com');
-                
-                fetch(signature_ajax.ajax_url, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('✅ Signature system working! ID: ' + data.data.signature_id);
-                    } else {
-                        alert('❌ Signature save failed: ' + data.data);
-                    }
-                })
-                .catch(error => {
-                    alert('❌ Network error: ' + error);
-                });
-            }
             
             jQuery(document).ready(function($) {
+                // File upload handling
+                $('#id_photo_upload').on('change', function(e) {
+                    const file = e.target.files[0];
+                    const preview = $('#file_preview');
+                    const previewImg = $('#preview_image');
+                    const fileName = $('#file_name');
+                    
+                    if (file) {
+                        // Validate file size (5MB max)
+                        if (file.size > 5242880) {
+                            alert('הקובץ גדול מדי. מקסימום 5MB');
+                            $(this).val('');
+                            return;
+                        }
+                        
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+                        if (!allowedTypes.includes(file.type)) {
+                            alert('סוג קובץ לא נתמך. אנא העלה תמונה או PDF');
+                            $(this).val('');
+                            return;
+                        }
+                        
+                        // Show preview for images
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                previewImg.attr('src', e.target.result).show();
+                                fileName.text(file.name);
+                                preview.show();
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            // For PDF files, just show filename
+                            previewImg.hide();
+                            fileName.text(file.name + ' (PDF)');
+                            preview.show();
+                        }
+                    }
+                });
+                
+                // Remove file functionality
+                $('#remove_file').on('click', function() {
+                    $('#id_photo_upload').val('');
+                    $('#file_preview').hide();
+                    $('#preview_image').attr('src', '');
+                    $('#file_name').text('');
+                });
+                
+                // Drag and drop functionality
+                const uploadContainer = $('.file-upload-container');
+                
+                uploadContainer.on('dragover', function(e) {
+                    e.preventDefault();
+                    $(this).addClass('drag-over');
+                });
+                
+                uploadContainer.on('dragleave', function(e) {
+                    e.preventDefault();
+                    $(this).removeClass('drag-over');
+                });
+                
+                uploadContainer.on('drop', function(e) {
+                    e.preventDefault();
+                    $(this).removeClass('drag-over');
+                    
+                    const files = e.originalEvent.dataTransfer.files;
+                    if (files.length > 0) {
+                        $('#id_photo_upload')[0].files = files;
+                        $('#id_photo_upload').trigger('change');
+                    }
+                });
                 // Ensure final declaration checkbox is unchecked by default - multiple approaches
                 function forceUncheckDeclaration() {
                     $('#final_declaration').prop('checked', false);
@@ -1448,6 +1585,27 @@ class ACF_Quiz_System {
                                     אני מאשר כי קראתי והבנתי את תנאי המנוי, לרבות העובדה כי בתום תקופת ההטבה יתחדש המנוי באופן אוטומטי בהתאם למסלול שנבחר.
                                     <span class="required">*</span>
                                 </label>
+                            </div>
+                            
+                            <div class="id-photo-section">
+                                <h5>העלאת תמונת תעודת זהות <span class="required">*</span></h5>
+                                <p class="upload-instructions">אנא העלה תמונה ברורה של תעודת הזהות שלך (JPG, PNG או PDF)</p>
+                                <div class="file-upload-container">
+                                    <input type="file" id="id_photo_upload" name="id_photo_upload" 
+                                           accept="image/*,.pdf" 
+                                           class="file-input" 
+                                           required>
+                                    <label for="id_photo_upload" class="file-upload-label">
+                                        <span class="upload-icon">📁</span>
+                                        <span class="upload-text">בחר קובץ או גרור לכאן</span>
+                                        <span class="file-info">מקסימום 5MB</span>
+                                    </label>
+                                    <div class="file-preview" id="file_preview" style="display: none;">
+                                        <img id="preview_image" src="" alt="תצוגה מקדימה" style="max-width: 200px; max-height: 150px;">
+                                        <span id="file_name"></span>
+                                        <button type="button" id="remove_file" class="remove-file-btn">✕</button>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="signature-section">
@@ -2954,51 +3112,6 @@ class ACF_Quiz_System {
             'required' => true,
         ), $checkout->get_value('identification_number'));
         
-        // ID Photo Upload Field
-        woocommerce_form_field('id_photo_upload', array(
-            'type' => 'file',
-            'class' => array('form-row-wide'),
-            'label' => __('העלאת תמונת תעודת זהות'),
-            'placeholder' => __('בחר קובץ...'),
-            'required' => true,
-            'custom_attributes' => array(
-                'accept' => 'image/*,.pdf',
-                'data-max-size' => '5242880' // 5MB
-            )
-        ), $checkout->get_value('id_photo_upload'));
-        
-        // Add mobile-friendly file upload styling
-        ?>
-        <style>
-        #id_photo_upload_field input[type="file"] {
-            width: 100% !important;
-            padding: 10px !important;
-            border: 2px dashed #ddd !important;
-            border-radius: 5px !important;
-            background: #f9f9f9 !important;
-            cursor: pointer !important;
-            font-size: 16px !important; /* Prevents zoom on iOS */
-        }
-        
-        @media (max-width: 768px) {
-            #id_photo_upload_field input[type="file"] {
-                font-size: 16px !important; /* Critical for mobile */
-                -webkit-appearance: none !important;
-                appearance: none !important;
-            }
-            
-            #id_photo_upload_field input[type="file"]::-webkit-file-upload-button {
-                background: #007cba !important;
-                color: white !important;
-                border: none !important;
-                padding: 8px 12px !important;
-                border-radius: 3px !important;
-                margin-right: 10px !important;
-                font-size: 14px !important;
-            }
-        }
-        </style>
-        <?php
         
         // Determine subscription type based on URL parameter
         $is_3_month_plan = (isset($_GET['monthly']) || isset($_SESSION['package_type']) && $_SESSION['package_type'] === 'monthly');
@@ -3326,15 +3439,6 @@ class ACF_Quiz_System {
      * Save custom checkout fields to order meta
      */
     public function save_checkout_custom_fields($order_id) {
-        // Handle file upload
-        if (!empty($_FILES['id_photo_upload']['name'])) {
-            $uploaded_file = wp_handle_upload($_FILES['id_photo_upload'], array('test_form' => false));
-            
-            if ($uploaded_file && !isset($uploaded_file['error'])) {
-                update_post_meta($order_id, '_id_photo_url', $uploaded_file['url']);
-                update_post_meta($order_id, '_id_photo_path', $uploaded_file['file']);
-            }
-        }
         
         // Save subscription terms agreement
         if (!empty($_POST['subscription_terms_agreement'])) {
