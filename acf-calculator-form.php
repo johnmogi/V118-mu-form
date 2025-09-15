@@ -241,17 +241,65 @@ class ACF_Quiz_System {
     }
 
     /**
+     * Get WooCommerce products for ACF select field
+     */
+    public function get_woocommerce_products() {
+        global $wpdb;
+        
+        // Use WordPress transient for caching to improve performance
+        $cache_key = 'acf_wc_products_' . md5(get_current_blog_id());
+        $products = get_transient($cache_key);
+        
+        if ($products !== false) {
+            return $products;
+        }
+        
+        $products = array();
+        
+        // Direct database query since WooCommerce functions may not be available
+        $products_query = $wpdb->get_results("
+            SELECT p.ID, p.post_title, p.post_status, pm.meta_value as price 
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_price'
+            WHERE p.post_type = 'product' 
+            AND p.post_status = 'publish'
+            ORDER BY p.post_title ASC
+        ");
+        
+        if (empty($products_query)) {
+            return array('' => 'No products found in catalog');
+        }
+        
+        foreach ($products_query as $product) {
+            $price_display = $product->price ? " (₪{$product->price})" : '';
+            $products[$product->ID] = $product->post_title . $price_display;
+        }
+        
+        // Cache for 1 hour
+        set_transient($cache_key, $products, HOUR_IN_SECONDS);
+        
+        return $products;
+    }
+
+    /**
      * Register ACF field groups
      */
     public function register_fields() {
         // Register the Quiz Settings field group
         if (function_exists('acf_add_local_field_group')) {
+            // Clear product cache to force refresh
+            $cache_key = 'acf_wc_products_' . md5(get_current_blog_id());
+            delete_transient($cache_key);
+            
+            // Get products dynamically
+            $product_choices = $this->get_woocommerce_products();
+            
             // Define the fields
             $fields = array(
-                // Price Settings Tab
+                // Product Selection Tab
                 array(
-                    'key' => 'field_price_settings_tab',
-                    'label' => 'Package Prices',
+                    'key' => 'field_product_settings_tab',
+                    'label' => 'WooCommerce Products',
                     'name' => '',
                     'type' => 'tab',
                     'instructions' => '',
@@ -261,55 +309,55 @@ class ACF_Quiz_System {
                     'endpoint' => 0,
                 ),
                 array(
-                    'key' => 'field_trial_price',
-                    'label' => 'Trial Package Price',
-                    'name' => 'trial_price',
-                    'type' => 'number',
-                    'instructions' => 'Price for trial package (first 3 months)',
+                    'key' => 'field_trial_product',
+                    'label' => 'Trial Package Product',
+                    'name' => 'trial_product',
+                    'type' => 'select',
+                    'instructions' => 'Select WooCommerce product for trial package',
                     'required' => 0,
-                    'default_value' => 99,
-                    'placeholder' => '99',
-                    'prepend' => '₪',
-                    'append' => '',
-                    'min' => 0,
-                    'max' => '',
-                    'step' => 1,
+                    'choices' => $product_choices,
+                    'default_value' => 424,
+                    'allow_null' => 0,
+                    'multiple' => 0,
+                    'ui' => 1,
+                    'ajax' => 0,
+                    'return_format' => 'value',
                     'wrapper' => array(
                         'width' => '33',
                     ),
                 ),
                 array(
-                    'key' => 'field_monthly_price',
-                    'label' => 'Monthly Package Price',
-                    'name' => 'monthly_price',
-                    'type' => 'number',
-                    'instructions' => 'Price for monthly package',
+                    'key' => 'field_monthly_product',
+                    'label' => 'Monthly Package Product',
+                    'name' => 'monthly_product',
+                    'type' => 'select',
+                    'instructions' => 'Select WooCommerce product for monthly package',
                     'required' => 0,
-                    'default_value' => 199,
-                    'placeholder' => '199',
-                    'prepend' => '₪',
-                    'append' => '',
-                    'min' => 0,
-                    'max' => '',
-                    'step' => 1,
+                    'choices' => $product_choices,
+                    'default_value' => 425,
+                    'allow_null' => 0,
+                    'multiple' => 0,
+                    'ui' => 1,
+                    'ajax' => 0,
+                    'return_format' => 'value',
                     'wrapper' => array(
                         'width' => '33',
                     ),
                 ),
                 array(
-                    'key' => 'field_yearly_price',
-                    'label' => 'Yearly Package Price',
-                    'name' => 'yearly_price',
-                    'type' => 'number',
-                    'instructions' => 'Price for yearly package (1999 total, 166 monthly)',
+                    'key' => 'field_yearly_product',
+                    'label' => 'Yearly Package Product',
+                    'name' => 'yearly_product',
+                    'type' => 'select',
+                    'instructions' => 'Select WooCommerce product for yearly package',
                     'required' => 0,
-                    'default_value' => 1999,
-                    'placeholder' => '1999',
-                    'prepend' => '₪',
-                    'append' => '',
-                    'min' => 0,
-                    'max' => '',
-                    'step' => 1,
+                    'choices' => $product_choices,
+                    'default_value' => 426,
+                    'allow_null' => 0,
+                    'multiple' => 0,
+                    'ui' => 1,
+                    'ajax' => 0,
+                    'return_format' => 'value',
                     'wrapper' => array(
                         'width' => '34',
                     ),
@@ -2079,26 +2127,36 @@ class ACF_Quiz_System {
         // Clear existing cart
         WC()->cart->empty_cart();
 
-        // Get package details
-        $package_names = array(
-            'trial' => 'חבילת ניסיון - 3 חודשים ראשונים',
-            'monthly' => 'חבילה חודשית',
-            'yearly' => 'חבילה שנתית (166₪ לחודש)'
+        // Get product IDs from ACF settings
+        $trial_product = get_field('trial_product', 'option') ?: 424;
+        $monthly_product = get_field('monthly_product', 'option') ?: 425;
+        $yearly_product = get_field('yearly_product', 'option') ?: 426;
+
+        // Map package types to selected product IDs
+        $product_ids = array(
+            'trial' => $trial_product,
+            'monthly' => $monthly_product,
+            'yearly' => $yearly_product
         );
 
-        $package_name = $package_names[$package_type] ?? 'חבילת השקעות';
+        // Get the product ID for this package type
+        $product_id = isset($product_ids[$package_type]) ? $product_ids[$package_type] : $monthly_product;
 
-        // Add custom product to cart
+        // Verify the product exists
+        $product = wc_get_product($product_id);
+        if (!$product) {
+            // Fallback to monthly package if product doesn't exist
+            $product_id = $monthly_product;
+        }
+
+        // Add product to cart with quiz validation data
         $cart_item_data = array(
-            'custom_price' => $package_price,
             'package_type' => $package_type,
-            'quiz_validated' => true
+            'quiz_validated' => true,
+            'quiz_score' => isset($_SESSION['quiz_score']) ? $_SESSION['quiz_score'] : 0
         );
-
-        // Create a temporary product ID (we'll handle this in cart hooks)
-        $product_id = 9999; // Temporary ID for custom product
         
-        // Add to cart with custom data
+        // Add to cart
         WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
 
         return wc_get_checkout_url();
@@ -2108,8 +2166,9 @@ class ACF_Quiz_System {
      * Handle custom cart item pricing
      */
     public function handle_custom_cart_item($cart_item_data, $product_id, $variation_id) {
-        if ($product_id == 9999 && isset($cart_item_data['custom_price'])) {
-            // This is our custom quiz product
+        // Check if this is a quiz-validated product
+        if (isset($cart_item_data['quiz_validated']) && $cart_item_data['quiz_validated']) {
+            // This is our quiz product - preserve the validation data
             return $cart_item_data;
         }
         return $cart_item_data;
@@ -2124,18 +2183,15 @@ class ACF_Quiz_System {
         }
 
         foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
-            if (isset($cart_item['custom_price']) && isset($cart_item['package_type'])) {
-                $cart_item['data']->set_price($cart_item['custom_price']);
+            // Only modify quiz-validated products
+            if (isset($cart_item['quiz_validated']) && $cart_item['quiz_validated']) {
+                // The existing products already have the correct prices, 
+                // so we don't need to override them unless specifically needed
                 
-                // Set custom product name
-                $package_names = array(
-                    'trial' => 'חבילת ניסיון - 3 חודשים ראשונים',
-                    'monthly' => 'חבילה חודשית',
-                    'yearly' => 'חבילה שנתית (166₪ לחודש)'
-                );
-                
-                $package_name = $package_names[$cart_item['package_type']] ?? 'חבילת השקעות';
-                $cart_item['data']->set_name($package_name);
+                // Optional: Add quiz score to product meta for display
+                if (isset($cart_item['quiz_score'])) {
+                    $cart_item['data']->add_meta_data('quiz_score', $cart_item['quiz_score'], true);
+                }
             }
         }
     }
