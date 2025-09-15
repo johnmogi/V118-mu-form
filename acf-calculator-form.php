@@ -80,6 +80,8 @@ class ACF_Quiz_System {
         add_action('wp_footer', array($this, 'add_quiz_scripts'));
         add_action('wp_ajax_submit_quiz', array($this, 'handle_quiz_submission'));
         add_action('wp_ajax_nopriv_submit_quiz', array($this, 'handle_quiz_submission'));
+        add_action('wp_ajax_get_product_ids', array($this, 'get_product_ids'));
+        add_action('wp_ajax_nopriv_get_product_ids', array($this, 'get_product_ids'));
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
         add_action('woocommerce_checkout_update_order_meta', array($this, 'save_custom_checkout_fields'));
         add_filter('woocommerce_checkout_fields', array($this, 'customize_checkout_fields'));
@@ -2376,6 +2378,28 @@ class ACF_Quiz_System {
                 'message' => 'Failed to capture lead: ' . $wpdb->last_error
             ));
         }
+    }
+
+    /**
+     * AJAX handler to get dynamic product IDs
+     */
+    public function get_product_ids() {
+        // Verify nonce for security
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'quiz_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        // Get product IDs from ACF settings
+        $trial_product = get_field('trial_product', 'option') ?: 1526;
+        $monthly_product = get_field('monthly_product', 'option') ?: 1524;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
+        
+        wp_send_json_success(array(
+            'trial' => $trial_product,
+            'monthly' => $monthly_product,
+            'yearly' => $yearly_product
+        ));
     }
 
     /**

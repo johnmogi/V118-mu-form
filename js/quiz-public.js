@@ -237,13 +237,13 @@ jQuery(document).ready(function($) {
             if (!packageSelected) {
                 if (urlParams.has('trial')) {
                     packageSelected = 'trial';
-                    packagePrice = '99';
+                    packagePrice = 'trial'; // Will be resolved dynamically
                 } else if (urlParams.has('monthly')) {
                     packageSelected = 'monthly';
-                    packagePrice = '199';
+                    packagePrice = 'monthly'; // Will be resolved dynamically
                 } else if (urlParams.has('yearly')) {
                     packageSelected = 'yearly';
-                    packagePrice = '1999';
+                    packagePrice = 'yearly'; // Will be resolved dynamically
                 }
                 packageSource = 'url_param';
             }
@@ -298,16 +298,40 @@ jQuery(document).ready(function($) {
                     // Direct checkout redirect based on package type
                     console.log('Redirecting directly to checkout for package type:', packageType);
                     
-                    if (packageType === 'yearly') {
-                        // For yearly package, redirect to checkout with yearly product ID
-                        window.location.href = '/checkout/?add-to-cart=1999&yearly=1&quiz_passed=1&score=' + totalScore;
-                    } else if (packageType === 'monthly') {
-                        // For monthly package, redirect to checkout with monthly product ID  
-                        window.location.href = '/checkout/?add-to-cart=199&monthly=1&quiz_passed=1&score=' + totalScore;
-                    } else {
-                        // For trial package, redirect to checkout with trial product ID
-                        window.location.href = '/checkout/?add-to-cart=99&trial=1&quiz_passed=1&score=' + totalScore;
-                    }
+                    // Get dynamic product IDs from server
+                    $.ajax({
+                        url: quiz_ajax.ajax_url,
+                        type: 'POST',
+                        data: {
+                            action: 'get_product_ids',
+                            nonce: quiz_ajax.nonce
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                const productIds = response.data;
+                                let productId;
+                                
+                                if (packageType === 'yearly') {
+                                    productId = productIds.yearly;
+                                } else if (packageType === 'monthly') {
+                                    productId = productIds.monthly;
+                                } else {
+                                    productId = productIds.trial;
+                                }
+                                
+                                window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
+                            } else {
+                                console.error('Failed to get product IDs:', response.data);
+                                // Fallback to hardcoded trial product
+                                window.location.href = '/checkout/?add-to-cart=1526&trial=1&quiz_passed=1&score=' + totalScore;
+                            }
+                        },
+                        error: function() {
+                            console.error('AJAX error getting product IDs');
+                            // Fallback to hardcoded trial product
+                            window.location.href = '/checkout/?add-to-cart=1526&trial=1&quiz_passed=1&score=' + totalScore;
+                        }
+                    });
                     
                     console.log('Redirecting to:', window.location.href);
                 } else {
