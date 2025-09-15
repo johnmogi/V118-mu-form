@@ -480,17 +480,15 @@ jQuery(document).ready(function($) {
                     }
                 }
             } else if (this.currentStep === 2) {
-                // Only validate gender and ID number in step 2
+                // Only validate ID number in step 2 (gender field removed)
                 const $idField = $('#id_number');
-                const $genderField = $('#gender');
                 
                 // Reset error classes
                 $idField.removeClass('error touched');
-                $genderField.removeClass('error touched');
                 
                 // Check ID number with enhanced validation
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{8,12}$/; // 8-12 digits or dashes
+                const idNumberRegex = /^[\d-]{12}$/; // 12 digits or dashes only
                 
                 if (!idValue || !idNumberRegex.test(idValue)) {
                     isValid = false;
@@ -503,7 +501,7 @@ jQuery(document).ready(function($) {
                         if (!idValue) {
                             this.showError('אנא הזן מספר זהות');
                         } else if (!idNumberRegex.test(idValue)) {
-                            this.showError('מספר זהות חייב להכיל בין 8-12 ספרות או מקפים בלבד');
+                            this.showError('מספר זהות חייב להכיל בדיוק 12 ספרות או מקפים');
                         }
                     }
                 } else {
@@ -511,16 +509,8 @@ jQuery(document).ready(function($) {
                     $idField.removeClass('error touched');
                 }
                 
-                // Check gender
-                if (!$genderField.val() || $genderField.val().trim() === '') {
-                    isValid = false;
-                    if (showErrors) {
-                        $genderField.addClass('error touched');
-                    }
-                }
-                
                 // Remove error classes from other fields
-                currentStepElement.find('input:not(#id_number), select:not(#gender)').removeClass('error touched');
+                currentStepElement.find('input:not(#id_number), select').removeClass('error touched');
             } else if (this.currentStep === 3 || this.currentStep === 4) {
                 // Special validation for radio button groups in quiz steps
                 const questionStart = this.currentStep === 3 ? 0 : 5;
@@ -537,15 +527,13 @@ jQuery(document).ready(function($) {
             
             // Handle button state based on step
             if (this.currentStep === 2) {
-                // On step 2, enable button only when ID is valid (not just has input)
+                // On step 2, enable button only when ID is valid (gender field removed)
                 const $idField = $('#id_number');
-                const $genderField = $('#gender');
                 const idValue = $idField.val().trim();
-                const idNumberRegex = /^[\d-]{8,12}$/;
+                const idNumberRegex = /^[\d-]{12}$/;
                 const hasValidId = idValue && idNumberRegex.test(idValue);
-                const hasGender = $genderField.val() && $genderField.val().trim() !== '';
                 
-                this.nextButton.prop('disabled', !(hasValidId && hasGender));
+                this.nextButton.prop('disabled', !hasValidId);
             } else {
                 this.nextButton.prop('disabled', !isValid);
             }

@@ -165,12 +165,7 @@ class ACF_Quiz_System {
             id_number varchar(20) DEFAULT '',
             gender varchar(10) DEFAULT '',
             birth_date date DEFAULT NULL,
-            citizenship varchar(50) DEFAULT 'ישראלית',
             address text DEFAULT '',
-            marital_status varchar(20) DEFAULT '',
-            employment_status varchar(50) DEFAULT '',
-            education varchar(50) DEFAULT '',
-            profession varchar(100) DEFAULT '',
             package_selected varchar(50) DEFAULT NULL,
             package_price decimal(10,2) DEFAULT 0.00,
             answers longtext NOT NULL,
@@ -406,6 +401,19 @@ class ACF_Quiz_System {
                     'instructions' => 'Enter the text for the next button (default: המשך)',
                     'required' => 0,
                     'default_value' => 'המשך',
+                ),
+                // Regulatory Disclaimer Content
+                array(
+                    'key' => 'field_regulatory_disclaimer',
+                    'label' => 'Regulatory Disclaimer',
+                    'name' => 'regulatory_disclaimer',
+                    'type' => 'wysiwyg',
+                    'instructions' => 'Enter the regulatory disclaimer text shown in step 2',
+                    'required' => 0,
+                    'tabs' => 'all',
+                    'toolbar' => 'full',
+                    'media_upload' => 1,
+                    'delay' => 0,
                 ),
                 // Final Declaration Content
                 array(
@@ -824,6 +832,34 @@ class ACF_Quiz_System {
                     border: 1px solid #ddd;
                     border-radius: 8px;
                     background: #f9f9f9;
+                }
+                
+                /* Regulatory Disclaimer Styling */
+                .regulatory-disclaimer {
+                    margin: 20px 0;
+                    padding: 20px;
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 8px;
+                    border-left: 4px solid #007cba;
+                }
+                
+                .regulatory-disclaimer h4 {
+                    margin: 0 0 15px 0;
+                    color: #007cba;
+                    font-size: 18px;
+                    font-weight: bold;
+                }
+                
+                .regulatory-disclaimer p {
+                    margin: 0 0 15px 0;
+                    line-height: 1.6;
+                    color: #495057;
+                    font-size: 14px;
+                }
+                
+                .regulatory-disclaimer p:last-child {
+                    margin-bottom: 0;
                 }
                 
                 .id-photo-section h5 {
@@ -1395,14 +1431,6 @@ class ACF_Quiz_System {
                             <input type="text" id="id_number" name="id_number" class="field-input" required>
                         </div>
                         
-                        <div class="field-group">
-                            <label for="gender" class="field-label">מין <span class="required">*</span></label>
-                            <select id="gender" name="gender" class="field-input" required>
-                                <option value="">בחר</option>
-                                <option value="male">זכר</option>
-                                <option value="female">נקבה</option>
-                            </select>
-                        </div>
                         
                         <div class="field-group">
                             <label for="birth_date" class="field-label">תאריך לידה</label>
@@ -1441,53 +1469,24 @@ class ACF_Quiz_System {
                         </div>
                         
                         <div class="field-group">
-                            <label for="citizenship" class="field-label">אזרחות</label>
-                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
-                        </div>
-                        
-                        <div class="field-group">
                             <label for="address" class="field-label">כתובת</label>
                             <input type="text" id="address" name="address" class="field-input">
                         </div>
                         
-                        <div class="field-group">
-                            <label for="marital_status" class="field-label">מצב משפחתי</label>
-                            <select id="marital_status" name="marital_status" class="field-input">
-                                <option value="">בחר</option>
-                                <option value="single">רווק/ה</option>
-                                <option value="married">נשוי/ה</option>
-                                <option value="divorced">גרוש/ה</option>
-                                <option value="widowed">אלמן/ה</option>
-                            </select>
-                        </div>
-                        
-                        <div class="field-group">
-                            <label for="employment_status" class="field-label">מצב תעסוקתי</label>
-                            <select id="employment_status" name="employment_status" class="field-input">
-                                <option value="">בחר</option>
-                                <option value="employed">שכיר/ה</option>
-                                <option value="self_employed">עצמאי/ת</option>
-                                <option value="unemployed">מובטל/ת</option>
-                                <option value="retired">פנסיונר/ית</option>
-                                <option value="student">סטודנט/ית</option>
-                            </select>
-                        </div>
-                        
-                        <div class="field-group">
-                            <label for="education" class="field-label">השכלה</label>
-                            <select id="education" name="education" class="field-input">
-                                <option value="">בחר</option>
-                                <option value="high_school">תיכון</option>
-                                <option value="bachelor">תואר ראשון</option>
-                                <option value="master">תואר שני</option>
-                                <option value="doctorate">תואר שלישי</option>
-                                <option value="other">אחר</option>
-                            </select>
-                        </div>
-                        
-                        <div class="field-group">
-                            <label for="profession" class="field-label">מקצוע</label>
-                            <input type="text" id="profession" name="profession" class="field-input">
+                        <div class="regulatory-disclaimer">
+                            <div class="disclaimer-content">
+                                <?php
+                                $regulatory_disclaimer = get_field('regulatory_disclaimer', 'option');
+                                if ($regulatory_disclaimer) {
+                                    echo $regulatory_disclaimer;
+                                } else {
+                                    // Default content if no ACF field is set
+                                    echo '<h4>חשוב לדעת:</h4>';
+                                    echo '<p>על פי תיקון ההוראה לבעלי רישיון בקשר למתן שירותים תוך שימוש באמצעים טכנולוגיים מאוגוסט 2023, אנחנו מדגישים כי שירות הייעוץ למסחר עצמאי אינו מותאם אישית, ועל כן השירותים אינם מותאמים באופן פרטני ללקוח או לצרכיו.</p>';
+                                    echo '<p>מנהל השירות אינו ממשיך לעקוב בהכרח אחר כדאיות ההחזקה בנכס הפיננסי או בנייר הערך לגביו נשלחו הודעות, לאחר מועד מסירת המידע.</p>';
+                                }
+                                ?>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1898,12 +1897,7 @@ class ACF_Quiz_System {
         $id_number = sanitize_text_field($quiz_data['id_number'] ?? '');
         $gender = sanitize_text_field($quiz_data['gender'] ?? '');
         $birth_date = sanitize_text_field($quiz_data['birth_date'] ?? '');
-        $citizenship = sanitize_text_field($quiz_data['citizenship'] ?? '');
         $address = sanitize_text_field($quiz_data['address'] ?? '');
-        $marital_status = sanitize_text_field($quiz_data['marital_status'] ?? '');
-        $employment_status = sanitize_text_field($quiz_data['employment_status'] ?? '');
-        $education = sanitize_text_field($quiz_data['education'] ?? '');
-        $profession = sanitize_text_field($quiz_data['profession'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
         $id_photo_filename = sanitize_text_field($quiz_data['id_photo_filename'] ?? '');
@@ -1988,12 +1982,7 @@ class ACF_Quiz_System {
                     'id_number' => $id_number,
                     'gender' => $gender,
                     'birth_date' => $birth_date,
-                    'citizenship' => $citizenship,
                     'address' => $address,
-                    'marital_status' => $marital_status,
-                    'employment_status' => $employment_status,
-                    'education' => $education,
-                    'profession' => $profession,
                     'package_selected' => $package_selected,
                     'package_price' => $package_price,
                     'score' => $total_score,
@@ -2022,12 +2011,7 @@ class ACF_Quiz_System {
                 'id_number' => $id_number,
                 'gender' => $gender,
                 'birth_date' => $birth_date,
-                'citizenship' => $citizenship,
                 'address' => $address,
-                'marital_status' => $marital_status,
-                'employment_status' => $employment_status,
-                'education' => $education,
-                'profession' => $profession,
                 'package_selected' => $package_selected,
                 'package_price' => $package_price,
                 'score' => $total_score,
@@ -2290,16 +2274,11 @@ class ACF_Quiz_System {
 
             if ($update_where) {
                 $updated = $wpdb->query($wpdb->prepare(
-                    "UPDATE $table_name SET id_number=%s, gender=%s, birth_date=%s, citizenship=%s, address=%s, marital_status=%s, employment_status=%s, education=%s, profession=%s, current_step=%d WHERE $update_where",
+                    "UPDATE $table_name SET id_number=%s, gender=%s, birth_date=%s, address=%s, current_step=%d WHERE $update_where",
                     sanitize_text_field($step_data['id_number'] ?? ''),
                     sanitize_text_field($step_data['gender'] ?? ''),
                     sanitize_text_field($step_data['birth_date'] ?? ''),
-                    sanitize_text_field($step_data['citizenship'] ?? ''),
                     sanitize_text_field($step_data['address'] ?? ''),
-                    sanitize_text_field($step_data['marital_status'] ?? ''),
-                    sanitize_text_field($step_data['employment_status'] ?? ''),
-                    sanitize_text_field($step_data['education'] ?? ''),
-                    sanitize_text_field($step_data['profession'] ?? ''),
                     2,
                     ...$update_where_args
                 ));
@@ -2518,8 +2497,7 @@ class ACF_Quiz_System {
         $submissions = $wpdb->get_results("
             SELECT DISTINCT id, user_name, user_phone, user_email, package_selected, 
                    score, max_score, passed, completed, submission_time, current_step,
-                   id_number, gender, birth_date, citizenship, address, 
-                   marital_status, employment_status, education, profession
+                   id_number, gender, birth_date, address
             FROM $table_name 
             WHERE 1=1
             " . ($filter === 'failed' ? " AND (passed = 0 OR completed = 0)" : "") . "
@@ -2624,12 +2602,8 @@ class ACF_Quiz_System {
                                             data-id-number="<?php echo esc_attr($submission->id_number); ?>"
                                             data-gender="<?php echo esc_attr($submission->gender); ?>"
                                             data-birth-date="<?php echo esc_attr($submission->birth_date); ?>"
-                                            data-citizenship="<?php echo esc_attr($submission->citizenship); ?>"
                                             data-address="<?php echo esc_attr($submission->address); ?>"
-                                            data-marital-status="<?php echo esc_attr($submission->marital_status); ?>"
-                                            data-employment-status="<?php echo esc_attr($submission->employment_status); ?>"
-                                            data-education="<?php echo esc_attr($submission->education); ?>"
-                                            data-profession="<?php echo esc_attr($submission->profession); ?>">
+">
                                         <?php _e('View Details', 'acf-quiz'); ?>
                                     </button>
                                 </td>
@@ -2761,28 +2735,8 @@ class ACF_Quiz_System {
                         <div class="detail-value" id="modal-birth-date"></div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label"><?php _e('Citizenship', 'acf-quiz'); ?></div>
-                        <div class="detail-value" id="modal-citizenship"></div>
-                    </div>
-                    <div class="detail-item">
                         <div class="detail-label"><?php _e('Address', 'acf-quiz'); ?></div>
                         <div class="detail-value" id="modal-address"></div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label"><?php _e('Marital Status', 'acf-quiz'); ?></div>
-                        <div class="detail-value" id="modal-marital-status"></div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label"><?php _e('Employment Status', 'acf-quiz'); ?></div>
-                        <div class="detail-value" id="modal-employment-status"></div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label"><?php _e('Education', 'acf-quiz'); ?></div>
-                        <div class="detail-value" id="modal-education"></div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label"><?php _e('Profession', 'acf-quiz'); ?></div>
-                        <div class="detail-value" id="modal-profession"></div>
                     </div>
                 </div>
             </div>
@@ -2815,12 +2769,7 @@ class ACF_Quiz_System {
                 $('#modal-id-number').text($(this).data('id-number') || '-');
                 $('#modal-gender').text($(this).data('gender') || '-');
                 $('#modal-birth-date').text($(this).data('birth-date') || '-');
-                $('#modal-citizenship').text($(this).data('citizenship') || '-');
                 $('#modal-address').text($(this).data('address') || '-');
-                $('#modal-marital-status').text($(this).data('marital-status') || '-');
-                $('#modal-employment-status').text($(this).data('employment-status') || '-');
-                $('#modal-education').text($(this).data('education') || '-');
-                $('#modal-profession').text($(this).data('profession') || '-');
                 
                 // Show modal
                 modal.css('display', 'block');
