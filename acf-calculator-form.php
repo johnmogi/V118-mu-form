@@ -94,6 +94,10 @@ class ACF_Quiz_System {
         add_action('wp_ajax_simple_lead_capture', array($this, 'simple_lead_capture'));
         add_action('wp_ajax_nopriv_simple_lead_capture', array($this, 'simple_lead_capture'));
         
+        // ID Photo upload handler
+        add_action('wp_ajax_upload_id_photo', array($this, 'handle_id_photo_upload'));
+        add_action('wp_ajax_nopriv_upload_id_photo', array($this, 'handle_id_photo_upload'));
+        
         // Register shortcodes
         add_shortcode('acf_quiz', array($this, 'add_quiz_form'));
         add_shortcode('quiz_form', array($this, 'add_quiz_form'));
@@ -155,13 +159,9 @@ class ACF_Quiz_System {
         
         $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            -- Step 1: Basic Personal Info
-            first_name varchar(100) NOT NULL,
-            last_name varchar(100) NOT NULL,
-            user_phone varchar(20) NOT NULL,
-            user_email varchar(100) NOT NULL,
-            
-            -- Step 2: Detailed Personal Info
+            user_name varchar(255) DEFAULT NULL,
+            user_phone varchar(20) DEFAULT NULL,
+            user_email varchar(100) DEFAULT NULL,
             id_number varchar(20) DEFAULT '',
             gender varchar(10) DEFAULT '',
             birth_date date DEFAULT NULL,
@@ -171,28 +171,14 @@ class ACF_Quiz_System {
             employment_status varchar(50) DEFAULT '',
             education varchar(50) DEFAULT '',
             profession varchar(100) DEFAULT '',
-            
-            -- Legacy fields (for compatibility)
-            user_name varchar(100) DEFAULT '',
-            contact_consent tinyint(1) DEFAULT 0,
-            
-            -- Package and submission info
-            package_name varchar(100) DEFAULT '',
+            package_selected varchar(50) DEFAULT NULL,
             package_price decimal(10,2) DEFAULT 0.00,
-            package_source varchar(100) DEFAULT '',
-            
-            -- Quiz results
             answers longtext NOT NULL,
             score int(11) NOT NULL,
-            max_score int(11) NOT NULL,
-            score_percentage decimal(5,2) NOT NULL,
+            max_score int(11) NOT NULL DEFAULT 40,
             passed tinyint(1) NOT NULL,
-            
-            -- Form completion tracking
             current_step int(1) DEFAULT 1,
             completed tinyint(1) DEFAULT 0,
-            declaration_accepted tinyint(1) DEFAULT 0,
-            
             -- Meta info
             submission_time datetime DEFAULT CURRENT_TIMESTAMP,
             ip_address varchar(45) DEFAULT '',
@@ -213,6 +199,17 @@ class ACF_Quiz_System {
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'signature_data'");
         if (empty($column_exists)) {
             $wpdb->query("ALTER TABLE $table_name ADD COLUMN signature_data longtext DEFAULT ''");
+        }
+        
+        // Add ID photo columns if they don't exist (for existing installations)
+        $id_photo_filename_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'id_photo_filename'");
+        if (empty($id_photo_filename_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN id_photo_filename varchar(255) DEFAULT NULL");
+        }
+        
+        $id_photo_uploaded_at_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'id_photo_uploaded_at'");
+        if (empty($id_photo_uploaded_at_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN id_photo_uploaded_at datetime DEFAULT NULL");
         }
     }
 
@@ -999,7 +996,9 @@ class ACF_Quiz_System {
             $signature_js = "
             
             jQuery(document).ready(function($) {
-                // File upload handling
+                // File upload handling with AJAX upload
+                let uploadedIdPhotoFilename = '';
+                
                 $('#id_photo_upload').on('change', function(e) {
                     const file = e.target.files[0];
                     const preview = $('#file_preview');
@@ -1022,21 +1021,53 @@ class ACF_Quiz_System {
                             return;
                         }
                         
-                        // Show preview for images
-                        if (file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                previewImg.attr('src', e.target.result).show();
-                                fileName.text(file.name);
-                                preview.show();
-                            };
-                            reader.readAsDataURL(file);
-                        } else {
-                            // For PDF files, just show filename
-                            previewImg.hide();
-                            fileName.text(file.name + ' (PDF)');
-                            preview.show();
-                        }
+                        // Upload file via AJAX
+                        const formData = new FormData();
+                        formData.append('action', 'upload_id_photo');
+                        formData.append('nonce', quiz_ajax.nonce);
+                        formData.append('id_photo', file);
+                        
+                        // Show loading state
+                        fileName.text('מעלה קובץ...');
+                        preview.show();
+                        
+                        $.ajax({
+                            url: quiz_ajax.ajax_url,
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            success: function(response) {
+                                if (response.success) {
+                                    uploadedIdPhotoFilename = response.data.filename;
+                                    
+                                    // Show preview for images
+                                    if (file.type.startsWith('image/')) {
+                                        const reader = new FileReader();
+                                        reader.onload = function(e) {
+                                            previewImg.attr('src', e.target.result).show();
+                                            fileName.text(file.name + ' ✓');
+                                            preview.show();
+                                        };
+                                        reader.readAsDataURL(file);
+                                    } else {
+                                        // For PDF files, just show filename
+                                        previewImg.hide();
+                                        fileName.text(file.name + ' (PDF) ✓');
+                                        preview.show();
+                                    }
+                                } else {
+                                    alert('שגיאה בהעלאת הקובץ: ' + response.data);
+                                    $(this).val('');
+                                    preview.hide();
+                                }
+                            },
+                            error: function() {
+                                alert('שגיאה בהעלאת הקובץ');
+                                $(this).val('');
+                                preview.hide();
+                            }
+                        });
                     }
                 });
                 
@@ -1046,6 +1077,7 @@ class ACF_Quiz_System {
                     $('#file_preview').hide();
                     $('#preview_image').attr('src', '');
                     $('#file_name').text('');
+                    uploadedIdPhotoFilename = '';
                 });
                 
                 // Drag and drop functionality
@@ -1874,6 +1906,7 @@ class ACF_Quiz_System {
         $profession = sanitize_text_field($quiz_data['profession'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
+        $id_photo_filename = sanitize_text_field($quiz_data['id_photo_filename'] ?? '');
 
         // Debug logging for signature data
         error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
@@ -1971,7 +2004,10 @@ class ACF_Quiz_System {
                     'completed' => 1,
                     'submission_time' => current_time('mysql'),
                     'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? ''
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    'signature_data' => $signature_data,
+                    'id_photo_filename' => $id_photo_filename,
+                    'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
                 ),
                 array('id' => $existing_id),
                 null,
@@ -2003,7 +2039,9 @@ class ACF_Quiz_System {
                 'submission_time' => current_time('mysql'),
                 'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
                 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-                'signature_data' => $signature_data
+                'signature_data' => $signature_data,
+                'id_photo_filename' => $id_photo_filename,
+                'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
             ));
             $submission_id = $wpdb->insert_id;
         }
@@ -2046,6 +2084,92 @@ class ACF_Quiz_System {
         );
 
         wp_send_json_success($response);
+    }
+
+    /**
+     * Handle ID photo upload via AJAX
+     */
+    public function handle_id_photo_upload() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'acf_quiz_nonce')) {
+            wp_send_json_error('Security check failed');
+        }
+        
+        // Check if file was uploaded
+        if (empty($_FILES['id_photo'])) {
+            wp_send_json_error('לא נבחר קובץ');
+        }
+        
+        $file = $_FILES['id_photo'];
+        
+        // Validate file
+        $validation = $this->validate_id_photo_file($file);
+        if (!$validation['valid']) {
+            wp_send_json_error($validation['message']);
+        }
+        
+        // Create uploads directory if it doesn't exist
+        $upload_dir = wp_upload_dir();
+        $id_photos_dir = $upload_dir['basedir'] . '/quiz-id-photos';
+        
+        if (!file_exists($id_photos_dir)) {
+            wp_mkdir_p($id_photos_dir);
+            
+            // Create .htaccess to protect directory
+            $htaccess_content = "Options -Indexes\n";
+            $htaccess_content .= "deny from all\n";
+            file_put_contents($id_photos_dir . '/.htaccess', $htaccess_content);
+        }
+        
+        // Generate unique filename
+        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $unique_filename = 'id_' . uniqid() . '_' . time() . '.' . $file_extension;
+        $file_path = $id_photos_dir . '/' . $unique_filename;
+        
+        // Move uploaded file
+        if (move_uploaded_file($file['tmp_name'], $file_path)) {
+            wp_send_json_success(array(
+                'message' => 'הקובץ הועלה בהצלחה',
+                'filename' => $unique_filename,
+                'file_path' => $file_path
+            ));
+        } else {
+            wp_send_json_error('שגיאה בהעלאת הקובץ');
+        }
+    }
+    
+    /**
+     * Validate uploaded ID photo file
+     */
+    private function validate_id_photo_file($file) {
+        // Check for upload errors
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return array('valid' => false, 'message' => 'שגיאה בהעלאת הקובץ');
+        }
+        
+        // Check file size (5MB max)
+        $max_size = 5 * 1024 * 1024; // 5MB in bytes
+        if ($file['size'] > $max_size) {
+            return array('valid' => false, 'message' => 'הקובץ גדול מדי (מקסימום 5MB)');
+        }
+        
+        // Check file type
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf');
+        $file_type = mime_content_type($file['tmp_name']);
+        
+        if (!in_array($file_type, $allowed_types)) {
+            return array('valid' => false, 'message' => 'סוג קובץ לא נתמך (רק JPG, PNG, GIF או PDF)');
+        }
+        
+        // Additional security check for images
+        if (strpos($file_type, 'image/') === 0) {
+            $image_info = getimagesize($file['tmp_name']);
+            if ($image_info === false) {
+                return array('valid' => false, 'message' => 'הקובץ אינו תמונה תקינה');
+            }
+        }
+        
+        return array('valid' => true, 'message' => 'הקובץ תקין');
     }
 
     /**
