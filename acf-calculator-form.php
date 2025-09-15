@@ -1627,13 +1627,6 @@ class ACF_Quiz_System {
                                     <input type="hidden" id="signature_data" name="signature_data" required>
                                 </div>
                                 
-                                <!-- Test Signature Button -->
-                                <div style="margin-top: 10px; padding: 10px; background: #f0f8ff; border: 1px solid #0073aa; border-radius: 4px;">
-                                    <button type="button" onclick="testSignatureSystem()" class="button" style="background: #0073aa; color: white; border: none; padding: 8px 16px; border-radius: 3px; cursor: pointer;">
-                                        🧪 Test Signature System
-                                    </button>
-                                    <span style="font-size: 12px; color: #666; margin-left: 10px;">Click to test if signature saving works</span>
-                                </div>
                             </div>
                         </div>
                     </div>
