@@ -57,6 +57,26 @@ html[dir="rtl"] .acf-quiz-container {
     position: relative;
 }
 
+/* Scroll indicator for agreement */
+.agreement-scroll-container::after {
+    content: "גלול למטה כדי להמשיך";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(255,255,255,0.9) 50%, rgba(255,255,255,1));
+    text-align: center;
+    padding: 20px 10px 10px;
+    font-size: 12px;
+    color: #666;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.agreement-scroll-container.scrolled-to-bottom::after {
+    opacity: 0;
+}
+
 .agreement-scroll-container::-webkit-scrollbar {
     width: 8px;
 }
@@ -99,6 +119,20 @@ html[dir="rtl"] .acf-quiz-container {
     background: #f8f9fa;
     border-top: 1px solid #dee2e6;
     animation: fadeInUp 0.3s ease-out;
+}
+
+.agreement-checkbox-container.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.agreement-checkbox-container.disabled .checkbox-input-new {
+    cursor: not-allowed;
+}
+
+.agreement-checkbox-container.disabled .checkbox-label-new {
+    cursor: not-allowed;
+    color: #999;
 }
 
 @keyframes fadeInUp {

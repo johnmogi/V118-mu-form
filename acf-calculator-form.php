@@ -809,9 +809,9 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.0.9');
+        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.1.0');
         
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.9', true);
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.1.0', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1651,12 +1651,15 @@ class ACF_Quiz_System {
                                             <?php echo wpautop($regulatory_disclaimer); ?>
                                         </div>
                                     </div>
-                                    <div class="agreement-checkbox-container" id="agreementCheckboxContainer" style="display: none;">
-                                        <input type="checkbox" id="agreement_accepted" name="agreement_accepted" class="checkbox-input-new" required>
+                                    <div class="agreement-checkbox-container disabled" id="agreementCheckboxContainer">
+                                        <input type="checkbox" id="agreement_accepted" name="agreement_accepted" class="checkbox-input-new" required disabled>
                                         <label for="agreement_accepted" class="checkbox-label-new">
                                             אני מאשר כי קראתי והבנתי את ההסכם המלא
                                             <span class="required">*</span>
                                         </label>
+                                        <div class="scroll-instruction" id="scrollInstruction" style="font-size: 12px; color: #666; margin-top: 8px;">
+                                            יש לגלול עד סוף ההסכם כדי לאשר
+                                        </div>
                                     </div>
                                 </div>
                             <?php endif; ?>

@@ -48,7 +48,7 @@ jQuery(document).ready(function($) {
             console.log('Submit button exists:', this.submitButton.length);
             
             // Initialize agreement scroll functionality
-            initAgreementScroll();
+            this.initAgreementScroll();
             
             // Navigation buttons
             this.nextButton.on('click', this.handleNextStep.bind(this));
@@ -111,6 +111,59 @@ jQuery(document).ready(function($) {
                 const input = $(e.currentTarget).siblings('.answer-input');
                 if (input.length) {
                     input.prop('checked', true).trigger('change');
+                }
+            });
+        },
+        
+        initAgreementScroll: function() {
+            const scrollContainer = document.getElementById('agreementScrollContainer');
+            const checkboxContainer = document.getElementById('agreementCheckboxContainer');
+            const checkbox = document.getElementById('agreement_accepted');
+            const scrollInstruction = document.getElementById('scrollInstruction');
+            
+            if (!scrollContainer || !checkboxContainer || !checkbox) {
+                return; // Elements not found, skip initialization
+            }
+            
+            let hasScrolledToBottom = false;
+            
+            // Function to check if scrolled to bottom
+            function checkScrollPosition() {
+                const isScrolledToBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 5; // 5px tolerance
+                
+                if (isScrolledToBottom && !hasScrolledToBottom) {
+                    hasScrolledToBottom = true;
+                    
+                    // Enable checkbox
+                    checkbox.disabled = false;
+                    checkboxContainer.classList.remove('disabled');
+                    scrollContainer.classList.add('scrolled-to-bottom');
+                    
+                    // Hide scroll instruction
+                    if (scrollInstruction) {
+                        scrollInstruction.style.display = 'none';
+                    }
+                    
+                    // Trigger validation update
+                    MultiStepQuiz.validateCurrentStep(false);
+                }
+            }
+            
+            // Add scroll event listener
+            scrollContainer.addEventListener('scroll', checkScrollPosition);
+            
+            // Check initial position (in case content is short)
+            setTimeout(checkScrollPosition, 100);
+            
+            // Prevent checkbox interaction until scrolled
+            checkbox.addEventListener('click', function(e) {
+                if (!hasScrolledToBottom) {
+                    e.preventDefault();
+                    // Scroll to bottom automatically
+                    scrollContainer.scrollTo({
+                        top: scrollContainer.scrollHeight,
+                        behavior: 'smooth'
+                    });
                 }
             });
         },
