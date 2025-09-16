@@ -39,6 +39,105 @@ html[dir="rtl"] .acf-quiz-container {
     max-width: 120px;
 }
 
+/* Agreement Scrolling Pane Styles */
+.agreement-section {
+    margin: 20px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f9f9f9;
+}
+
+.agreement-scroll-container {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 20px;
+    background: white;
+    border-bottom: 1px solid #eee;
+    position: relative;
+}
+
+.agreement-scroll-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.agreement-scroll-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.agreement-scroll-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.agreement-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.agreement-content {
+    line-height: 1.6;
+    color: #333;
+    font-size: 14px;
+}
+
+.agreement-content p {
+    margin-bottom: 15px;
+}
+
+.agreement-content ul, .agreement-content ol {
+    margin: 15px 0;
+    padding-right: 20px;
+}
+
+.agreement-content li {
+    margin-bottom: 8px;
+}
+
+.agreement-checkbox-container {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.agreement-checkbox-container .checkbox-label-new {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* Scroll indicator */
+.agreement-scroll-container::after {
+    content: "גלול למטה לקריאת ההסכם המלא";
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+    opacity: 0.8;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.agreement-scroll-container.scrolled-to-bottom::after {
+    opacity: 0;
+}
+
 /* Submit Button Styling - Only visible on step 4 */
 .submit-btn, #submit-form {
     background-color: #1e40af !important;

@@ -47,6 +47,9 @@ jQuery(document).ready(function($) {
             console.log('Submit button element:', this.submitButton);
             console.log('Submit button exists:', this.submitButton.length);
             
+            // Initialize agreement scroll functionality
+            initAgreementScroll();
+            
             // Navigation buttons
             this.nextButton.on('click', this.handleNextStep.bind(this));
             this.prevButton.on('click', this.handlePrevStep.bind(this));
@@ -393,17 +396,8 @@ jQuery(document).ready(function($) {
                 }
             }, 1000); // 1 second delay
             
-            return; // Skip complex submitForm method
-            
-            this.submitForm(allData);
-        },
         
-        // Store final submission to database
-        storeFinalSubmission: function(allData, totalScore, passed) {
-            console.log('=== STORE FINAL SUBMISSION ===');
-            console.log('Data:', allData);
-            console.log('Score:', totalScore, 'Passed:', passed);
-            
+        console.log('Package type detected:', packageType);
             // Prepare submission data
             const submissionData = {
                 action: 'handle_quiz_submission',
@@ -1630,4 +1624,54 @@ jQuery(document).ready(function($) {
 
     // Make signature pad function globally available
     window.initSignaturePad = initSignaturePad;
+    
+    // Agreement scroll functionality
+    function initAgreementScroll() {
+        const scrollContainer = document.getElementById('agreementScrollContainer');
+        const checkboxContainer = document.getElementById('agreementCheckboxContainer');
+        
+        if (!scrollContainer || !checkboxContainer) {
+            return; // Agreement section not present
+        }
+        
+        let scrollTimeout;
+        
+        scrollContainer.addEventListener('scroll', function() {
+            clearTimeout(scrollTimeout);
+            
+            scrollTimeout = setTimeout(function() {
+                const scrollTop = scrollContainer.scrollTop;
+                const scrollHeight = scrollContainer.scrollHeight;
+                const clientHeight = scrollContainer.clientHeight;
+                
+                // Check if scrolled to bottom (with 10px tolerance)
+                const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 10;
+                
+                if (isScrolledToBottom) {
+                    // Add class to hide scroll indicator
+                    scrollContainer.classList.add('scrolled-to-bottom');
+                    
+                    // Show checkbox with animation
+                    checkboxContainer.style.display = 'block';
+                    
+                    console.log('Agreement scrolled to bottom - checkbox shown');
+                }
+            }, 100);
+        });
+        
+        // Also check initial state in case content is short
+        setTimeout(function() {
+            const scrollHeight = scrollContainer.scrollHeight;
+            const clientHeight = scrollContainer.clientHeight;
+            
+            if (scrollHeight <= clientHeight) {
+                // Content fits without scrolling
+                scrollContainer.classList.add('scrolled-to-bottom');
+                checkboxContainer.style.display = 'block';
+            }
+        }, 100);
+    }
+    
+    // Initialize agreement scroll on page load
+    initAgreementScroll();
 });

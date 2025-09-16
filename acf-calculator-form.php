@@ -433,6 +433,19 @@ class ACF_Quiz_System {
                     'media_upload' => 1,
                     'delay' => 0,
                 ),
+                // Agreement Text for Scrolling Pane
+                array(
+                    'key' => 'field_agreement_text',
+                    'label' => 'Agreement Text (Scrolling Pane)',
+                    'name' => 'agreement_text',
+                    'type' => 'wysiwyg',
+                    'instructions' => 'Enter the agreement text that will appear in the scrolling pane above ID photo upload. Users must scroll to bottom to see the agreement checkbox.',
+                    'required' => 0,
+                    'tabs' => 'all',
+                    'toolbar' => 'full',
+                    'media_upload' => 1,
+                    'delay' => 0,
+                ),
                 // Quiz Title
                 array(
                     'key' => 'field_quiz_title',
@@ -796,7 +809,9 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.5', true);
+        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.0.8');
+        
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.8', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1489,8 +1504,9 @@ class ACF_Quiz_System {
                         <div class="regulatory-disclaimer">
                             <div class="disclaimer-content">
                                 <?php
+                                // TEMPORARILY DISABLE to check if this is causing the issue
                                 $regulatory_disclaimer = get_field('regulatory_disclaimer', 'option');
-                                if ($regulatory_disclaimer) {
+                                if (false && $regulatory_disclaimer) {
                                     echo $regulatory_disclaimer;
                                 } else {
                                     // Default content if no ACF field is set
@@ -1623,6 +1639,41 @@ class ACF_Quiz_System {
                                     <span class="required">*</span>
                                 </label>
                             </div>
+                            
+                            <!-- Agreement Scrolling Pane -->
+                            <?php 
+                            $agreement_text = get_field('agreement_text', 'option');
+                            // DEBUG: Always show agreement section for testing
+                            if (true): ?>
+                                <div class="agreement-section">
+                                    <h5>הסכם שירות <span class="required">*</span></h5>
+                                    <div class="agreement-scroll-container" id="agreementScrollContainer">
+                                        <div class="agreement-content">
+                                            <?php 
+                                            if ($agreement_text) {
+                                                echo wpautop($agreement_text);
+                                            } else {
+                                                // Placeholder content for testing
+                                                echo '<h4>הסכם שירות</h4>';
+                                                echo '<p>זהו הסכם שירות לדוגמה. אנא קרא את כל התנאים בעמוד זה לפני המשך.</p>';
+                                                echo '<p>תנאי השירות כוללים את כל ההוראות והתנאים הנדרשים לשימוש בשירות.</p>';
+                                                echo '<p>על ידי סימון התיבה למטה, אתה מאשר שקראת והבנת את כל התנאים.</p>';
+                                                echo '<p>זהו טקסט נוסף כדי להפוך את התוכן לארוך יותר ולאפשר גלילה.</p>';
+                                                echo '<p>עוד פסקה נוספת לבדיקת הגלילה.</p>';
+                                                echo '<p>פסקה אחרונה בתחתית ההסכם.</p>';
+                                            }
+                                            ?>
+                                        </div>
+                                    </div>
+                                    <div class="agreement-checkbox-container" id="agreementCheckboxContainer" style="display: none;">
+                                        <input type="checkbox" id="agreement_accepted" name="agreement_accepted" class="checkbox-input-new" required>
+                                        <label for="agreement_accepted" class="checkbox-label-new">
+                                            אני מאשר כי קראתי והבנתי את ההסכם המלא
+                                            <span class="required">*</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             
                             <div class="id-photo-section">
                                 <h5>העלאת תמונת תעודת זהות <span class="required">*</span></h5>
