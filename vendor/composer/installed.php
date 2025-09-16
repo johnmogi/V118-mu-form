@@ -3,7 +3,7 @@
         'name' => 'vider/quiz-submissions-mu-plugins',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '86b5adab9c03b6799018c9220343ce92bd905b65',
+        'reference' => '9f5cffa7f4217e45e161c39d8e89f19c6677b4de',
         'type' => 'wordpress-muplugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'vider/quiz-submissions-mu-plugins' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '86b5adab9c03b6799018c9220343ce92bd905b65',
+            'reference' => '9f5cffa7f4217e45e161c39d8e89f19c6677b4de',
             'type' => 'wordpress-muplugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

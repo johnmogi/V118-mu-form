@@ -1585,25 +1585,27 @@ class ACF_Quiz_System {
                     
                     <div class="final-declaration">
                         <div class="declaration-content">
-                            <div class="declaration-text">
-                                <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
-                                <p>אני מאשר ש:</p>
-                                <ul>
-                                    <li>השירות אינו מהווה ייעוץ השקעות אישי שמותאם לי</li>
-                                    <li>כל פעולה שאני מבצע בעקבות איתות או מידע שהתקבל במסגרת השירות היא על אחריותי הבלעדית</li>
-                                    <li>אני מבין שהשירות כולל גם מידע כללי, פרשנויות שוק, ניתוחים ודעות מקצועיות, אך אין בו התאמה אישית לתיק ההשקעות שלי.</li>
-                                    <li>שייתכן שלא אקבל הודעה מסוימת בזמן אמת או כלל, לאור העובדה שהשירות ניתן באמצעים טכנולוגיים בלבד כגון וואטסאפ, וייתכנו תקלות, עיכובים או כשל בהעברת הודעות.</li>
-                                    <li>אני מבין שאין אפשרות לשוחח עם מנהל השירות על כל המלצה או איתות באופן מותאם ואישי.</li>
-                                </ul>
-                                <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר עם מתן השירות והפסקתו כאמור.</p>
-                            </div>
-                            
-                            
-                            <div class="declaration-text">
-                                <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
-                                <p>אני מבין כי מסירת מידע כוזב או לא מדויק עלולה להביא לביטול הסכם השירות ו/או לכל תוצאה משפטית אחרת.</p>
-                                <p>אני מאשר כי קיבלתי הסברים מפורטים אודות השירותים הניתנים על ידי מנהל השירות, לרבות אודות הסיכונים הכרוכים במסחר עצמאי בכלים פיננסיים.</p>
-                            </div>
+                            <?php 
+                            $final_declaration_text = get_field('final_declaration_text', 'option');
+                            if ($final_declaration_text): ?>
+                                <div class="declaration-text">
+                                    <?php echo $final_declaration_text; ?>
+                                </div>
+                            <?php else: ?>
+                                <!-- Fallback content if ACF field is empty -->
+                                <div class="declaration-text">
+                                    <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
+                                    <p>אני מאשר ש:</p>
+                                    <ul>
+                                        <li>השירות אינו מהווה ייעוץ השקעות אישי שמותאם לי</li>
+                                        <li>כל פעולה שאני מבצע בעקבות איתות או מידע שהתקבל במסגרת השירות היא על אחריותי הבלעדית</li>
+                                        <li>אני מבין שהשירות כולל גם מידע כללי, פרשנויות שוק, ניתוחים ודעות מקצועיות, אך אין בו התאמה אישית לתיק ההשקעות שלי.</li>
+                                        <li>שייתכן שלא אקבל הודעה מסוימת בזמן אמת או כלל, לאור העובדה שהשירות ניתן באמצעים טכנולוגיים בלבד כגון וואטסאפ, וייתכנו תקלות, עיכובים או כשל בהעברת הודעות.</li>
+                                        <li>אני מבין שאין אפשרות לשוחח עם מנהל השירות על כל המלצה או איתות באופן מותאם ואישי.</li>
+                                    </ul>
+                                    <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר עם מתן השירות והפסקתו כאמור.</p>
+                                </div>
+                            <?php endif; ?>
                             
                             <!-- Conditional subscription checkbox based on package type -->
                             <div class="subscription-checkbox trial-packages" style="display: none;">
@@ -3328,11 +3330,39 @@ class ACF_Quiz_System {
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
         
-        // Handle delete action
+        // Handle bulk delete action
+        if (isset($_POST['action']) && $_POST['action'] === 'bulk_delete' && isset($_POST['submissions']) && current_user_can('manage_options')) {
+            $ids = array_map('intval', $_POST['submissions']);
+            if (!empty($ids)) {
+                $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+                $wpdb->query($wpdb->prepare("DELETE FROM {$table_name} WHERE id IN ({$placeholders})", $ids));
+                echo '<div class="notice notice-success"><p>' . count($ids) . ' submissions deleted successfully.</p></div>';
+            }
+        }
+        
+        // Handle single delete action
         if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id']) && current_user_can('manage_options')) {
             $id = intval($_GET['id']);
             $wpdb->delete($table_name, array('id' => $id), array('%d'));
             echo '<div class="notice notice-success"><p>Submission deleted successfully.</p></div>';
+        }
+        
+        // Handle duplicate cleanup
+        if (isset($_POST['action']) && $_POST['action'] === 'cleanup_duplicates' && current_user_can('manage_options')) {
+            // Remove duplicate entries based on email and phone combination
+            $duplicates_removed = $wpdb->query("
+                DELETE t1 FROM {$table_name} t1
+                INNER JOIN {$table_name} t2 
+                WHERE t1.id > t2.id 
+                AND t1.email = t2.email 
+                AND t1.phone = t2.phone
+                AND t1.created_at > t2.created_at
+            ");
+            if ($duplicates_removed > 0) {
+                echo '<div class="notice notice-success"><p>' . $duplicates_removed . ' duplicate submissions removed.</p></div>';
+            } else {
+                echo '<div class="notice notice-info"><p>No duplicates found.</p></div>';
+            }
         }
         
         // Get all submissions
@@ -3348,41 +3378,73 @@ class ACF_Quiz_System {
                     <p>No submissions found. Submissions will appear here when users complete the quiz form.</p>
                 </div>
             <?php else: ?>
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Score</th>
-                            <th>Passed</th>
-                            <th>Complete</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($submissions as $submission): ?>
+                <!-- Bulk Actions Form -->
+                <form method="post" style="margin-bottom: 20px;">
+                    <?php wp_nonce_field('bulk_actions_nonce'); ?>
+                    <div class="tablenav top">
+                        <div class="alignleft actions bulkactions">
+                            <select name="action" id="bulk-action-selector-top">
+                                <option value="">Bulk Actions</option>
+                                <option value="bulk_delete">Delete Selected</option>
+                            </select>
+                            <input type="submit" class="button action" value="Apply" onclick="return confirm('Are you sure you want to delete selected submissions?')">
+                        </div>
+                        <div class="alignright actions">
+                            <input type="submit" name="action" value="cleanup_duplicates" class="button" onclick="return confirm('This will remove duplicate submissions based on email and phone. Continue?')">
+                        </div>
+                    </div>
+                    
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
                             <tr>
-                                <td><?php echo esc_html($submission->id); ?></td>
-                                <td><?php echo esc_html(($submission->first_name ?? '') . ' ' . ($submission->last_name ?? '')); ?></td>
-                                <td><?php echo esc_html($submission->email ?? ''); ?></td>
-                                <td><?php echo esc_html($submission->phone ?? ''); ?></td>
-                                <td><?php echo esc_html($submission->total_score ?? 'N/A'); ?></td>
-                                <td><?php echo ($submission->passed ?? false) ? '✅ Yes' : '❌ No'; ?></td>
-                                <td><?php echo ($submission->is_complete ?? false) ? '✅ Complete' : '⏳ Partial'; ?></td>
-                                <td><?php echo esc_html($submission->created_at ?? ''); ?></td>
-                                <td>
-                                    <a href="?page=quiz-submissions-viewer&action=view&id=<?php echo $submission->id; ?>" class="button button-small">View</a>
-                                    <?php if (current_user_can('manage_options')): ?>
-                                        <a href="?page=quiz-submissions-viewer&action=delete&id=<?php echo $submission->id; ?>" class="button button-small" onclick="return confirm('Are you sure?')">Delete</a>
-                                    <?php endif; ?>
+                                <td class="manage-column column-cb check-column">
+                                    <input type="checkbox" id="cb-select-all-1" onclick="toggleAllCheckboxes(this)">
                                 </td>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Score</th>
+                                <th>Passed</th>
+                                <th>Complete</th>
+                                <th>Created</th>
+                                <th>Actions</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($submissions as $submission): ?>
+                                <tr>
+                                    <th class="check-column">
+                                        <input type="checkbox" name="submissions[]" value="<?php echo $submission->id; ?>">
+                                    </th>
+                                    <td><?php echo esc_html($submission->id); ?></td>
+                                    <td><?php echo esc_html(($submission->first_name ?? '') . ' ' . ($submission->last_name ?? '')); ?></td>
+                                    <td><?php echo esc_html($submission->email ?? ''); ?></td>
+                                    <td><?php echo esc_html($submission->phone ?? ''); ?></td>
+                                    <td><?php echo esc_html($submission->total_score ?? 'N/A'); ?></td>
+                                    <td><?php echo ($submission->passed ?? false) ? '✅ Yes' : '❌ No'; ?></td>
+                                    <td><?php echo ($submission->is_complete ?? false) ? '✅ Complete' : '⏳ Partial'; ?></td>
+                                    <td><?php echo esc_html($submission->created_at ?? ''); ?></td>
+                                    <td>
+                                        <a href="?page=quiz-submissions-viewer&action=view&id=<?php echo $submission->id; ?>" class="button button-small">View</a>
+                                        <?php if (current_user_can('manage_options')): ?>
+                                            <a href="?page=quiz-submissions-viewer&action=delete&id=<?php echo $submission->id; ?>" class="button button-small" onclick="return confirm('Are you sure?')">Delete</a>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </form>
+                
+                <script>
+                function toggleAllCheckboxes(source) {
+                    var checkboxes = document.querySelectorAll('input[name="submissions[]"]');
+                    for (var i = 0; i < checkboxes.length; i++) {
+                        checkboxes[i].checked = source.checked;
+                    }
+                }
+                </script>
             <?php endif; ?>
             
             <?php if (isset($_GET['action']) && $_GET['action'] === 'view' && isset($_GET['id'])): ?>
