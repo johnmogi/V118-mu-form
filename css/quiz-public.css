@@ -113,12 +113,12 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .form-step {
-    display: none;
+    display: none !important;
     animation: fadeIn 0.3s ease-in-out;
 }
 
 .form-step.active {
-    display: block;
+    display: block !important;
 }
 
 @keyframes fadeIn {
@@ -394,24 +394,29 @@ html[dir="rtl"] .acf-quiz-container {
 }
 
 .field-group {
-    display: flex;
-    flex-direction: column;
+display: flex;
+flex-direction: column;
 }
 
 .field-label {
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #34495e;
+font-weight: bold;
+margin-bottom: 5px;
+color: #34495e;
 }
 
 .field-input {
-    width: 100%;
-    border: 2px solid #ddd;
-    border-radius: 10px;
-    padding: 12px 14px;
-    background: #fff;
-    font-size: 16px;
-    line-height: 1.4;
+width: 100%;
+border: 2px solid #ddd;
+border-radius: 10px;
+padding: 12px 14px;
+background: #fff;
+font-size: 16px;
+line-height: 1.4;
+color: #333;
+box-sizing: border-box;
+direction: rtl;
+text-align: right;
+transition: border-color 0.3s ease;
     color: #333;
     box-sizing: border-box;
     direction: rtl;
@@ -1332,5 +1337,55 @@ body.monthly-trial .monthly-declaration {
     
     .quiz-retry-btn {
         margin-left: 0;
+    }
+}
+
+/* Step 2 specific styles - 2 column layout */
+.form-step[data-step="2"] {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-step[data-step="2"] .field-row {
+    padding: 25px 0;
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+
+.form-step[data-step="2"] .field-row .field-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-step[data-step="2"] .field-group {
+    margin-bottom: 20px;
+}
+
+.form-step[data-step="2"] .field-group.full-width {
+    width: 100%;
+}
+
+/* Birthdate container styling */
+.form-step[data-step="2"] .birthdate-container {
+    display: flex;
+    gap: 10px;
+}
+
+.form-step[data-step="2"] .birthdate-container select {
+    flex: 1;
+}
+
+/* Responsive for mobile */
+@media (max-width: 768px) {
+    .form-step[data-step="2"] .field-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .form-step[data-step="2"] .birthdate-container {
+        flex-direction: column;
+        gap: 10px;
     }
 }

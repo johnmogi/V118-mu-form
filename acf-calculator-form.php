@@ -796,13 +796,7 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_script(
-            'quiz-public-js',
-            plugins_url('js/quiz-public.js', __FILE__),
-            array('jquery'),
-            '1.0.0',
-            true
-        );
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.2', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1435,60 +1429,61 @@ class ACF_Quiz_System {
                 <!-- Step 2: Detailed Personal Information -->
                 <div class="form-step" data-step="2">
                     <div class="step-intro">
-                        <h3>פרטים מלאים</h3>
+                        <h3>פרטים אישיים נוספים</h3>
+                        <p>אנא מלאו את הפרטים הבאים</p>
                     </div>
                     
-                    <div class="personal-fields">
-                        <div class="field-group">
-                            <label for="id_number" class="field-label">תעודת זהות / דרכון <span class="required">*</span></label>
-                            <input type="text" id="id_number" name="id_number" class="field-input" required>
-                        </div>
-                        
-                        
-                        <div class="field-group">
-                            <label for="birth_date" class="field-label">תאריך לידה</label>
-                            <div class="date-input-group">
-                                <select id="birth_day" name="birth_day" class="field-input date-select">
-                                    <option value="">יום</option>
-                                    <?php for($i = 1; $i <= 31; $i++): ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-                                    <?php endfor; ?>
-                                </select>
-                                <select id="birth_month" name="birth_month" class="field-input date-select">
-                                    <option value="">חודש</option>
-                                    <option value="1">ינואר</option>
-                                    <option value="2">פברואר</option>
-                                    <option value="3">מרץ</option>
-                                    <option value="4">אפריל</option>
-                                    <option value="5">מאי</option>
-                                    <option value="6">יוני</option>
-                                    <option value="7">יולי</option>
-                                    <option value="8">אוגוסט</option>
-                                    <option value="9">ספטמבר</option>
-                                    <option value="10">אוקטובר</option>
-                                    <option value="11">נובמבר</option>
-                                    <option value="12">דצמבר</option>
-                                </select>
-                                <select id="birth_year" name="birth_year" class="field-input date-select">
-                                    <option value="">שנה</option>
-                                    <?php 
-                                    $current_year = date('Y');
-                                    for($i = $current_year; $i >= ($current_year - 100); $i--): ?>
-                                        <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-                                    <?php endfor; ?>
-                                </select>
-                                <input type="hidden" id="birth_date" name="birth_date">
+                    <div class="personal-details-section">
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="id_number" class="field-label">מספר זהות <span class="required">*</span></label>
+                                <input type="text" id="id_number" name="id_number" class="field-input" required>
+                            </div>
+                            
+                            <div class="field-group">
+                                <label for="citizenship" class="field-label">אזרחות</label>
+                                <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
                             </div>
                         </div>
                         
-                        <div class="field-group">
-                            <label for="citizenship" class="field-label">אזרחות</label>
-                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
-                        </div>
-                        
-                        <div class="field-group full-width">
-                            <label for="address" class="field-label">כתובת</label>
-                            <input type="text" id="address" name="address" class="field-input">
+                        <div class="field-row">
+                            <div class="field-group">
+                                <label for="birth_date_display" class="field-label">תאריך לידה <span class="required">*</span></label>
+                                <div class="birthdate-container">
+                                    <select id="birth_day" name="birth_day" class="field-input" required>
+                                        <option value="">יום</option>
+                                        <?php for($i = 1; $i <= 31; $i++): ?>
+                                            <option value="<?php echo sprintf('%02d', $i); ?>"><?php echo $i; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                    <select id="birth_month" name="birth_month" class="field-input" required>
+                                        <option value="">חודש</option>
+                                        <?php 
+                                        $months = array(
+                                            '01' => 'ינואר', '02' => 'פברואר', '03' => 'מרץ', '04' => 'אפריל',
+                                            '05' => 'מאי', '06' => 'יוני', '07' => 'יולי', '08' => 'אוגוסט',
+                                            '09' => 'ספטמבר', '10' => 'אוקטובר', '11' => 'נובמבר', '12' => 'דצמבר'
+                                        );
+                                        foreach($months as $num => $name): ?>
+                                            <option value="<?php echo $num; ?>"><?php echo $name; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <select id="birth_year" name="birth_year" class="field-input" required>
+                                        <option value="">שנה</option>
+                                        <?php 
+                                        $current_year = date('Y');
+                                        for($i = $current_year; $i >= ($current_year - 100); $i--): ?>
+                                            <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                    <input type="hidden" id="birth_date" name="birth_date">
+                                </div>
+                            </div>
+                            
+                            <div class="field-group">
+                                <label for="address" class="field-label">כתובת</label>
+                                <input type="text" id="address" name="address" class="field-input">
+                            </div>
                         </div>
                         
                         <div class="regulatory-disclaimer">

@@ -602,38 +602,85 @@ jQuery(document).ready(function($) {
                     }
                 }
             } else if (this.currentStep === 4) {
-                // Step 4 validation: quiz questions + ID photo upload + signature
+                // Step 4 validation: ALL fields required - quiz questions, ID photo, signature
                 
-                // First validate quiz questions (5-9)
+                // Validate quiz questions (5-9) - ALL must be answered
+                let allQuestionsAnswered = true;
                 for (let i = 5; i < 10; i++) {
                     const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;
                     if (!questionAnswered) {
-                        isValid = false;
+                        allQuestionsAnswered = false;
+                        if (showErrors) {
+                            this.showError('אנא השב על כל השאלות');
+                        }
                         break;
                     }
                 }
                 
-                // Validate ID photo upload
-                const idPhotoInput = $('#id_photo_upload');
-                const hasIdPhoto = idPhotoInput.length && idPhotoInput[0].files && idPhotoInput[0].files.length > 0;
-                if (!hasIdPhoto) {
-                    isValid = false;
-                    if (showErrors) {
-                        idPhotoInput.addClass('error touched');
-                        this.showError('אנא העלה תמונת תעודת זהות');
+                // Enhanced ID photo validation with multiple detection methods
+                const idPhotoInput = $('#id_photo_upload')[0];
+                let hasIdPhoto = false;
+                
+                if (idPhotoInput) {
+                    // Method 1: Check files array
+                    hasIdPhoto = idPhotoInput.files && idPhotoInput.files.length > 0;
+                    
+                    // Method 2: Check value property (fallback)
+                    if (!hasIdPhoto && idPhotoInput.value) {
+                        hasIdPhoto = idPhotoInput.value.trim() !== '';
+                    }
+                    
+                    // Method 3: Check for file preview or upload indicator
+                    if (!hasIdPhoto) {
+                        const filePreview = $('.file-preview, .upload-preview, [class*="preview"]');
+                        hasIdPhoto = filePreview.length > 0 && filePreview.is(':visible');
                     }
                 }
                 
-                // Validate signature
+                // Enhanced signature validation with multiple detection methods
                 const signatureInput = $('#signature_data');
-                const hasSignature = signatureInput.length && signatureInput.val() && signatureInput.val().trim() !== '';
-                if (!hasSignature) {
-                    isValid = false;
-                    if (showErrors) {
-                        $('.signature-pad-container').addClass('error');
-                        this.showError('אנא חתום בשדה החתימה');
+                let hasSignature = false;
+                
+                if (signatureInput.length) {
+                    // Method 1: Check hidden input value
+                    const sigValue = signatureInput.val();
+                    hasSignature = sigValue && sigValue.trim() !== '' && sigValue.length > 50;
+                    
+                    // Method 2: Check canvas content
+                    if (!hasSignature) {
+                        const canvas = $('.signature-pad canvas, canvas[class*="signature"]');
+                        if (canvas.length) {
+                            const ctx = canvas[0].getContext('2d');
+                            const imageData = ctx.getImageData(0, 0, canvas[0].width, canvas[0].height);
+                            hasSignature = imageData.data.some(channel => channel !== 0);
+                        }
                     }
                 }
+                
+                // Form is valid ONLY when ALL requirements are met
+                if (allQuestionsAnswered && hasIdPhoto && hasSignature) {
+                    isValid = true;
+                } else {
+                    isValid = false;
+                    if (showErrors) {
+                        if (!hasIdPhoto) {
+                            this.showError('אנא העלה תמונת תעודת זהות');
+                        }
+                        if (!hasSignature) {
+                            this.showError('אנא חתום בשדה החתימה');
+                        }
+                    }
+                }
+                
+                console.log('Step 4 validation (enhanced):', {
+                    allQuestionsAnswered: allQuestionsAnswered,
+                    hasIdPhoto: hasIdPhoto,
+                    hasSignature: hasSignature,
+                    isValid: isValid,
+                    photoFiles: idPhotoInput ? idPhotoInput.files?.length : 0,
+                    photoValue: idPhotoInput ? idPhotoInput.value : 'none',
+                    signatureValue: signatureInput.val()?.length || 0
+                });
             }
             
             // Handle button state based on step
@@ -658,12 +705,6 @@ jQuery(document).ready(function($) {
                 // Softened validation - only require ID and birthdate, address is optional
                 const idValid = idValue && idNumberRegex.test(idValue);
                 const birthdateValid = dayValue && monthValue && yearValue;
-                // Address is now optional for progression
-                
-                console.log('Step 2 validation (softened):', {
-                    idValid, birthdateValid,
-                    idValue, dayValue, monthValue, yearValue, addressValue
-                });
                 
                 // Allow progression with just ID and birthdate
                 if (idValid && birthdateValid) {
@@ -671,6 +712,24 @@ jQuery(document).ready(function($) {
                 } else {
                     this.disableNextButton();
                 }
+            } else if (this.currentStep === 4) {
+                // Step 4: Handle submit button state based on validation
+                const submitBtn = $('#submit-form');
+                if (submitBtn.length) {
+                    submitBtn.prop('disabled', !isValid);
+                    if (isValid) {
+                        submitBtn.removeClass('disabled').show();
+                    } else {
+                        submitBtn.addClass('disabled');
+                    }
+                }
+                // Hide next button on step 4
+                if (this.nextButton && this.nextButton.length) {
+                    this.nextButton.hide();
+                }
+                
+                // Start monitoring for step 4 completion
+                this.setupStep4Monitoring();
             } else {  
                 if (this.nextButton && this.nextButton.length) {
                     this.nextButton.prop('disabled', !isValid);
@@ -690,6 +749,84 @@ jQuery(document).ready(function($) {
             if (this.nextButton && this.nextButton.length) {
                 this.nextButton.prop('disabled', true).addClass('disabled');
             }
+        },
+        
+        setupStep4Monitoring: function() {
+            if (this.currentStep !== 4) return;
+            
+            // Clear any existing monitoring
+            if (this.step4Monitor) {
+                clearInterval(this.step4Monitor);
+            }
+            
+            let checkCount = 0;
+            const maxChecks = 60; // 30 seconds max (500ms * 60)
+            
+            console.log('Setting up Step 4 monitoring for form validation');
+            
+            this.step4Monitor = setInterval(() => {
+                checkCount++;
+                
+                if (checkCount > maxChecks) {
+                    console.log('Step 4 monitoring: Max checks reached, stopping');
+                    clearInterval(this.step4Monitor);
+                    return;
+                }
+                
+                // Enhanced validation check with detailed logging
+                const idPhotoInput = $('#id_photo_upload')[0];
+                const signatureInput = $('#signature_data');
+                const submitBtn = $('#submit-form');
+                
+                let hasIdPhoto = false;
+                let hasSignature = false;
+                
+                // Check ID photo with multiple methods
+                if (idPhotoInput) {
+                    hasIdPhoto = (idPhotoInput.files && idPhotoInput.files.length > 0) || 
+                                (idPhotoInput.value && idPhotoInput.value.trim() !== '');
+                }
+                
+                // Check signature - look for base64 PNG data
+                if (signatureInput.length) {
+                    const sigValue = signatureInput.val();
+                    hasSignature = sigValue && sigValue.trim() !== '' && 
+                                  sigValue.startsWith('data:image/png;base64,') && 
+                                  sigValue.length > 100;
+                }
+                
+                // Check all quiz questions
+                let allQuestionsAnswered = true;
+                for (let i = 5; i < 10; i++) {
+                    const questionAnswered = $(`input[name="question_${i}"]:checked`).length > 0;
+                    if (!questionAnswered) {
+                        allQuestionsAnswered = false;
+                        break;
+                    }
+                }
+                
+                const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature;
+                
+                console.log(`Step 4 monitoring check ${checkCount}:`, {
+                    allQuestionsAnswered,
+                    hasIdPhoto,
+                    hasSignature,
+                    isFormComplete,
+                    photoFiles: idPhotoInput?.files?.length || 0,
+                    signatureLength: signatureInput.val()?.length || 0
+                });
+                
+                // If form is complete, enable submit and stop monitoring
+                if (isFormComplete && submitBtn.length) {
+                    submitBtn.prop('disabled', false).removeClass('disabled').show();
+                    console.log('Step 4 monitoring: FORM COMPLETE - PURCHASE ENABLED');
+                    clearInterval(this.step4Monitor);
+                    this.step4Monitor = null;
+                } else if (submitBtn.length) {
+                    submitBtn.prop('disabled', true).addClass('disabled');
+                }
+                
+            }, 500); // Check every 500ms
         },
         
         setupConditionalElements: function() {
@@ -753,11 +890,11 @@ jQuery(document).ready(function($) {
         },
         
         showStep: function(stepNumber) {
-            // Hide all steps
-            $('.form-step').removeClass('active');
+            // Hide all steps first
+            $('.form-step').hide().removeClass('active');
             
             // Show current step
-            $(`.form-step[data-step="${stepNumber}"]`).addClass('active');
+            $(`.form-step[data-step="${stepNumber}"]`).show().addClass('active');
             
             // Keep error message visible when moving to step 2
             if (stepNumber === 2) {
