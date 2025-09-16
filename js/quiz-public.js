@@ -754,9 +754,10 @@ jQuery(document).ready(function($) {
         setupStep4Monitoring: function() {
             if (this.currentStep !== 4) return;
             
-            // Clear any existing monitoring
+            // Prevent multiple monitoring instances
             if (this.step4Monitor) {
-                clearInterval(this.step4Monitor);
+                console.log('Step 4 monitoring already active, skipping setup');
+                return;
             }
             
             let checkCount = 0;
@@ -770,6 +771,7 @@ jQuery(document).ready(function($) {
                 if (checkCount > maxChecks) {
                     console.log('Step 4 monitoring: Max checks reached, stopping');
                     clearInterval(this.step4Monitor);
+                    this.step4Monitor = null;
                     return;
                 }
                 
@@ -805,21 +807,50 @@ jQuery(document).ready(function($) {
                     }
                 }
                 
-                const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature;
+                // Check required checkboxes
+                const subscriptionTerms = $('#subscription_terms_3month').is(':checked') || $('#subscription_terms_other').is(':checked');
+                
+                const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature && subscriptionTerms;
                 
                 console.log(`Step 4 monitoring check ${checkCount}:`, {
                     allQuestionsAnswered,
                     hasIdPhoto,
                     hasSignature,
+                    subscriptionTerms,
                     isFormComplete,
                     photoFiles: idPhotoInput?.files?.length || 0,
                     signatureLength: signatureInput.val()?.length || 0
                 });
                 
+                // Show user what's missing
+                if (!isFormComplete) {
+                    const missing = [];
+                    if (!allQuestionsAnswered) missing.push('quiz questions');
+                    if (!hasIdPhoto) missing.push('ID photo');
+                    if (!hasSignature) missing.push('signature');
+                    if (!subscriptionTerms) missing.push('subscription terms checkbox');
+                    
+                    console.log('Missing requirements:', missing.join(', '));
+                }
+                
                 // If form is complete, enable submit and stop monitoring
                 if (isFormComplete && submitBtn.length) {
-                    submitBtn.prop('disabled', false).removeClass('disabled').show();
+                    // Force enable the submit button with multiple methods
+                    submitBtn.prop('disabled', false)
+                            .removeClass('disabled')
+                            .show()
+                            .css('display', 'inline-block')
+                            .attr('disabled', false);
+                    
                     console.log('Step 4 monitoring: FORM COMPLETE - PURCHASE ENABLED');
+                    console.log('Submit button state:', {
+                        exists: submitBtn.length > 0,
+                        disabled: submitBtn.prop('disabled'),
+                        hasDisabledClass: submitBtn.hasClass('disabled'),
+                        visible: submitBtn.is(':visible'),
+                        display: submitBtn.css('display')
+                    });
+                    
                     clearInterval(this.step4Monitor);
                     this.step4Monitor = null;
                 } else if (submitBtn.length) {

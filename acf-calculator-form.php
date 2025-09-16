@@ -796,7 +796,7 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.2', true);
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.4', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1598,15 +1598,6 @@ class ACF_Quiz_System {
                                 <p>כן ידוע לי כי ככל שהצהרה מהצהרותיי לעיל תתברר כלא מלאה או לא מדויקת, יהא מנהל השירות רשאי להפסיק לתת לי שירות, והנני מוותר על כל טענה ו/או תביעה ו/או דרישה כנגד מנהל השירות ו/או מי מטעמו בגין כל נזק ו/או הוצאה שיגרמו לי בקשר עם מתן השירות והפסקתו כאמור.</p>
                             </div>
                             
-                            <div class="declaration-checkbox">
-                                <div class="checkbox-group-new">
-                                    <input type="checkbox" id="final_declaration" name="final_declaration" class="checkbox-input-new rtl-input" required>
-                                    <label for="final_declaration" class="checkbox-label-new">
-                                        אני מאשר כי קראתי והבנתי את כל האמור לעיל
-                                        <span class="required">*</span>
-                                    </label>
-                                </div>
-                            </div>
                             
                             <div class="declaration-text">
                                 <p>אני מצהיר שכל המידע שמסרתי לעיל הינו נכון, מדויק ומלא וכי בהשיבי על השאלון לעיל לא החסרתי כל פרט שהוא ממנהל השירות. ידוע לי שמנהל השירות מסתמך על הצהרתי זו לצורך החלטה באם לאשר לי מתן שירותי ייעוץ למסחר עצמאי.</p>
@@ -1920,8 +1911,8 @@ class ACF_Quiz_System {
         error_log('Quiz submission debug - final_declaration: ' . ($final_declaration ? 'YES' : 'NO'));
         error_log('Quiz submission debug - quiz_data keys: ' . implode(', ', array_keys($quiz_data)));
 
-        if (empty($user_name) || empty($user_phone) || !$final_declaration) {
-            wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים ואשר את ההצהרה הסופית.', 'acf-quiz')));
+        if (empty($user_name) || empty($user_phone)) {
+            wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים.', 'acf-quiz')));
         }
         
         // Signature validation - require signature for complete submissions
