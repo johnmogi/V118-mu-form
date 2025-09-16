@@ -809,9 +809,9 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.1.0');
+        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.1.3');
         
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.1.0', true);
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.1.3', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1659,6 +1659,10 @@ class ACF_Quiz_System {
                                         </label>
                                         <div class="scroll-instruction" id="scrollInstruction" style="font-size: 12px; color: #666; margin-top: 8px;">
                                             יש לגלול עד סוף ההסכם כדי לאשר
+                                        </div>
+                                        <div class="scroll-notification" id="scrollNotification">
+                                            <span class="icon">📜</span>
+                                            אנא גללו למטה וקראו את כל תוכן ההסכם לפני האישור
                                         </div>
                                     </div>
                                 </div>

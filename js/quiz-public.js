@@ -120,17 +120,61 @@ jQuery(document).ready(function($) {
             const checkboxContainer = document.getElementById('agreementCheckboxContainer');
             const checkbox = document.getElementById('agreement_accepted');
             const scrollInstruction = document.getElementById('scrollInstruction');
+            const scrollNotification = document.getElementById('scrollNotification');
             
             if (!scrollContainer || !checkboxContainer || !checkbox) {
-                return; // Elements not found, skip initialization
+                return;
             }
             
+            // Always start with disabled checkbox
+            checkbox.disabled = true;
+            checkboxContainer.classList.add('disabled');
+            scrollContainer.classList.remove('scrolled-to-bottom');
+            
             let hasScrolledToBottom = false;
+            let notificationTimeout = null;
+            
+            // Function to show gentle notification
+            function showScrollNotification() {
+                if (scrollNotification) {
+                    scrollNotification.classList.add('show');
+                    scrollContainer.classList.add('needs-scroll');
+                    
+                    // Auto-hide after 4 seconds
+                    if (notificationTimeout) clearTimeout(notificationTimeout);
+                    notificationTimeout = setTimeout(() => {
+                        scrollNotification.classList.remove('show');
+                        scrollContainer.classList.remove('needs-scroll');
+                    }, 4000);
+                }
+            }
+            
+            // Function to hide notification
+            function hideScrollNotification() {
+                if (scrollNotification) {
+                    scrollNotification.classList.remove('show');
+                    scrollContainer.classList.remove('needs-scroll');
+                    if (notificationTimeout) clearTimeout(notificationTimeout);
+                }
+            }
             
             // Function to check if scrolled to bottom
             function checkScrollPosition() {
-                const isScrolledToBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 5; // 5px tolerance
+                const scrollTop = scrollContainer.scrollTop;
+                const clientHeight = scrollContainer.clientHeight;
+                const scrollHeight = scrollContainer.scrollHeight;
+                const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
                 
+                // Debug logging
+                console.log('Scroll check:', {
+                    scrollTop,
+                    clientHeight, 
+                    scrollHeight,
+                    isScrolledToBottom,
+                    hasScrolledToBottom
+                });
+                
+                // Only enable if user actually scrolled to bottom (remove auto-enable for short content)
                 if (isScrolledToBottom && !hasScrolledToBottom) {
                     hasScrolledToBottom = true;
                     
@@ -139,10 +183,13 @@ jQuery(document).ready(function($) {
                     checkboxContainer.classList.remove('disabled');
                     scrollContainer.classList.add('scrolled-to-bottom');
                     
-                    // Hide scroll instruction
+                    // Hide all instructions and notifications
                     if (scrollInstruction) {
                         scrollInstruction.style.display = 'none';
                     }
+                    hideScrollNotification();
+                    
+                    console.log('Agreement checkbox enabled');
                     
                     // Trigger validation update
                     MultiStepQuiz.validateCurrentStep(false);
@@ -155,17 +202,43 @@ jQuery(document).ready(function($) {
             // Check initial position (in case content is short)
             setTimeout(checkScrollPosition, 100);
             
+            // Also check after a longer delay to ensure DOM is fully loaded
+            setTimeout(checkScrollPosition, 500);
+            setTimeout(checkScrollPosition, 1000);
+            
             // Prevent checkbox interaction until scrolled
             checkbox.addEventListener('click', function(e) {
                 if (!hasScrolledToBottom) {
                     e.preventDefault();
-                    // Scroll to bottom automatically
-                    scrollContainer.scrollTo({
-                        top: scrollContainer.scrollHeight,
-                        behavior: 'smooth'
-                    });
+                    showScrollNotification();
+                    
+                    // Scroll to bottom automatically after a brief delay
+                    setTimeout(() => {
+                        scrollContainer.scrollTo({
+                            top: scrollContainer.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }, 500);
                 }
             });
+            
+            // Also prevent label clicks
+            const checkboxLabel = checkboxContainer.querySelector('.checkbox-label-new');
+            if (checkboxLabel) {
+                checkboxLabel.addEventListener('click', function(e) {
+                    if (!hasScrolledToBottom) {
+                        e.preventDefault();
+                        showScrollNotification();
+                        
+                        setTimeout(() => {
+                            scrollContainer.scrollTo({
+                                top: scrollContainer.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                        }, 500);
+                    }
+                });
+            }
         },
         
         handleNextStep: function() {
