@@ -796,7 +796,7 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.4', true);
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.5', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(

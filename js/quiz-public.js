@@ -165,8 +165,19 @@ jQuery(document).ready(function($) {
             
             if (this.currentStep === 4) {
                 console.log('STEP 4 DETECTED - ALLOWING SUBMISSION');
-                // SOFTEN: Allow submission without checkbox validation
-                console.log('Bypassing checkbox validation - proceeding with submission');
+                // Check if form is ready for submission (set by monitoring)
+                if (this.formReadyForSubmission) {
+                    console.log('Form is ready for submission - proceeding');
+                } else {
+                    console.log('Form not ready yet - checking requirements');
+                    const isValid = this.validateCurrentStep(true);
+                    if (!isValid) {
+                        console.log('Step 4 validation FAILED - stopping submission');
+                        this.showError('אנא השלימו את כל השדות הנדרשים');
+                        this.isSubmitting = false;
+                        return false;
+                    }
+                }
             } else {
                 // Normal validation for other steps
                 console.log('Validating step', this.currentStep);
@@ -835,20 +846,42 @@ jQuery(document).ready(function($) {
                 
                 // If form is complete, enable submit and stop monitoring
                 if (isFormComplete && submitBtn.length) {
-                    // Force enable the submit button with multiple methods
+                    // Force enable and show the submit button with multiple methods
                     submitBtn.prop('disabled', false)
                             .removeClass('disabled')
                             .show()
-                            .css('display', 'inline-block')
-                            .attr('disabled', false);
+                            .css({
+                                'display': 'inline-block !important',
+                                'visibility': 'visible !important',
+                                'opacity': '1 !important'
+                            })
+                            .attr('disabled', false)
+                            .attr('style', 'display: inline-block !important; visibility: visible !important; opacity: 1 !important;');
+                    
+                    // Also try to remove any hiding styles from parent elements
+                    submitBtn.parents().each(function() {
+                        $(this).show().css('display', '');
+                    });
+                    
+                    // Set a flag that form is ready for submission
+                    MultiStepQuiz.formReadyForSubmission = true;
+                    
+                    // Rebind click handler to ensure it works
+                    submitBtn.off('click.step4').on('click.step4', function(e) {
+                        console.log('STEP 4 SUBMIT CLICKED - FORM READY');
+                        e.preventDefault();
+                        MultiStepQuiz.handleSubmit(e);
+                    });
                     
                     console.log('Step 4 monitoring: FORM COMPLETE - PURCHASE ENABLED');
+                    console.log('Submit button FORCED VISIBLE AND CLICKABLE');
                     console.log('Submit button state:', {
                         exists: submitBtn.length > 0,
                         disabled: submitBtn.prop('disabled'),
                         hasDisabledClass: submitBtn.hasClass('disabled'),
                         visible: submitBtn.is(':visible'),
-                        display: submitBtn.css('display')
+                        display: submitBtn.css('display'),
+                        style: submitBtn.attr('style')
                     });
                     
                     clearInterval(this.step4Monitor);
