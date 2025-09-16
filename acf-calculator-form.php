@@ -2393,7 +2393,7 @@ class ACF_Quiz_System {
         // Get product IDs from ACF settings
         $trial_product = get_field('trial_product', 'option') ?: 1526;
         $monthly_product = get_field('monthly_product', 'option') ?: 1524;
-        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1528;
         
         wp_send_json_success(array(
             'trial' => $trial_product,
@@ -2410,25 +2410,27 @@ class ACF_Quiz_System {
             return home_url('/checkout');
         }
 
-        // Clear existing cart - remove ALL products to avoid subscription conflicts
+        // Clear existing cart completely - remove ALL products to avoid conflicts
         WC()->cart->empty_cart();
         
-        // Additional cleanup: Remove any subscription products specifically
+        // Force clear cart contents and sessions
+        WC()->cart->set_contents(array());
+        WC()->session->set('cart', array());
+        
+        // Additional safety: Remove any remaining items
         foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-            $product = $cart_item['data'];
-            if ($product && (
-                $product->get_type() === 'subscription' || 
-                $product->get_type() === 'variable-subscription' ||
-                class_exists('WC_Subscriptions_Product') && WC_Subscriptions_Product::is_subscription($product)
-            )) {
-                WC()->cart->remove_cart_item($cart_item_key);
-            }
+            WC()->cart->remove_cart_item($cart_item_key);
+        }
+        
+        // Clear any persistent cart data
+        if (method_exists(WC()->cart, 'persistent_cart_destroy')) {
+            WC()->cart->persistent_cart_destroy();
         }
 
         // Get product IDs from ACF settings
         $trial_product = get_field('trial_product', 'option') ?: 1526;
         $monthly_product = get_field('monthly_product', 'option') ?: 1524;
-        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1528;
 
         // Map package types to selected product IDs
         $product_ids = array(
@@ -2454,8 +2456,19 @@ class ACF_Quiz_System {
             'quiz_score' => isset($_SESSION['quiz_score']) ? $_SESSION['quiz_score'] : 0
         );
         
-        // Add to cart
-        WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
+        // Add ONLY the selected product to cart
+        $added = WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
+        
+        // Log for debugging
+        error_log("Quiz form: Added product {$product_id} for package type {$package_type}. Cart items: " . count(WC()->cart->get_cart()));
+        
+        // Verify only one item in cart
+        if (count(WC()->cart->get_cart()) > 1) {
+            error_log("WARNING: Multiple items in cart after adding quiz product");
+            // Force clear and re-add only our product
+            WC()->cart->empty_cart();
+            WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
+        }
 
         return wc_get_checkout_url();
     }
@@ -2484,7 +2497,7 @@ class ACF_Quiz_System {
         // Get correct product IDs
         $trial_product = get_field('trial_product', 'option') ?: 1526;
         $monthly_product = get_field('monthly_product', 'option') ?: 1524;
-        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1528;
 
         $product_ids = array(
             'trial' => $trial_product,
