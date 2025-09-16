@@ -3603,10 +3603,9 @@ class ACF_Quiz_System {
      * Validate custom checkout fields
      */
     public function validate_checkout_custom_fields() {
-        // Only validate subscription terms agreement now
-        if (!isset($_POST['subscription_terms_agreement'])) {
-            wc_add_notice(__('אנא אשר את תנאי המנוי.'), 'error');
-        }
+        // No additional validation needed - WooCommerce handles standard terms checkbox
+        // The quiz validation was already completed before reaching checkout
+        return;
     }
 
     /**
