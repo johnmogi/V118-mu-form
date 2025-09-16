@@ -809,9 +809,9 @@ class ACF_Quiz_System {
      * Enqueue scripts and styles
      */
     public function enqueue_scripts() {
-        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.0.8');
+        wp_enqueue_style('acf-quiz-public', plugin_dir_url(__FILE__) . 'css/quiz-public.css', array(), '1.0.9');
         
-        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.8', true);
+        wp_enqueue_script('quiz-public-js', plugin_dir_url(__FILE__) . 'js/quiz-public.js', array('jquery'), '1.0.9', true);
         
         // Add AJAX URL for frontend
         wp_localize_script('quiz-public-js', 'quiz_ajax', array(
@@ -1642,27 +1642,13 @@ class ACF_Quiz_System {
                             
                             <!-- Agreement Scrolling Pane -->
                             <?php 
-                            $agreement_text = get_field('agreement_text', 'option');
-                            // DEBUG: Always show agreement section for testing
-                            if (true): ?>
+                            $regulatory_disclaimer = get_field('regulatory_disclaimer', 'option');
+                            if ($regulatory_disclaimer): ?>
                                 <div class="agreement-section">
                                     <h5>הסכם שירות <span class="required">*</span></h5>
                                     <div class="agreement-scroll-container" id="agreementScrollContainer">
                                         <div class="agreement-content">
-                                            <?php 
-                                            if ($agreement_text) {
-                                                echo wpautop($agreement_text);
-                                            } else {
-                                                // Placeholder content for testing
-                                                echo '<h4>הסכם שירות</h4>';
-                                                echo '<p>זהו הסכם שירות לדוגמה. אנא קרא את כל התנאים בעמוד זה לפני המשך.</p>';
-                                                echo '<p>תנאי השירות כוללים את כל ההוראות והתנאים הנדרשים לשימוש בשירות.</p>';
-                                                echo '<p>על ידי סימון התיבה למטה, אתה מאשר שקראת והבנת את כל התנאים.</p>';
-                                                echo '<p>זהו טקסט נוסף כדי להפוך את התוכן לארוך יותר ולאפשר גלילה.</p>';
-                                                echo '<p>עוד פסקה נוספת לבדיקת הגלילה.</p>';
-                                                echo '<p>פסקה אחרונה בתחתית ההסכם.</p>';
-                                            }
-                                            ?>
+                                            <?php echo wpautop($regulatory_disclaimer); ?>
                                         </div>
                                     </div>
                                     <div class="agreement-checkbox-container" id="agreementCheckboxContainer" style="display: none;">
