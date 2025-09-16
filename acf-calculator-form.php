@@ -78,8 +78,8 @@ class ACF_Quiz_System {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_block_checkout_scripts'));
         add_action('wp_footer', array($this, 'add_quiz_scripts'));
-        add_action('wp_ajax_submit_quiz', array($this, 'handle_quiz_submission'));
-        add_action('wp_ajax_nopriv_submit_quiz', array($this, 'handle_quiz_submission'));
+        add_action('wp_ajax_handle_quiz_submission', array($this, 'handle_quiz_submission'));
+        add_action('wp_ajax_nopriv_handle_quiz_submission', array($this, 'handle_quiz_submission'));
         add_action('wp_ajax_get_product_ids', array($this, 'get_product_ids'));
         add_action('wp_ajax_nopriv_get_product_ids', array($this, 'get_product_ids'));
         add_action('woocommerce_checkout_process', array($this, 'populate_checkout_fields'));
@@ -89,8 +89,8 @@ class ACF_Quiz_System {
         // add_filter('render_block', array($this, 'filter_woocommerce_checkout_blocks'), 10, 2);
         
         // Multi-step form AJAX handlers
-        add_action('wp_ajax_save_step_data', array($this, 'handle_step_data'));
-        add_action('wp_ajax_nopriv_save_step_data', array($this, 'handle_step_data'));
+        add_action('wp_ajax_handle_step_data', array($this, 'handle_step_data'));
+        add_action('wp_ajax_nopriv_handle_step_data', array($this, 'handle_step_data'));
         
         // BACKUP: Simple lead capture without complex routing
         add_action('wp_ajax_simple_lead_capture', array($this, 'simple_lead_capture'));
@@ -114,7 +114,7 @@ class ACF_Quiz_System {
         add_action('woocommerce_before_calculate_totals', array($this, 'set_custom_cart_item_price'));
         
         // Add custom checkout fields
-        add_action('woocommerce_checkout_billing', array($this, 'add_checkout_custom_fields'));
+        add_action('woocommerce_checkout_after_customer_details', array($this, 'add_checkout_custom_fields'));
         add_action('woocommerce_checkout_process', array($this, 'validate_checkout_custom_fields'));
         add_action('woocommerce_checkout_update_order_meta', array($this, 'save_checkout_custom_fields'));
         add_action('woocommerce_admin_order_data_after_billing_address', array($this, 'display_admin_order_meta'));
@@ -131,6 +131,9 @@ class ACF_Quiz_System {
         
         // Create WooCommerce products if they don't exist
         add_action('init', array($this, 'create_quiz_products'));
+        
+        // Handle direct add-to-cart URLs with package parameters
+        add_action('template_redirect', array($this, 'handle_direct_cart_urls'));
         
         // Show notice if ACF is not active
         if (!class_exists('ACF')) {
@@ -1478,6 +1481,11 @@ class ACF_Quiz_System {
                             </div>
                         </div>
                         
+                        <div class="field-group">
+                            <label for="citizenship" class="field-label">אזרחות</label>
+                            <input type="text" id="citizenship" name="citizenship" class="field-input" value="ישראלית">
+                        </div>
+                        
                         <div class="field-group full-width">
                             <label for="address" class="field-label">כתובת</label>
                             <input type="text" id="address" name="address" class="field-input">
@@ -1642,7 +1650,7 @@ class ACF_Quiz_System {
                                         <span class="file-info">מקסימום 5MB</span>
                                     </label>
                                     <div class="file-preview" id="file_preview" style="display: none;">
-                                        <img id="preview_image" src="" alt="תצוגה מקדימה" style="max-width: 200px; max-height: 150px;">
+                                        <img id="preview_image" alt="תצוגה מקדימה" style="max-width: 200px; max-height: 150px; display: none;">
                                         <span id="file_name"></span>
                                         <button type="button" id="remove_file" class="remove-file-btn">✕</button>
                                     </div>
@@ -2416,13 +2424,25 @@ class ACF_Quiz_System {
             return home_url('/checkout');
         }
 
-        // Clear existing cart
+        // Clear existing cart - remove ALL products to avoid subscription conflicts
         WC()->cart->empty_cart();
+        
+        // Additional cleanup: Remove any subscription products specifically
+        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+            $product = $cart_item['data'];
+            if ($product && (
+                $product->get_type() === 'subscription' || 
+                $product->get_type() === 'variable-subscription' ||
+                class_exists('WC_Subscriptions_Product') && WC_Subscriptions_Product::is_subscription($product)
+            )) {
+                WC()->cart->remove_cart_item($cart_item_key);
+            }
+        }
 
         // Get product IDs from ACF settings
-        $trial_product = get_field('trial_product', 'option') ?: 424;
-        $monthly_product = get_field('monthly_product', 'option') ?: 425;
-        $yearly_product = get_field('yearly_product', 'option') ?: 426;
+        $trial_product = get_field('trial_product', 'option') ?: 1526;
+        $monthly_product = get_field('monthly_product', 'option') ?: 1524;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
 
         // Map package types to selected product IDs
         $product_ids = array(
@@ -2452,6 +2472,55 @@ class ACF_Quiz_System {
         WC()->cart->add_to_cart($product_id, 1, 0, array(), $cart_item_data);
 
         return wc_get_checkout_url();
+    }
+
+    /**
+     * Handle direct add-to-cart URLs with package parameters
+     */
+    public function handle_direct_cart_urls() {
+        // Only handle checkout page with add-to-cart parameter
+        if (!is_page('checkout') || !isset($_GET['add-to-cart'])) {
+            return;
+        }
+
+        $requested_product_id = intval($_GET['add-to-cart']);
+        
+        // Determine package type from URL parameters
+        $package_type = 'monthly'; // default
+        if (isset($_GET['yearly'])) {
+            $package_type = 'yearly';
+        } elseif (isset($_GET['monthly'])) {
+            $package_type = 'monthly';
+        } elseif (isset($_GET['trial'])) {
+            $package_type = 'trial';
+        }
+
+        // Get correct product IDs
+        $trial_product = get_field('trial_product', 'option') ?: 1526;
+        $monthly_product = get_field('monthly_product', 'option') ?: 1524;
+        $yearly_product = get_field('yearly_product', 'option') ?: 1521;
+
+        $product_ids = array(
+            'trial' => $trial_product,
+            'monthly' => $monthly_product,
+            'yearly' => $yearly_product
+        );
+
+        $correct_product_id = $product_ids[$package_type];
+
+        // If the requested product doesn't match the package type, clear cart and add correct product
+        if ($requested_product_id !== $correct_product_id) {
+            WC()->cart->empty_cart();
+            
+            // Add correct product with quiz validation data
+            $cart_item_data = array(
+                'package_type' => $package_type,
+                'quiz_validated' => true,
+                'quiz_score' => isset($_GET['score']) ? intval($_GET['score']) : 40
+            );
+            
+            WC()->cart->add_to_cart($correct_product_id, 1, 0, array(), $cart_item_data);
+        }
     }
 
     /**
@@ -3234,6 +3303,7 @@ class ACF_Quiz_System {
             'required' => true,
         ), $checkout->get_value('subscription_terms_agreement'));
         
+        
         echo '</div>';
     }
     
@@ -3529,26 +3599,27 @@ class ACF_Quiz_System {
         
     }
 
+
     /**
      * Validate custom checkout fields
      */
     public function validate_checkout_custom_fields() {
-        // ID photo upload is now optional - no validation needed
-        
-        // Subscription terms validation is now handled by the new terms checkbox system
-        // No validation needed here as it's replaced by the new terms acceptance
+        // Only validate subscription terms agreement now
+        if (!isset($_POST['subscription_terms_agreement'])) {
+            wc_add_notice(__('אנא אשר את תנאי המנוי.'), 'error');
+        }
     }
 
     /**
-     * Save custom checkout fields to order meta
+     * Save custom checkout fields
      */
     public function save_checkout_custom_fields($order_id) {
-        
         // Save subscription terms agreement
         if (!empty($_POST['subscription_terms_agreement'])) {
             update_post_meta($order_id, '_subscription_terms_agreement', 'yes');
         }
     }
+
 
     /**
      * Customize WooCommerce checkout fields

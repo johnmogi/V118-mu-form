@@ -583,12 +583,6 @@ html[dir="rtl"] .answers-container {
     margin-left: 0;
 }
 
-/* Add back margin for desktop */
-@media (min-width: 768px) {
-    html[dir="rtl"] .answers-container {
-        margin-right: 45px;
-    }
-}
 
 .answer-option {
     margin-bottom: 12px;

@@ -71,6 +71,27 @@ jQuery(document).ready(function($) {
                 this.validateCurrentStep(false);
             });
             
+            // Special handling for birthdate dropdowns on step 2
+            $('#birth_day, #birth_month, #birth_year').on('change', () => {
+                if (this.currentStep === 2) {
+                    this.validateCurrentStep(false);
+                }
+            });
+            
+            // Special handling for ID photo upload on step 4
+            $(document).on('change', '#id_photo_upload', () => {
+                if (this.currentStep === 4) {
+                    this.validateCurrentStep(false);
+                }
+            });
+            
+            // Special handling for signature pad on step 4
+            $(document).on('signature_updated', () => {
+                if (this.currentStep === 4) {
+                    this.validateCurrentStep(false);
+                }
+            });
+            
             // Final declaration checkbox validation
             this.form.on('change', '#final_declaration', function() {
                 MultiStepQuiz.validateCurrentStep();
@@ -435,7 +456,7 @@ jQuery(document).ready(function($) {
             const $idNumberField = $('#id_number');
             const $genderField = $('#gender');
             
-            const idNumber = $idNumberField.val().trim();
+            const idNumber = $idNumberField.val() ? $idNumberField.val().trim() : '';
             const gender = $genderField.val();
             
             // Only validate and show errors if showErrors is true
@@ -486,7 +507,8 @@ jQuery(document).ready(function($) {
                 currentStepElement.find('input').removeClass('error touched');
                 
                 // Validate first name
-                if (!$firstNameField.val() || $firstNameField.val().trim() === '') {
+                const firstNameValue = $firstNameField.val() ? $firstNameField.val().trim() : '';
+                if (!firstNameValue) {
                     isValid = false;
                     if (showErrors) {
                         $firstNameField.addClass('error touched');
@@ -494,7 +516,8 @@ jQuery(document).ready(function($) {
                 }
                 
                 // Validate last name
-                if (!$lastNameField.val() || $lastNameField.val().trim() === '') {
+                const lastNameValue = $lastNameField.val() ? $lastNameField.val().trim() : '';
+                if (!lastNameValue) {
                     isValid = false;
                     if (showErrors) {
                         $lastNameField.addClass('error touched');
@@ -502,7 +525,8 @@ jQuery(document).ready(function($) {
                 }
                 
                 // Validate phone
-                if (!$phoneField.val() || $phoneField.val().trim() === '') {
+                const phoneValue = $phoneField.val() ? $phoneField.val().trim() : '';
+                if (!phoneValue) {
                     isValid = false;
                     if (showErrors) {
                         $phoneField.addClass('error touched');
@@ -510,7 +534,7 @@ jQuery(document).ready(function($) {
                 }
                 
                 // Validate email
-                const emailValue = $emailField.val().trim();
+                const emailValue = $emailField.val() ? $emailField.val().trim() : '';
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailValue || !emailRegex.test(emailValue)) {
                     isValid = false;
@@ -528,7 +552,7 @@ jQuery(document).ready(function($) {
                 currentStepElement.find('input, select').removeClass('error touched');
                 
                 // Check ID number with enhanced validation
-                const idValue = $idField.val().trim();
+                const idValue = $idField.val() ? $idField.val().trim() : '';
                 const idNumberRegex = /^[\d-]{8,9}$/; // 8-9 digits or dashes for Israeli ID
                 
                 if (!idValue || !idNumberRegex.test(idValue)) {
@@ -543,35 +567,71 @@ jQuery(document).ready(function($) {
                     }
                 }
                 
-                // Check birthdate
-                const birthdateValue = $birthdateField.val().trim();
-                if (!birthdateValue) {
-                    isValid = false;
+                // Check birthdate components
+                const $dayField = $('#birth_day');
+                const $monthField = $('#birth_month');
+                const $yearField = $('#birth_year');
+                
+                const dayValue = $dayField.val();
+                const monthValue = $monthField.val();
+                const yearValue = $yearField.val();
+                
+                // Softened validation - birthdate and address are optional for step progression
+                if (!dayValue || !monthValue || !yearValue) {
+                    // Don't block progression, just mark fields for visual feedback
                     if (showErrors) {
-                        $birthdateField.addClass('error touched');
-                        this.showError('אנא הזן תאריך לידה');
+                        if (!dayValue) $dayField.addClass('error touched');
+                        if (!monthValue) $monthField.addClass('error touched');
+                        if (!yearValue) $yearField.addClass('error touched');
                     }
                 }
                 
-                // Check address
-                const addressValue = $addressField.val().trim();
-                if (!addressValue) {
-                    isValid = false;
-                    if (showErrors) {
-                        $addressField.addClass('error touched');
-                        this.showError('אנא הזן כתובת');
-                    }
+                // Check address - optional, don't block progression
+                const addressValue = $addressField.val() ? $addressField.val().trim() : '';
+                if (!addressValue && showErrors) {
+                    // Visual feedback only, don't block progression
+                    $addressField.addClass('error touched');
                 }
-            } else if (this.currentStep === 3 || this.currentStep === 4) {
-                // Special validation for radio button groups in quiz steps
-                const questionStart = this.currentStep === 3 ? 0 : 5;
-                const questionEnd = this.currentStep === 3 ? 5 : 10;
-                
-                for (let i = questionStart; i < questionEnd; i++) {
+            } else if (this.currentStep === 3) {
+                // Special validation for radio button groups in quiz step 3
+                for (let i = 0; i < 5; i++) {
                     const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;
                     if (!questionAnswered) {
                         isValid = false;
                         break;
+                    }
+                }
+            } else if (this.currentStep === 4) {
+                // Step 4 validation: quiz questions + ID photo upload + signature
+                
+                // First validate quiz questions (5-9)
+                for (let i = 5; i < 10; i++) {
+                    const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;
+                    if (!questionAnswered) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                
+                // Validate ID photo upload
+                const idPhotoInput = $('#id_photo_upload');
+                const hasIdPhoto = idPhotoInput.length && idPhotoInput[0].files && idPhotoInput[0].files.length > 0;
+                if (!hasIdPhoto) {
+                    isValid = false;
+                    if (showErrors) {
+                        idPhotoInput.addClass('error touched');
+                        this.showError('אנא העלה תמונת תעודת זהות');
+                    }
+                }
+                
+                // Validate signature
+                const signatureInput = $('#signature_data');
+                const hasSignature = signatureInput.length && signatureInput.val() && signatureInput.val().trim() !== '';
+                if (!hasSignature) {
+                    isValid = false;
+                    if (showErrors) {
+                        $('.signature-pad-container').addClass('error');
+                        this.showError('אנא חתום בשדה החתימה');
                     }
                 }
             }
@@ -580,24 +640,56 @@ jQuery(document).ready(function($) {
             if (this.currentStep === 2) {
                 // On step 2, enable button only when ID, birthdate, and address are all valid
                 const $idField = $('#id_number');
-                const $birthdateField = $('#birth_date');
                 const $addressField = $('#user_address');
                 
-                const idValue = $idField.val().trim();
-                const birthdateValue = $birthdateField.val().trim();
-                const addressValue = $addressField.val().trim();
+                // Check birthdate components instead of hidden field
+                const $dayField = $('#birth_day');
+                const $monthField = $('#birth_month');
+                const $yearField = $('#birth_year');
+                
+                const idValue = $idField.val() ? $idField.val().trim() : '';
+                const addressValue = $addressField.val() ? $addressField.val().trim() : '';
+                const dayValue = $dayField.val();
+                const monthValue = $monthField.val();
+                const yearValue = $yearField.val();
+                
                 const idNumberRegex = /^[\d-]{8,9}$/;
                 
-                if (idValue && idNumberRegex.test(idValue) && birthdateValue && addressValue) {
+                // Softened validation - only require ID and birthdate, address is optional
+                const idValid = idValue && idNumberRegex.test(idValue);
+                const birthdateValid = dayValue && monthValue && yearValue;
+                // Address is now optional for progression
+                
+                console.log('Step 2 validation (softened):', {
+                    idValid, birthdateValid,
+                    idValue, dayValue, monthValue, yearValue, addressValue
+                });
+                
+                // Allow progression with just ID and birthdate
+                if (idValid && birthdateValid) {
                     this.enableNextButton();
                 } else {
                     this.disableNextButton();
                 }
             } else {  
-                this.nextButton.prop('disabled', !isValid);
+                if (this.nextButton && this.nextButton.length) {
+                    this.nextButton.prop('disabled', !isValid);
+                }
             }
             
             return isValid;
+        },
+        
+        enableNextButton: function() {
+            if (this.nextButton && this.nextButton.length) {
+                this.nextButton.prop('disabled', false).removeClass('disabled');
+            }
+        },
+        
+        disableNextButton: function() {
+            if (this.nextButton && this.nextButton.length) {
+                this.nextButton.prop('disabled', true).addClass('disabled');
+            }
         },
         
         setupConditionalElements: function() {
@@ -806,7 +898,7 @@ jQuery(document).ready(function($) {
                 url: acfQuiz.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'save_step_data',
+                    action: 'handle_step_data',
                     quiz_nonce: acfQuiz.nonce,
                     current_step: this.currentStep,
                     step_data: stepData
@@ -1095,11 +1187,12 @@ jQuery(document).ready(function($) {
             
             console.log('Saving lead with package:', packageParam);
             
-            // DIRECT: Use the direct lead capture endpoint (most reliable)
+            // Use WordPress AJAX endpoint instead of direct PHP file
             $.ajax({
-                url: '/wp-content/capture-lead.php',
+                url: acfQuiz.ajaxUrl,
                 type: 'POST',
                 data: {
+                    action: 'simple_lead_capture',
                     first_name: stepData.first_name || '',
                     last_name: stepData.last_name || '',
                     user_phone: stepData.user_phone || '',
@@ -1145,7 +1238,8 @@ jQuery(document).ready(function($) {
                 const $field = $(this);
                 const value = $field.val();
                 
-                if (!value || (value && value.trim() === '')) {
+                const trimmedValue = value ? value.trim() : '';
+                if (!trimmedValue) {
                     $field.addClass('error');
                 } else {
                     $field.removeClass('error');
