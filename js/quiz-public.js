@@ -126,10 +126,31 @@ jQuery(document).ready(function($) {
                 return;
             }
             
-            // Always start with disabled checkbox
-            checkbox.disabled = true;
-            checkboxContainer.classList.add('disabled');
-            scrollContainer.classList.remove('scrolled-to-bottom');
+            // HARD LOCK: Always start with disabled checkbox - no exceptions
+            function lockCheckbox() {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+                checkbox.setAttribute('aria-disabled', 'true');
+                checkboxContainer.classList.add('disabled');
+                scrollContainer.classList.remove('scrolled-to-bottom');
+                if (scrollInstruction) {
+                    scrollInstruction.style.display = 'block';
+                    scrollInstruction.textContent = 'יש לגלול עד סוף ההסכם כדי לאשר';
+                }
+            }
+            
+            function unlockCheckbox() {
+                checkbox.disabled = false;
+                checkbox.removeAttribute('aria-disabled');
+                checkboxContainer.classList.remove('disabled');
+                scrollContainer.classList.add('scrolled-to-bottom');
+                if (scrollInstruction) {
+                    scrollInstruction.style.display = 'none';
+                }
+            }
+            
+            // Start locked
+            lockCheckbox();
             
             let hasScrolledToBottom = false;
             let notificationTimeout = null;
@@ -158,40 +179,19 @@ jQuery(document).ready(function($) {
                 }
             }
             
-            // Function to check if scrolled to bottom
+            // Function to check if scrolled to bottom with strict tolerance
             function checkScrollPosition() {
                 const scrollTop = scrollContainer.scrollTop;
                 const clientHeight = scrollContainer.clientHeight;
                 const scrollHeight = scrollContainer.scrollHeight;
-                const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 5; // 5px tolerance
+                const isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 2; // Strict 2px tolerance
                 
-                // Debug logging
-                console.log('Scroll check:', {
-                    scrollTop,
-                    clientHeight, 
-                    scrollHeight,
-                    isScrolledToBottom,
-                    hasScrolledToBottom
-                });
-                
-                // Only enable if user actually scrolled to bottom (remove auto-enable for short content)
-                if (isScrolledToBottom && !hasScrolledToBottom) {
+                // Only enable if user actually scrolled to bottom AND content requires scrolling
+                if (isScrolledToBottom && scrollHeight > clientHeight + 10 && !hasScrolledToBottom) {
                     hasScrolledToBottom = true;
-                    
-                    // Enable checkbox
-                    checkbox.disabled = false;
-                    checkboxContainer.classList.remove('disabled');
-                    scrollContainer.classList.add('scrolled-to-bottom');
-                    
-                    // Hide all instructions and notifications
-                    if (scrollInstruction) {
-                        scrollInstruction.style.display = 'none';
-                    }
+                    unlockCheckbox();
                     hideScrollNotification();
-                    
-                    console.log('Agreement checkbox enabled');
-                    
-                    // Trigger validation update
+                    console.log('Agreement checkbox enabled after scroll');
                     MultiStepQuiz.validateCurrentStep(false);
                 }
             }
@@ -206,19 +206,31 @@ jQuery(document).ready(function($) {
             setTimeout(checkScrollPosition, 500);
             setTimeout(checkScrollPosition, 1000);
             
-            // Prevent checkbox interaction until scrolled
+            // HARD BLOCK: Prevent any checkbox interaction until scrolled
             checkbox.addEventListener('click', function(e) {
-                if (!hasScrolledToBottom) {
+                if (checkbox.disabled || !hasScrolledToBottom) {
                     e.preventDefault();
+                    e.stopPropagation();
                     showScrollNotification();
                     
-                    // Scroll to bottom automatically after a brief delay
+                    // Focus scroll container and auto-scroll to bottom
+                    scrollContainer.focus();
                     setTimeout(() => {
                         scrollContainer.scrollTo({
                             top: scrollContainer.scrollHeight,
                             behavior: 'smooth'
                         });
                     }, 500);
+                    return false;
+                }
+            });
+            
+            // Block any programmatic attempts to enable checkbox
+            checkbox.addEventListener('change', function(e) {
+                if (checkbox.disabled || !hasScrolledToBottom) {
+                    e.preventDefault();
+                    checkbox.checked = false;
+                    return false;
                 }
             });
             
@@ -883,10 +895,12 @@ jQuery(document).ready(function($) {
         },
         
         setupStep4Monitoring: function() {
-            if (this.currentStep !== 4) return;
+            const currentStep = this.getCurrentStep();
+            if (currentStep !== 4) {
+                return; // Only monitor on step 4
+            }
             
-            // Prevent multiple monitoring instances
-            if (this.step4Monitor) {
+            if (this.step4MonitoringActive) {
                 console.log('Step 4 monitoring already active, skipping setup');
                 return;
             }
@@ -940,28 +954,35 @@ jQuery(document).ready(function($) {
                 
                 // Check required checkboxes
                 const subscriptionTerms = $('#subscription_terms_3month').is(':checked') || $('#subscription_terms_other').is(':checked');
+                const agreementAccepted = $('#agreement_accepted').is(':checked');
                 
-                const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature && subscriptionTerms;
+                const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature && subscriptionTerms && agreementAccepted;
                 
-                console.log(`Step 4 monitoring check ${checkCount}:`, {
-                    allQuestionsAnswered,
-                    hasIdPhoto,
-                    hasSignature,
-                    subscriptionTerms,
-                    isFormComplete,
-                    photoFiles: idPhotoInput?.files?.length || 0,
-                    signatureLength: signatureInput.val()?.length || 0
-                });
-                
-                // Show user what's missing
-                if (!isFormComplete) {
-                    const missing = [];
-                    if (!allQuestionsAnswered) missing.push('quiz questions');
-                    if (!hasIdPhoto) missing.push('ID photo');
-                    if (!hasSignature) missing.push('signature');
-                    if (!subscriptionTerms) missing.push('subscription terms checkbox');
+                // Only log on step 4 and reduce frequency
+                const currentStep = MultiStepQuiz.getCurrentStep();
+                if (currentStep === 4 && checkCount % 10 === 1) {
+                    console.log(`Step 4 monitoring check ${checkCount}:`, {
+                        allQuestionsAnswered,
+                        hasIdPhoto,
+                        hasSignature,
+                        subscriptionTerms,
+                        agreementAccepted,
+                        isFormComplete,
+                        photoFiles: idPhotoInput?.files?.length || 0,
+                        signatureLength: signatureInput.val()?.length || 0
+                    });
                     
-                    console.log('Missing requirements:', missing.join(', '));
+                    // Show user what's missing
+                    if (!isFormComplete) {
+                        const missing = [];
+                        if (!allQuestionsAnswered) missing.push('quiz questions');
+                        if (!hasIdPhoto) missing.push('ID photo');
+                        if (!hasSignature) missing.push('signature');
+                        if (!subscriptionTerms) missing.push('subscription terms checkbox');
+                        if (!agreementAccepted) missing.push('agreement checkbox');
+                        
+                        console.log('Missing requirements:', missing.join(', '));
+                    }
                 }
                 
                 // If form is complete, enable submit and stop monitoring
