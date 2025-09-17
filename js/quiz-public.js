@@ -651,8 +651,11 @@ jQuery(document).ready(function($) {
                 
                 // Validate quiz questions (5-9) - ALL must be answered
                 let allQuestionsAnswered = true;
+                console.log('🔍 Main validation - checking questions 5-9 in step 4');
                 for (let i = 5; i < 10; i++) {
                     const questionAnswered = currentStepElement.find(`input[name="question_${i}"]:checked`).length > 0;
+                    const totalInputs = currentStepElement.find(`input[name="question_${i}"]`).length;
+                    console.log(`Question ${i}: ${totalInputs} inputs found, ${questionAnswered ? 'ANSWERED' : 'NOT ANSWERED'}`);
                     if (!questionAnswered) {
                         allQuestionsAnswered = false;
                         if (showErrors) {
@@ -661,6 +664,7 @@ jQuery(document).ready(function($) {
                         break;
                     }
                 }
+                console.log('Main validation result:', allQuestionsAnswered ? '✅ All answered' : '❌ Some missing');
                 
                 // Enhanced ID photo validation with multiple detection methods
                 const idPhotoInput = $('#id_photo_upload')[0];
@@ -838,9 +842,16 @@ jQuery(document).ready(function($) {
                 for (let i = 5; i < 10; i++) {
                     const questionAnswered = $(`input[name="question_${i}"]:checked`).length > 0;
                     if (!questionAnswered) {
+                        console.log(`Question ${i} not answered - found ${$(`input[name="question_${i}"]`).length} inputs, ${$(`input[name="question_${i}"]:checked`).length} checked`);
                         allQuestionsAnswered = false;
                         break;
                     }
+                }
+                
+                if (allQuestionsAnswered) {
+                    console.log('✅ All quiz questions (5-9) are answered');
+                } else {
+                    console.log('❌ Some quiz questions (5-9) are missing');
                 }
                 
                 // Check required checkboxes
