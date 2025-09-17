@@ -452,123 +452,17 @@ jQuery(document).ready(function($) {
             const passed = totalScore >= 23;
             console.log('Quiz result:', passed ? 'PASSED' : 'FAILED');
             
-            // Store final submission before redirect
-            console.log('Storing final submission...');
-            console.log('About to call storeFinalSubmission with:', {
-                allData: allData,
-                totalScore: totalScore,
-                passed: passed
-            });
-            this.storeFinalSubmission(allData, totalScore, passed);
-            console.log('storeFinalSubmission call completed');
+            // Submit final form data
+            console.log('Submitting final form data...');
             
-            // Delay redirect to allow AJAX submission to complete
-            console.log('Waiting 1 second for submission to complete before redirect...');
-            setTimeout(() => {
-                // Simple redirect logic
-                if (passed) {
-                    console.log('PASSED - Redirecting to checkout with trial package');
-                    // Get the package type from URL parameter
-                    const urlParams = new URLSearchParams(window.location.search);
-                    let packageType = 'trial'; // default
-                    if (urlParams.has('monthly')) packageType = 'monthly';
-                    if (urlParams.has('yearly')) packageType = 'yearly';
-                    
-                    console.log('Package type detected:', packageType);
-                    
-                    // Direct checkout redirect based on package type
-                    console.log('Redirecting directly to checkout for package type:', packageType);
-                    
-                    // Get dynamic product IDs from server-side configuration
-                    $.ajax({
-                        url: quiz_ajax.ajax_url,
-                        type: 'POST',
-                        data: {
-                            action: 'get_product_ids'
-                        },
-                        success: function(response) {
-                            console.log('Product IDs response:', response);
-                            if (response.success) {
-                                const productIds = response.data;
-                                let productId;
-                                
-                                if (packageType === 'yearly') {
-                                    productId = productIds.yearly;
-                                } else if (packageType === 'monthly') {
-                                    productId = productIds.monthly;
-                                } else {
-                                    productId = productIds.trial;
-                                }
-                                
-                                console.log('Using product ID:', productId, 'for package:', packageType);
-                                window.location.href = '/checkout/?add-to-cart=' + productId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
-                            } else {
-                                console.error('Failed to get product IDs:', response.data);
-                                // Use ACF configured fallbacks
-                                const fallbackIds = {
-                                    'trial': 1526,
-                                    'monthly': 1524, 
-                                    'yearly': 1521
-                                };
-                                const fallbackId = fallbackIds[packageType] || 1526;
-                                console.log('Using fallback product ID:', fallbackId);
-                                window.location.href = '/checkout/?add-to-cart=' + fallbackId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('AJAX error getting product IDs:', error);
-                            // Use ACF configured fallbacks
-                            const fallbackIds = {
-                                'trial': 1526,
-                                'monthly': 1524,
-                                'yearly': 1521
-                            };
-                            const fallbackId = fallbackIds[packageType] || 1526;
-                            console.log('Using fallback product ID after error:', fallbackId);
-                            window.location.href = '/checkout/?add-to-cart=' + fallbackId + '&' + packageType + '=1&quiz_passed=1&score=' + totalScore;
-                        }
-                    });
-                    
-                    console.log('Redirecting to:', window.location.href);
-                } else {
-                    console.log('FAILED - Checking score for redirect');
-                    if (totalScore >= 19 && totalScore <= 21) {
-                        console.log('Score 19-21 - Redirecting to quiz-result page');
-                        window.location.href = '/quiz-result/?score=' + totalScore;
-                    } else {
-                        console.log('Score below 19 - Redirecting to followup page');
-                        window.location.href = '/followup?score=' + totalScore;
-                    }
-                }
-            }, 1000); // 1 second delay
+            // Add quiz results to the data
+            allData.total_score = totalScore;
+            allData.quiz_passed = passed;
             
-        
-        console.log('Package type detected:', packageType);
-            // Prepare submission data
-            const submissionData = {
-                action: 'handle_quiz_submission',
-                quiz_nonce: typeof acfQuiz !== 'undefined' ? acfQuiz.nonce : '',
-                quiz_data: allData,
-                total_score: totalScore,
-                passed: passed,
-                completed: 1
-            };
+            this.submitForm(allData);
+            console.log('Form submission initiated');
             
-            console.log('Sending final submission data:', submissionData);
-            
-            // Send AJAX request (don't wait for response to avoid blocking redirect)
-            $.ajax({
-                url: typeof acfQuiz !== 'undefined' ? acfQuiz.ajaxUrl : '/wp-admin/admin-ajax.php',
-                type: 'POST',
-                data: submissionData,
-                success: function(response) {
-                    console.log('Final submission stored successfully:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.log('Final submission storage failed:', error);
-                    // Don't block redirect on storage failure
-                }
-            });
+            // Form submission and redirect will be handled by submitForm -> handleQuizResults
         },
         
         handleAnswerChange: function(e) {
@@ -1377,6 +1271,75 @@ jQuery(document).ready(function($) {
                     this.showError('שגיאה בשליחת השאלון. אנא נסה שוב.');
                 }
             });
+        },
+        
+        handleQuizResults: function(data) {
+            console.log('Handling quiz results:', data);
+            
+            // Extract quiz results from the data
+            const passed = data.quiz_passed || data.passed;
+            const totalScore = data.total_score || data.score;
+            
+            console.log('Quiz result:', passed ? 'PASSED' : 'FAILED');
+            console.log('Total score:', totalScore);
+            
+            if (passed) {
+                console.log('PASSED - Redirecting to checkout');
+                
+                // Get the package type from URL parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                let packageType = 'trial'; // default
+                if (urlParams.has('monthly')) packageType = 'monthly';
+                if (urlParams.has('yearly')) packageType = 'yearly';
+                
+                console.log('Package type detected:', packageType);
+                
+                // Get dynamic product IDs and redirect to checkout
+                $.ajax({
+                    url: quiz_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'get_product_ids'
+                    },
+                    success: function(response) {
+                        console.log('Product IDs response:', response);
+                        if (response.success && response.data) {
+                            const productIds = response.data;
+                            let productId;
+                            
+                            switch(packageType) {
+                                case 'monthly':
+                                    productId = productIds.monthly || productIds.trial;
+                                    break;
+                                case 'yearly':
+                                    productId = productIds.yearly;
+                                    break;
+                                default:
+                                    productId = productIds.trial;
+                            }
+                            
+                            if (productId) {
+                                const checkoutUrl = `/checkout/?add-to-cart=${productId}`;
+                                console.log('Redirecting to:', checkoutUrl);
+                                window.location.href = checkoutUrl;
+                            } else {
+                                console.error('No product ID found for package type:', packageType);
+                                window.location.href = '/checkout/';
+                            }
+                        } else {
+                            console.error('Failed to get product IDs, using fallback redirect');
+                            window.location.href = '/checkout/';
+                        }
+                    },
+                    error: function() {
+                        console.error('AJAX error getting product IDs, using fallback redirect');
+                        window.location.href = '/checkout/';
+                    }
+                });
+            } else {
+                console.log('FAILED - Redirecting to retry page');
+                window.location.href = '/quiz-failed/';
+            }
         },
         
         setLoadingState: function(loading) {
