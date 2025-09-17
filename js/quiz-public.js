@@ -995,6 +995,9 @@ jQuery(document).ready(function($) {
                 }
             }
             
+            // Update step subtitle text
+            $('#step-subtitle').text(`שלב ${stepNumber} מתוך ${this.totalSteps}`);
+            
             // Handle step-specific logic
             if (stepNumber === 4) {
                 console.log('=== STEP 4 REACHED ===');
