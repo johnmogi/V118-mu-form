@@ -6,6 +6,14 @@
 jQuery(document).ready(function($) {
     'use strict';
     
+    // Elementor compatibility fix for deprecated functions
+    if (window.elementorCommon && window.elementorCommon.helpers && !window.elementorCommon.helpers.softDeprecated) {
+        window.elementorCommon.helpers.softDeprecated = function() {
+            // Stub function to prevent errors
+            return false;
+        };
+    }
+    
     // Set RTL direction for the quiz container
     $('.acf-quiz-container').attr('dir', 'rtl');
     
@@ -895,8 +903,7 @@ jQuery(document).ready(function($) {
         },
         
         setupStep4Monitoring: function() {
-            const currentStep = this.getCurrentStep();
-            if (currentStep !== 4) {
+            if (this.currentStep !== 4) {
                 return; // Only monitor on step 4
             }
             
@@ -959,8 +966,7 @@ jQuery(document).ready(function($) {
                 const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature && subscriptionTerms && agreementAccepted;
                 
                 // Only log on step 4 and reduce frequency
-                const currentStep = MultiStepQuiz.getCurrentStep();
-                if (currentStep === 4 && checkCount % 10 === 1) {
+                if (MultiStepQuiz.currentStep === 4 && checkCount % 10 === 1) {
                     console.log(`Step 4 monitoring check ${checkCount}:`, {
                         allQuestionsAnswered,
                         hasIdPhoto,
