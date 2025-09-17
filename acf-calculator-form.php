@@ -1950,6 +1950,13 @@ class ACF_Quiz_System {
         $address = sanitize_text_field($quiz_data['address'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
+        
+        // Package information
+        $package_selected = sanitize_text_field($quiz_data['package_selected'] ?? '');
+        $package_price = floatval($quiz_data['package_price'] ?? 0);
+        $package_source = sanitize_text_field($quiz_data['package_source'] ?? '');
+        $package_type = $package_selected; // Use package_selected as package_type
+        $contact_consent = isset($quiz_data['agreement_accepted']) ? 1 : 0;
 
         // Debug logging for submission data
         error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
@@ -1957,7 +1964,6 @@ class ACF_Quiz_System {
         error_log('Quiz submission debug - quiz_data keys: ' . implode(', ', array_keys($quiz_data)));
         error_log('Quiz submission debug - user_name: ' . $user_name);
         error_log('Quiz submission debug - user_email: ' . $user_email);
-        error_log('Quiz submission debug - total_score: ' . $total_score);
 
         if (empty($user_name) || empty($user_phone)) {
             wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים.', 'acf-quiz')));
@@ -1998,6 +2004,9 @@ class ACF_Quiz_System {
         if (!$all_answered) {
             wp_send_json_error(array('message' => __('אנא ענה על כל השאלות.', 'acf-quiz')));
         }
+
+        // Debug log total score after calculation
+        error_log('Quiz submission debug - total_score: ' . $total_score);
 
         // Check scoring rules:
         // - 23+ points: Pass (proceed to checkout)
@@ -2453,8 +2462,7 @@ class ACF_Quiz_System {
         // Clear existing cart completely - remove ALL products to avoid conflicts
         WC()->cart->empty_cart();
         
-        // Force clear cart contents and sessions
-        WC()->cart->set_contents(array());
+        // Force clear cart sessions
         WC()->session->set('cart', array());
         
         // Additional safety: Remove any remaining items
