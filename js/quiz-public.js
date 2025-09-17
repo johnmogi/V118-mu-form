@@ -1423,9 +1423,9 @@ jQuery(document).ready(function($) {
                 url: acfQuiz.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'submit_quiz',
+                    action: 'handle_quiz_submission',
                     quiz_nonce: acfQuiz.nonce,
-                    form_data: formData
+                    quiz_data: formData
                 },
                 dataType: 'json',
                 success: (response) => {
