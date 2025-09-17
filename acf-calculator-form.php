@@ -1950,7 +1950,6 @@ class ACF_Quiz_System {
         $address = sanitize_text_field($quiz_data['address'] ?? '');
         $final_declaration = isset($quiz_data['final_declaration']) && $quiz_data['final_declaration'] === 'on';
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
-        $id_photo_filename = sanitize_text_field($quiz_data['id_photo_filename'] ?? '');
 
         // Debug logging for submission data
         error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
@@ -2050,9 +2049,7 @@ class ACF_Quiz_System {
             'submission_time' => current_time('mysql'),
             'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-            'signature_data' => $signature_data,
-            'id_photo_filename' => $id_photo_filename,
-            'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
+            'signature_data' => $signature_data
         );
 
         if ($existing_id) {
