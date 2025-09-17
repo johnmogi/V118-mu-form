@@ -823,15 +823,7 @@ jQuery(document).ready(function($) {
                     }
                 }
                 
-                console.log('Step 4 validation (enhanced):', {
-                    allQuestionsAnswered: allQuestionsAnswered,
-                    hasIdPhoto: hasIdPhoto,
-                    hasSignature: hasSignature,
-                    isValid: isValid,
-                    photoFiles: idPhotoInput ? idPhotoInput.files?.length : 0,
-                    photoValue: idPhotoInput ? idPhotoInput.value : 'none',
-                    signatureValue: signatureInput.val()?.length || 0
-                });
+                // Step 4 validation complete (reduced logging)
             }
             
             // Handle button state based on step
@@ -908,20 +900,18 @@ jQuery(document).ready(function($) {
             }
             
             if (this.step4MonitoringActive) {
-                console.log('Step 4 monitoring already active, skipping setup');
-                return;
+                return; // Already monitoring
             }
             
             let checkCount = 0;
             const maxChecks = 60; // 30 seconds max (500ms * 60)
             
-            console.log('Setting up Step 4 monitoring for form validation');
+            // Setup form validation monitoring
             
             this.step4Monitor = setInterval(() => {
                 checkCount++;
                 
                 if (checkCount > maxChecks) {
-                    console.log('Step 4 monitoring: Max checks reached, stopping');
                     clearInterval(this.step4Monitor);
                     this.step4Monitor = null;
                     return;
@@ -965,29 +955,18 @@ jQuery(document).ready(function($) {
                 
                 const isFormComplete = allQuestionsAnswered && hasIdPhoto && hasSignature && subscriptionTerms && agreementAccepted;
                 
-                // Only log on step 4 and reduce frequency
-                if (MultiStepQuiz.currentStep === 4 && checkCount % 10 === 1) {
-                    console.log(`Step 4 monitoring check ${checkCount}:`, {
-                        allQuestionsAnswered,
-                        hasIdPhoto,
-                        hasSignature,
-                        subscriptionTerms,
-                        agreementAccepted,
-                        isFormComplete,
-                        photoFiles: idPhotoInput?.files?.length || 0,
-                        signatureLength: signatureInput.val()?.length || 0
-                    });
+                // Only log on step 4 and reduce frequency (much less frequent)
+                if (MultiStepQuiz.currentStep === 4 && checkCount % 50 === 1 && !isFormComplete) {
+                    // Show user what's missing (only when incomplete and very infrequently)
+                    const missing = [];
+                    if (!allQuestionsAnswered) missing.push('quiz questions');
+                    if (!hasIdPhoto) missing.push('ID photo');
+                    if (!hasSignature) missing.push('signature');
+                    if (!subscriptionTerms) missing.push('subscription terms');
+                    if (!agreementAccepted) missing.push('agreement');
                     
-                    // Show user what's missing
-                    if (!isFormComplete) {
-                        const missing = [];
-                        if (!allQuestionsAnswered) missing.push('quiz questions');
-                        if (!hasIdPhoto) missing.push('ID photo');
-                        if (!hasSignature) missing.push('signature');
-                        if (!subscriptionTerms) missing.push('subscription terms checkbox');
-                        if (!agreementAccepted) missing.push('agreement checkbox');
-                        
-                        console.log('Missing requirements:', missing.join(', '));
+                    if (missing.length > 0) {
+                        console.log('Form validation - missing:', missing.join(', '));
                     }
                 }
                 
@@ -1020,16 +999,11 @@ jQuery(document).ready(function($) {
                         MultiStepQuiz.handleSubmit(e);
                     });
                     
-                    console.log('Step 4 monitoring: FORM COMPLETE - PURCHASE ENABLED');
-                    console.log('Submit button FORCED VISIBLE AND CLICKABLE');
-                    console.log('Submit button state:', {
-                        exists: submitBtn.length > 0,
-                        disabled: submitBtn.prop('disabled'),
-                        hasDisabledClass: submitBtn.hasClass('disabled'),
-                        visible: submitBtn.is(':visible'),
-                        display: submitBtn.css('display'),
-                        style: submitBtn.attr('style')
-                    });
+                    // Form complete - enable submit (log only once)
+                    if (!MultiStepQuiz.formCompleteLogged) {
+                        console.log('✅ Form validation complete - submit enabled');
+                        MultiStepQuiz.formCompleteLogged = true;
+                    }
                     
                     clearInterval(this.step4Monitor);
                     this.step4Monitor = null;
