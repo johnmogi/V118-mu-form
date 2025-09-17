@@ -1952,10 +1952,13 @@ class ACF_Quiz_System {
         $signature_data = sanitize_text_field($quiz_data['signature_data'] ?? '');
         $id_photo_filename = sanitize_text_field($quiz_data['id_photo_filename'] ?? '');
 
-        // Debug logging for signature data
+        // Debug logging for submission data
         error_log('Quiz submission debug - signature_data received: ' . (!empty($signature_data) ? 'YES (' . strlen($signature_data) . ' chars)' : 'NO'));
         error_log('Quiz submission debug - final_declaration: ' . ($final_declaration ? 'YES' : 'NO'));
         error_log('Quiz submission debug - quiz_data keys: ' . implode(', ', array_keys($quiz_data)));
+        error_log('Quiz submission debug - user_name: ' . $user_name);
+        error_log('Quiz submission debug - user_email: ' . $user_email);
+        error_log('Quiz submission debug - total_score: ' . $total_score);
 
         if (empty($user_name) || empty($user_phone)) {
             wp_send_json_error(array('message' => __('אנא מלא את כל הפרטים הנדרשים.', 'acf-quiz')));
@@ -1967,22 +1970,18 @@ class ACF_Quiz_System {
             wp_send_json_error(array('message' => __('חתימה דיגיטלית נדרשת להשלמת השאלון.', 'acf-quiz')));
         }
 
-        // Get quiz data
-        $questions = get_field('quiz_questions', 'option');
-        if (empty($questions)) {
-            wp_send_json_error(array('message' => __('השאלון לא מוגדר כראוי. אנא פנה למנהל האתר.', 'acf-quiz')));
-        }
-
-        // Process answers
+        // Process answers - simplified approach without ACF dependency
         $total_score = 0;
-        $max_possible_score = count($questions) * 4; // 4 points per question max
+        $max_possible_score = 10 * 4; // 10 questions, 4 points per question max
         $results = array();
         $all_answered = true;
 
-        foreach ($questions as $q_index => $question) {
+        // Check all 10 questions (0-9)
+        for ($q_index = 0; $q_index < 10; $q_index++) {
             $answer_key = 'question_' . $q_index;
             if (!isset($quiz_data[$answer_key])) {
                 $all_answered = false;
+                error_log("Quiz submission: Missing answer for question $q_index");
                 continue;
             }
 
@@ -1990,10 +1989,10 @@ class ACF_Quiz_System {
             $total_score += $points_earned;
 
             $results[] = array(
-                'question' => $question['question_text'],
+                'question' => "Question " . ($q_index + 1),
                 'points_earned' => $points_earned,
                 'max_points' => 4,
-                'explanation' => $question['explanation'] ?? ''
+                'explanation' => ''
             );
         }
 
@@ -2013,8 +2012,17 @@ class ACF_Quiz_System {
         global $wpdb;
         $table_name = $wpdb->prefix . 'quiz_submissions';
         
+        // Check if table exists
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            error_log("Quiz submission: Table $table_name does not exist");
+            wp_send_json_error(array('message' => __('Database error. Please contact administrator.', 'acf-quiz')));
+        }
+        
         // Identify existing submission by session id or email
-        $existing_id = isset($_SESSION['quiz_submission_id']) ? (int) $_SESSION['quiz_submission_id'] : 0;
+        $existing_id = 0;
+        if (session_status() == PHP_SESSION_ACTIVE && isset($_SESSION['quiz_submission_id'])) {
+            $existing_id = (int) $_SESSION['quiz_submission_id'];
+        }
         if (!$existing_id && !empty($user_email)) {
             $existing_id = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE user_email = %s ORDER BY id DESC LIMIT 1", $user_email));
         }
@@ -2022,61 +2030,50 @@ class ACF_Quiz_System {
         $package_selected = sanitize_text_field($quiz_data['package_param'] ?? ($quiz_data['package_selected'] ?? ''));
         $package_price = intval($quiz_data['package_price'] ?? 0);
         
+        // Prepare data for database
+        $submission_data = array(
+            'user_name' => $user_name,
+            'user_phone' => $user_phone,
+            'user_email' => $user_email,
+            'id_number' => $id_number,
+            'gender' => $gender,
+            'birth_date' => $birth_date,
+            'address' => $address,
+            'package_selected' => $package_selected,
+            'package_price' => $package_price,
+            'score' => $total_score,
+            'max_score' => $max_possible_score,
+            'passed' => $passed ? 1 : 0,
+            'answers' => json_encode($results),
+            'current_step' => 4,
+            'completed' => 1,
+            'submission_time' => current_time('mysql'),
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+            'signature_data' => $signature_data,
+            'id_photo_filename' => $id_photo_filename,
+            'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
+        );
+
         if ($existing_id) {
-            $wpdb->update(
+            $result = $wpdb->update(
                 $table_name,
-                array(
-                    'user_name' => $user_name,
-                    'user_phone' => $user_phone,
-                    'user_email' => $user_email,
-                    'id_number' => $id_number,
-                    'gender' => $gender,
-                    'birth_date' => $birth_date,
-                    'address' => $address,
-                    'package_selected' => $package_selected,
-                    'package_price' => $package_price,
-                    'score' => $total_score,
-                    'max_score' => $max_possible_score,
-                    'passed' => $passed ? 1 : 0,
-                    'answers' => json_encode($results),
-                    'current_step' => 4,
-                    'completed' => 1,
-                    'submission_time' => current_time('mysql'),
-                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-                    'signature_data' => $signature_data,
-                    'id_photo_filename' => $id_photo_filename,
-                    'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
-                ),
+                $submission_data,
                 array('id' => $existing_id),
                 null,
                 array('%d')
             );
+            if ($result === false) {
+                error_log("Quiz submission: Database update failed - " . $wpdb->last_error);
+                wp_send_json_error(array('message' => __('Database error during update. Please try again.', 'acf-quiz')));
+            }
             $submission_id = $existing_id;
         } else {
-            $wpdb->insert($table_name, array(
-                'user_name' => $user_name,
-                'user_phone' => $user_phone,
-                'user_email' => $user_email,
-                'id_number' => $id_number,
-                'gender' => $gender,
-                'birth_date' => $birth_date,
-                'address' => $address,
-                'package_selected' => $package_selected,
-                'package_price' => $package_price,
-                'score' => $total_score,
-                'max_score' => $max_possible_score,
-                'passed' => $passed ? 1 : 0,
-                'answers' => json_encode($results),
-                'current_step' => 4,
-                'completed' => 1,
-                'submission_time' => current_time('mysql'),
-                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-                'signature_data' => $signature_data,
-                'id_photo_filename' => $id_photo_filename,
-                'id_photo_uploaded_at' => !empty($id_photo_filename) ? current_time('mysql') : null
-            ));
+            $result = $wpdb->insert($table_name, $submission_data);
+            if ($result === false) {
+                error_log("Quiz submission: Database insert failed - " . $wpdb->last_error);
+                wp_send_json_error(array('message' => __('Database error during insert. Please try again.', 'acf-quiz')));
+            }
             $submission_id = $wpdb->insert_id;
         }
 
